@@ -10,4 +10,4 @@ RUN dotnet publish -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "osuforfallascomparison.dll"]
+ENTRYPOINT ["dotnet", "osuforfellascomparison.dll"]
