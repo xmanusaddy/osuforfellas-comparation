@@ -6,7 +6,7 @@ A simple but clean way to compare osu! players stats — built for me and my two
 
 ## 🧠 What is this?
 
-This is a small web app that lets you compare up to **3 osu! players** in real time.
+This is a small web app that lets you compare up to **4 osu! players** in real time.
 
 It shows:
 
@@ -69,7 +69,14 @@ I just built this.
 
 ## 👀 Final note
 
+
 Nothing crazy, just something built with a bit of personality.
 
-And yeah…
-this was made for the fellas.
+---
+
+## Updates
+
+### NEW UPDATE
+now supports 4-player comparisons because somebody always got left out 😭
+
+(if people keep asking for more slots, i'll probably keep adding more)
