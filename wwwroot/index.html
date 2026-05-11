@@ -150,10 +150,14 @@
 
         .inputs-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
+
+            .inputs-grid:has(#p4) {
+                grid-template-columns: 1fr 1fr;
+            }
 
         .input-wrap {
             position: relative;
@@ -304,6 +308,10 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+
+            .cards-container.four-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
 
         .player-card {
             background: var(--card-bg);
@@ -725,8 +733,14 @@
             }
 
             .cards-container {
-                grid-template-columns: 1fr;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
             }
+
+                .cards-container.four-cards {
+                    grid-template-columns: 1fr 1fr;
+                }
         }
         .lang-switch {
             position: fixed;
@@ -814,6 +828,10 @@
                     <div class="input-label">Player 03</div>
                     <input class="player-input" id="p3" type="text" placeholder="username...">
                 </div>
+                <div class="input-wrap">
+    <div class="input-label">Player 04</div>
+    <input class="player-input" id="p4" type="text" placeholder="username...">
+</div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 2fr;gap:1rem;margin-bottom:1rem;">
@@ -1253,7 +1271,8 @@
             const names = [
                 document.getElementById('p1').value.trim(),
                 document.getElementById('p2').value.trim(),
-                document.getElementById('p3').value.trim()
+                document.getElementById('p3').value.trim(),
+                document.getElementById('p4').value.trim()
             ].filter(Boolean);
 
             if (!names.length) return;
@@ -1283,6 +1302,13 @@
 
         async function loadCards() {
             const container = document.getElementById('cards');
+
+            container.classList.remove('four-cards');
+
+            if (currentPlayers.length === 4) {
+                container.classList.add('four-cards');
+            }
+
             container.innerHTML = '';
             document.getElementById('podium-banner').style.display = 'none';
 
