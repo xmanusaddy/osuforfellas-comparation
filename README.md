@@ -42,7 +42,7 @@ I just built this.
 * Frontend: HTML, CSS, JS
 * Backend: ASP.NET Core
 * API: osu! official API
-* Hosting: Render
+* Hosting: Render (Free)
 
 ---
 
@@ -62,6 +62,8 @@ I just built this.
 * Shareable comparison links
 * Better animations
 * Player history tracking (maybe 👀)
+
+* They are just things I came up with, maybe I'll do them (I don't think so) xd
 
 ---
 
