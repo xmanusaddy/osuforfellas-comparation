@@ -87,6 +87,7 @@ public class OsuController : ControllerBase
             $"https://osu.ppy.sh/api/v2/users/{userId}/scores/best?mode={mode}&limit=1&include_fails=0"
         );
         scoresReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        scoresReq.Headers.Add("x-api-version", "20220705");
 
         var scoresResp = await _http.SendAsync(scoresReq);
         if (!scoresResp.IsSuccessStatusCode)

@@ -14,7 +14,10 @@ const LANGS = {
         refreshing: '⟳ Actualizando...',
         leader: '👑 Líder',
         back: '← Volver',
+        theme: 'Tema',
         focusBtn: '⤢',
+        playedOnLazer: 'Jugado en Lazer',
+        playedOnStable: 'Jugado en Stable',
         openMap: '↗ VER BEATMAP EN OSU!',
         topPlay: 'TOP PLAY',
         ppGained: 'PP GANADOS',
@@ -56,7 +59,10 @@ const LANGS = {
         refreshing: '⟳ Refreshing...',
         leader: '👑 Leader',
         back: '← Back',
+        theme: 'Theme',
         focusBtn: '⤢',
+        playedOnLazer: 'Played on Lazer',
+        playedOnStable: 'Played on Stable',
         openMap: '↗ OPEN BEATMAP IN OSU!',
         topPlay: 'TOP PLAY',
         ppGained: 'PP GAINED',
@@ -98,7 +104,10 @@ const LANGS = {
         refreshing: '⟳ Wird aktualisiert...',
         leader: '👑 Anführer',
         back: '← Zurück',
+        theme: 'Thema',
         focusBtn: '⤢',
+        playedOnLazer: 'Gespielt auf Lazer',
+        playedOnStable: 'Gespielt auf Stable',
         openMap: '↗ BEATMAP IN OSU! ÖFFNEN',
         topPlay: 'TOP PLAY',
         ppGained: 'PP ERHALTEN',
@@ -139,6 +148,8 @@ function applyLang() {
     document.getElementById('btn-search').textContent = t.search;
     document.getElementById('btn-refresh').textContent = t.refresh;
     document.getElementById('btn-back').textContent = t.back;
+    document.getElementById('theme-label').textContent = t.theme;
+    document.getElementById('theme-select').setAttribute('aria-label', t.theme);
 
     const label = document.querySelector('.podium-label');
     if (label) label.textContent = t.leader;
@@ -353,6 +364,19 @@ function getRankDisplay(rank) {
 
 function getRankClass(rank) {
     return `rank-letter rank-${rank || 'D'}`;
+}
+
+function renderScoreClient(score) {
+    const t = LANGS[currentLang];
+    const isStable = score?.legacy_score_id != null;
+    const label = isStable ? t.playedOnStable : t.playedOnLazer;
+    const clientClass = isStable ? 'stable' : 'lazer';
+    const icon = isStable ? '◉' : '✦';
+
+    return `<div class="score-client score-client--${clientClass}">
+        <span class="score-client-icon">${icon}</span>
+        <span>${label}</span>
+    </div>`;
 }
 
 // ══ TOP PLAY COMPACTO (cards multi-player) ══
@@ -622,6 +646,7 @@ function openFocusWithData(user, topPlay) {
 
     // Top play en modal
     renderFocusTopPlay(topPlay);
+    document.getElementById('focus-score-client').innerHTML = topPlay ? renderScoreClient(topPlay) : '';
 
     // Fondo beatmap
     const bgEl = document.getElementById('focus-bg');
@@ -773,6 +798,7 @@ async function doSearch() {
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'block';
     document.getElementById('lang-switch').classList.add('results-mode');
+    document.getElementById('theme-switch').classList.add('results-mode');
 
 
     const t = LANGS[currentLang];
@@ -902,6 +928,7 @@ function goBack() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('landing').style.display = 'flex';
     document.getElementById('lang-switch').classList.remove('results-mode');
+    document.getElementById('theme-switch').classList.remove('results-mode');
 
     topPlayCache = {};
 }
@@ -910,10 +937,13 @@ function goBack() {
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
     const langSwitch = document.querySelector('.lang-switch');
+    const themeSwitch = document.querySelector('.theme-switch');
     if (window.scrollY > lastScrollY && window.scrollY > 80) {
         langSwitch.classList.add('hidden');
+        themeSwitch.classList.add('hidden');
     } else {
         langSwitch.classList.remove('hidden');
+        themeSwitch.classList.remove('hidden');
     }
     lastScrollY = window.scrollY;
 });
