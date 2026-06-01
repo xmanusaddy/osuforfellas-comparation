@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>osu! PP Tracker</title>
+    <script>
+        document.documentElement.dataset.theme = localStorage.getItem('theme') || 'cyberpunk';
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -23,6 +26,12 @@
             <span class="lang-flag">🇩🇪</span>
             <span class="lang-name">Deutsch</span>
         </button>
+    </div>
+
+    <!-- Selector de theme — preparado para nuevos themes futuros -->
+    <div class="theme-switch" id="theme-switch">
+        <label class="theme-label" id="theme-label" for="theme-select"></label>
+        <select class="theme-select" id="theme-select"></select>
     </div>
 
     <!-- Fondo animado -->
@@ -126,8 +135,11 @@
                 </div>
                 <div class="focus-topplay" id="focus-topplay">
                     <div class="focus-topplay-header">
-                        <span class="focus-topplay-crown">♛</span>
-                        <span class="focus-topplay-label">TOP PLAY</span>
+                        <div class="focus-topplay-title">
+                            <span class="focus-topplay-crown">♛</span>
+                            <span class="focus-topplay-label">TOP PLAY</span>
+                        </div>
+                        <div class="focus-score-client" id="focus-score-client"></div>
                     </div>
                     <div class="focus-topplay-body" id="focus-topplay-body">
                         <div class="focus-tp-loading"><div class="spinner"></div></div>
@@ -138,6 +150,7 @@
         </div>
     </div>
 
+    <script src="theme-manager.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
