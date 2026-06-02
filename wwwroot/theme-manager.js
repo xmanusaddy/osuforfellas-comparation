@@ -8,6 +8,10 @@ const THEMES = [
     {
         id: 'cyberpunk',
         label: 'Cyberpunk'
+    },
+    {
+        id: 'heaven',
+        label: 'Heaven'
     }
 ];
 

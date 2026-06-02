@@ -106,6 +106,8 @@
             </div>
         </div>
 
+        <div id="compare-summary" class="compare-summary" style="display:none;"></div>
+
         <div id="global-error" style="display:none;"></div>
         <div class="cards-container" id="cards"></div>
     </section>
@@ -126,12 +128,16 @@
                         <div class="focus-country-flag" id="focus-flag"></div>
                         <div class="focus-player-name" id="focus-name">—</div>
                         <div class="focus-player-title" id="focus-title">—</div>
+                        <div class="focus-activity" id="focus-activity"></div>
                         <div class="focus-pp-wrap">
                             <div class="focus-pp-label">PERFORMANCE POINTS</div>
                             <div class="focus-pp-value" id="focus-pp">—<span class="focus-pp-unit">pp</span></div>
                         </div>
                     </div>
-                    <div class="focus-ranks" id="focus-ranks"></div>
+                    <div class="focus-ranks" id="focus-ranks-wrap">
+                        <div id="focus-ranks"></div>
+                        <div class="focus-rank-metrics" id="focus-rank-metrics"></div>
+                    </div>
                 </div>
                 <div class="focus-topplay" id="focus-topplay">
                     <div class="focus-topplay-header">

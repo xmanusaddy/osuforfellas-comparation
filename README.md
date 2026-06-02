@@ -6,6 +6,15 @@ A simple but clean way to compare osu! players stats — built for me and my fri
 
 ## 📋 Changelog
 
+### v1.3 — Compare Insights + Themes (BETA)
+- Added a new **comparison insights** strip for 2-4 players: PP lead, best accuracy, play count, and best top play
+- PP lead now shows who the leader is ahead of, using the actual second top player's name
+- Added **theme system beta** with Cyberpunk as the main theme and Heaven as an experimental theme
+- Theme selector now appears on the landing page and results screen, with the selected theme saved locally
+- Focus Mode now shows whether the top play was made on **osu!lazer** or **osu!stable**
+- Improved Focus Mode layout behavior for zoom/scroll edge cases
+- Creator styling now also applies when `manu is washed` (me), appears as the highlighted player in comparison insights
+
 ### v1.2 — Top Play Showcase + Focus Mode
 - Each player card now shows their **#1 top play** (map, PP, mods, accuracy)
 - **Single player mode** shows a full expanded top play layout
@@ -68,9 +77,12 @@ So instead of checking profiles one by one… I just built this.
 ## ✨ Features
 
 * Compare up to 4 players
+* Comparison insights for multi-player results
 * Top Play Showcase per player
 * Focus Mode for detailed player view
+* osu!lazer / osu!stable indicator inside Focus Mode
 * Multi-language (ES / EN / DE)
+* Theme selector with Cyberpunk default and Heaven beta
 * Real-time fetch from osu! API
 * Error handling for invalid players
 * Leader detection + ranking highlight
@@ -81,7 +93,8 @@ So instead of checking profiles one by one… I just built this.
 ## 💭 Future ideas
 
 * Shareable comparison links
-* Player history tracking (maybe 👀)
+* Polish and optimize Heaven Theme...
+* Horror Rhythm Theme
 * Better animations
 * They are just things I came up with, maybe I'll do them (I don't think so) xd
 

@@ -26,6 +26,14 @@ const LANGS = {
         downloadReplay: 'Descargar Replay',
         replayUnavailable: 'Replay no disponible',
         clickToExpand: 'CLICK PARA EXPANDIR',
+        activityNow: '🟢 Activo ahora',
+        activityMin: '⏱ Activo hace {n} min',
+        activityHour: '⏱ Activo hace {n} h',
+        activityDay: '⏱ Activo hace {n} días',
+        activityMonth: '⏱ Activo hace {n} meses',
+        peakRank: 'PEAK RANK',
+        trend90: 'Últimos 90 días',
+        trendStable: '→ Sin cambios',
         errors: {
             userNotFound: 'Jugador "{user}" no encontrado',
             one: 'Un jugador no fue encontrado',
@@ -35,6 +43,13 @@ const LANGS = {
         },
         players: { one: 'jugador', many: 'jugadores' },
         modes: { osu: 'osu!', taiko: 'osu!Taiko', fruits: 'osu!Catch', mania: 'osu!Mania' },
+        compare: {
+            ppLead: 'Ventaja PP',
+            ppLeadVs: 'contra {player}',
+            bestAcc: 'Mejor precisión',
+            playCount: 'Partidas jugadas',
+            bestTopPlay: 'Mejor Top Play'
+        },
         stats: {
             pp: 'Performance Points',
             acc: 'Precisión',
@@ -71,6 +86,14 @@ const LANGS = {
         downloadReplay: 'Download Replay',
         replayUnavailable: 'Replay unavailable',
         clickToExpand: 'CLICK TO EXPAND',
+        activityNow: '🟢 Active now',
+        activityMin: '⏱ Active {n} min ago',
+        activityHour: '⏱ Active {n} h ago',
+        activityDay: '⏱ Active {n} days ago',
+        activityMonth: '⏱ Active {n} months ago',
+        peakRank: 'PEAK RANK',
+        trend90: 'Last 90 days',
+        trendStable: '→ No change',
         errors: {
             userNotFound: 'Player "{user}" not found',
             one: 'One player was not found',
@@ -80,6 +103,13 @@ const LANGS = {
         },
         players: { one: 'player', many: 'players' },
         modes: { osu: 'osu!', taiko: 'osu!Taiko', fruits: 'osu!Catch', mania: 'osu!Mania' },
+        compare: {
+            ppLead: 'PP Lead',
+            ppLeadVs: 'vs {player}',
+            bestAcc: 'Best Accuracy',
+            playCount: 'Play Count',
+            bestTopPlay: 'Best Top Play'
+        },
         stats: {
             pp: 'Performance Points',
             acc: 'Accuracy',
@@ -116,6 +146,14 @@ const LANGS = {
         downloadReplay: 'Replay herunterladen',
         replayUnavailable: 'Replay nicht verfügbar',
         clickToExpand: 'KLICKEN ZUM ERWEITERN',
+        activityNow: '🟢 Jetzt aktiv',
+        activityMin: '⏱ Vor {n} Min. aktiv',
+        activityHour: '⏱ Vor {n} Std. aktiv',
+        activityDay: '⏱ Vor {n} Tagen aktiv',
+        activityMonth: '⏱ Vor {n} Monaten aktiv',
+        peakRank: 'PEAK RANK',
+        trend90: 'Letzte 90 Tage',
+        trendStable: '→ Keine Änderung',
         errors: {
             userNotFound: 'Spieler "{user}" nicht gefunden',
             one: 'Ein Spieler wurde nicht gefunden',
@@ -125,6 +163,13 @@ const LANGS = {
         },
         players: { one: 'Spieler', many: 'Spieler' },
         modes: { osu: 'osu!', taiko: 'osu!Taiko', fruits: 'osu!Catch', mania: 'osu!Mania' },
+        compare: {
+            ppLead: 'PP-Vorsprung',
+            ppLeadVs: 'gegen {player}',
+            bestAcc: 'Beste Genauigkeit',
+            playCount: 'Spielanzahl',
+            bestTopPlay: 'Bestes Top Play'
+        },
         stats: {
             pp: 'Leistungspunkte',
             acc: 'Genauigkeit',
@@ -183,6 +228,8 @@ let topPlayCache = {};
     const canvas = document.getElementById('bg-canvas');
     const ctx = canvas.getContext('2d');
     let W, H, circles = [];
+    let animationFrame = null;
+    let isRunning = false;
 
     function resize() {
         W = canvas.width = window.innerWidth;
@@ -218,6 +265,13 @@ let topPlayCache = {};
     }
 
     function tick() {
+        if (document.documentElement.dataset.theme !== 'cyberpunk') {
+            isRunning = false;
+            animationFrame = null;
+            ctx.clearRect(0, 0, W, H);
+            return;
+        }
+
         ctx.clearRect(0, 0, W, H);
         const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) / 1.5);
         grad.addColorStop(0, 'rgba(20,10,40,1)');
@@ -239,9 +293,32 @@ let topPlayCache = {};
             ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
             ctx.fill();
         });
-        requestAnimationFrame(tick);
+        animationFrame = requestAnimationFrame(tick);
     }
-    tick();
+
+    function startCyberpunkBg() {
+        if (isRunning || document.documentElement.dataset.theme !== 'cyberpunk') return;
+        isRunning = true;
+        animationFrame = requestAnimationFrame(tick);
+    }
+
+    const themeObserver = new MutationObserver(() => {
+        if (document.documentElement.dataset.theme === 'cyberpunk') {
+            startCyberpunkBg();
+        } else if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+            isRunning = false;
+            ctx.clearRect(0, 0, W, H);
+        }
+    });
+
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
+
+    startCyberpunkBg();
 })();
 
 // ══ API ══
@@ -306,6 +383,34 @@ function getUserTitle(pp) {
     if (pp >= 4000) return 'ADVANCED';
     if (pp >= 2000) return 'INTERMEDIATE';
     return 'BEGINNER';
+}
+
+function getActivityLabel(lastVisit) {
+    if (!lastVisit) return null;
+    const t = LANGS[currentLang];
+    const diffMs = Date.now() - new Date(lastVisit).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin <= 15) return { text: t.activityNow, active: true };
+    if (diffMin < 60) return { text: t.activityMin.replace('{n}', diffMin), active: false };
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return { text: t.activityHour.replace('{n}', diffH), active: false };
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 30) return { text: t.activityDay.replace('{n}', diffD), active: false };
+    const diffM = Math.floor(diffD / 30);
+    return { text: t.activityMonth.replace('{n}', diffM), active: false };
+}
+
+function getRankTrend(rankHistory) {
+    const data = rankHistory?.data;
+    if (!data || data.length < 2) return null;
+    const valid = data.filter(v => v > 0);
+    if (valid.length < 2) return null;
+    const first = valid[0];
+    const last = valid[valid.length - 1];
+    const diff = first - last; // positivo = mejoró (rank bajó)
+    const STABLE_THRESHOLD = 50; // diferencia menor a esto = estable
+    if (Math.abs(diff) < STABLE_THRESHOLD) return { diff: 0, state: 'stable' };
+    return { diff, state: diff > 0 ? 'up' : 'down' };
 }
 
 function fmtDate(dateStr) {
@@ -377,6 +482,117 @@ function renderScoreClient(score) {
         <span class="score-client-icon">${icon}</span>
         <span>${label}</span>
     </div>`;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
+function isCreatorUsername(username) {
+    return String(username ?? '').trim().toLowerCase() === 'manu is washed';
+}
+
+function renderCompareSummaryValue(item) {
+    if (!item.player) {
+        return `<div class="compare-summary-value">${escapeHtml(item.value)}</div>`;
+    }
+
+    const creatorClass = isCreatorUsername(item.player) ? ' creator-name' : '';
+    return `
+        <div class="compare-summary-value">
+            <span class="compare-summary-player${creatorClass}">${escapeHtml(item.player)}</span>
+            <span class="compare-summary-metric">${escapeHtml(item.metric)}</span>
+        </div>
+    `;
+}
+
+function renderCompareSummary(users, topPlays, isSingle) {
+    const summary = document.getElementById('compare-summary');
+    if (!summary) return;
+
+    const valid = users
+        .map((user, idx) => user.ok ? { ...user, topPlay: topPlays[idx] } : null)
+        .filter(Boolean);
+
+    if (isSingle || valid.length < 2) {
+        summary.innerHTML = '';
+        summary.style.display = 'none';
+        return;
+    }
+
+    const t = LANGS[currentLang].compare;
+    const byPP = [...valid].sort((a, b) =>
+        (b.data.statistics?.pp || 0) - (a.data.statistics?.pp || 0)
+    );
+    const leader = byPP[0];
+    const runnerUp = byPP[1];
+    const ppLead = Math.max(
+        0,
+        Math.round((leader.data.statistics?.pp || 0) - (runnerUp.data.statistics?.pp || 0))
+    );
+
+    const bestAcc = [...valid]
+        .filter(item => typeof item.data.statistics?.hit_accuracy === 'number')
+        .sort((a, b) => b.data.statistics.hit_accuracy - a.data.statistics.hit_accuracy)[0];
+
+    const mostActive = [...valid]
+        .filter(item => typeof item.data.statistics?.play_count === 'number')
+        .sort((a, b) => b.data.statistics.play_count - a.data.statistics.play_count)[0];
+
+    const bestTopPlay = [...valid]
+        .filter(item => typeof item.topPlay?.pp === 'number')
+        .sort((a, b) => (b.topPlay.pp || 0) - (a.topPlay.pp || 0))[0];
+
+    const items = [
+        {
+            icon: 'Δ',
+            label: t.ppLead,
+            player: leader.data.username,
+            metric: `+${fmtNum(ppLead)}pp`,
+            detail: t.ppLeadVs.replace('{player}', runnerUp.data.username),
+            tone: 'gold'
+        },
+        bestAcc && {
+            icon: '◎',
+            label: t.bestAcc,
+            player: bestAcc.data.username,
+            metric: fmtAcc(bestAcc.data.statistics.hit_accuracy),
+            tone: 'cyan'
+        },
+        mostActive && {
+            icon: '▶',
+            label: t.playCount,
+            player: mostActive.data.username,
+            metric: fmtNum(mostActive.data.statistics.play_count),
+            tone: 'pink'
+        },
+        bestTopPlay && {
+            icon: '♛',
+            label: t.bestTopPlay,
+            player: bestTopPlay.data.username,
+            metric: `${fmtNum(Math.round(bestTopPlay.topPlay.pp || 0))}pp`,
+            tone: 'gold'
+        }
+    ].filter(Boolean);
+
+    summary.innerHTML = items.map(item => `
+        <div class="compare-summary-item compare-summary-item--${item.tone}">
+            <div class="compare-summary-label">
+                <span class="compare-summary-icon">${item.icon}</span>
+                <span>${escapeHtml(item.label)}</span>
+            </div>
+            ${renderCompareSummaryValue(item)}
+            ${item.detail ? `<div class="compare-summary-detail">${escapeHtml(item.detail)}</div>` : ''}
+        </div>
+    `).join('');
+
+    summary.style.display = items.length ? 'grid' : 'none';
 }
 
 // ══ TOP PLAY COMPACTO (cards multi-player) ══
@@ -492,6 +708,7 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
     const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const flag = getCountryFlag(user.country_code);
     const title = getUserTitle(pp);
+    const activity = getActivityLabel(user.last_visit);
 
     const card = document.createElement('div');
     card.className = 'player-card';
@@ -512,6 +729,7 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
             <span class="country-flag">${flag}</span>
             <div class="player-name${isCreator ? ' creator-name' : ''}">${user.username}</div>
             <div class="player-title${isCreator ? ' creator-title' : ''}">${isCreator ? 'PAGE CREATOR' : title}</div>
+            ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${activity.text}</div>` : ''}
         </div>
     </div>
 
@@ -607,8 +825,41 @@ function openFocusWithData(user, topPlay) {
     titleEl.textContent = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
     titleEl.className = 'focus-player-title' + (isCreator ? ' creator-title' : '');
 
+    const activity = getActivityLabel(user.last_visit);
+    const activityEl = document.getElementById('focus-activity');
+    if (activity) {
+        activityEl.textContent = activity.text;
+        activityEl.className = 'focus-activity activity-indicator' + (activity.active ? ' activity-now' : '');
+    } else {
+        activityEl.textContent = '';
+        activityEl.className = 'focus-activity';
+    }
+
     document.getElementById('focus-pp').innerHTML =
         `${fmtNum(pp)}<span class="focus-pp-unit">pp</span>`;
+
+    // Peak rank y tendencia
+    const peakRank = user.rank_highest?.rank;
+    const trend = getRankTrend(user.rank_history);
+    const metricsEl = document.getElementById('focus-rank-metrics');
+    if (peakRank || trend) {
+        let trendHtml = '';
+        if (trend) {
+            if (trend.state === 'stable') {
+                trendHtml = `<div class="focus-trend focus-trend--stable">${t.trendStable} <span class="focus-trend-label">${t.trend90}</span></div>`;
+            } else {
+                const arrow = trend.state === 'up' ? '↗' : '↘';
+                const sign = trend.state === 'up' ? '+' : '−';
+                const cls = trend.state === 'up' ? 'focus-trend--up' : 'focus-trend--down';
+                trendHtml = `<div class="focus-trend ${cls}">${arrow} ${sign}${fmtNum(Math.abs(trend.diff))} <span class="focus-trend-label">${t.trend90}</span></div>`;
+            }
+        }
+        metricsEl.innerHTML = `
+            ${peakRank ? `<div class="focus-peak"><span class="focus-peak-icon">★</span><span class="focus-peak-label">${t.peakRank}</span><span class="focus-peak-value">#${fmtNum(peakRank)}</span></div>` : ''}
+            ${trendHtml}`;
+    } else {
+        metricsEl.innerHTML = '';
+    }
 
     // Ranks
     document.getElementById('focus-ranks').innerHTML = `
@@ -822,6 +1073,11 @@ async function loadCards() {
 
     container.innerHTML = '';
     document.getElementById('podium-banner').style.display = 'none';
+    const summary = document.getElementById('compare-summary');
+    if (summary) {
+        summary.innerHTML = '';
+        summary.style.display = 'none';
+    }
 
     // Spinners
     currentPlayers.forEach(() => {
@@ -878,6 +1134,8 @@ async function loadCards() {
         document.getElementById('podium-winner').textContent =
             `${sorted[0].data.username} — ${fmtNum(Math.round(sorted[0].data.statistics?.pp || 0))}pp`;
     }
+
+    renderCompareSummary(users, topPlays, isSingle);
 
     // Render
     container.innerHTML = '';
