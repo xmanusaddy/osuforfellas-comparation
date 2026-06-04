@@ -20,6 +20,7 @@ const LANGS = {
         leader: '👑 Líder',
         back: '← Volver',
         theme: 'Tema',
+        createdBy: 'creado por',
         loginOsu: 'Iniciar sesión con osu!',
         logout: 'Cerrar sesión',
         connectedAs: 'Conectado como',
@@ -104,6 +105,7 @@ const LANGS = {
         leader: '👑 Leader',
         back: '← Back',
         theme: 'Theme',
+        createdBy: 'created by',
         loginOsu: 'Sign in with osu!',
         logout: 'Log out',
         connectedAs: 'Connected as',
@@ -188,6 +190,7 @@ const LANGS = {
         leader: '👑 Anführer',
         back: '← Zurück',
         theme: 'Thema',
+        createdBy: 'erstellt von',
         loginOsu: 'Mit osu! anmelden',
         logout: 'Abmelden',
         connectedAs: 'Verbunden als',
@@ -271,6 +274,7 @@ function applyLang() {
     document.getElementById('btn-back').textContent = t.back;
     document.getElementById('theme-label').textContent = t.theme;
     document.getElementById('theme-select').setAttribute('aria-label', t.theme);
+    document.getElementById('footer-created-by').textContent = t.createdBy;
 
     const label = document.querySelector('.podium-label');
     if (label) label.textContent = t.leader;
