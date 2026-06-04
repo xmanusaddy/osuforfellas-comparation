@@ -4,10 +4,15 @@
 
 // ══ IDIOMAS ══
 let currentLang = localStorage.getItem('lang') || 'es';
+const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
+const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
+const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
+const COMPARISON_HISTORY_LIMIT = 20;
 
 const LANGS = {
     es: {
         search: '▶ BUSCAR JUGADORES',
+        compareFriends: '▶ COMPARAR AMIGOS',
         loading: 'Cargando...',
         updated: 'Actualizado',
         refresh: '⟳ Actualizar',
@@ -15,6 +20,29 @@ const LANGS = {
         leader: '👑 Líder',
         back: '← Volver',
         theme: 'Tema',
+        loginOsu: 'Iniciar sesión con osu!',
+        logout: 'Cerrar sesión',
+        connectedAs: 'Conectado como',
+        loginError: 'Error al iniciar sesión',
+        friendsTitle: 'Amigos',
+        favoritesTitle: 'Favoritos',
+        friendsLoading: 'Cargando amigos...',
+        friendsError: 'Error al cargar amigos',
+        friendsEmpty: 'No hay amigos para mostrar',
+        favoritesEmpty: 'Sin favoritos todavía',
+        friendsNoResults: 'No se encontraron amigos',
+        friendsSearch: 'Buscar amigos...',
+        favoritesSearch: 'Buscar favoritos...',
+        friendsUnknownCountry: 'País no disponible',
+        historyTitle: 'Historial',
+        comparisonFavoritesTitle: 'Favoritos',
+        historySearch: 'Buscar historial...',
+        comparisonFavoritesSearch: 'Buscar favoritos...',
+        historyEmpty: 'Sin comparaciones recientes',
+        comparisonFavoritesEmpty: 'Sin comparaciones favoritas',
+        historyNoResults: 'No se encontraron comparaciones',
+        fillComparison: 'Rellenar comparación',
+        rerunComparison: 'Repetir comparación',
         focusBtn: '⤢',
         playedOnLazer: 'Jugado en Lazer',
         playedOnStable: 'Jugado en Stable',
@@ -68,6 +96,7 @@ const LANGS = {
     },
     en: {
         search: '▶ SEARCH PLAYERS',
+        compareFriends: '▶ COMPARE FRIENDS',
         loading: 'Loading...',
         updated: 'Updated',
         refresh: '⟳ Refresh',
@@ -75,6 +104,29 @@ const LANGS = {
         leader: '👑 Leader',
         back: '← Back',
         theme: 'Theme',
+        loginOsu: 'Sign in with osu!',
+        logout: 'Log out',
+        connectedAs: 'Connected as',
+        loginError: 'Sign-in failed',
+        friendsTitle: 'Friends',
+        favoritesTitle: 'Favorites',
+        friendsLoading: 'Loading friends...',
+        friendsError: 'Could not load friends',
+        friendsEmpty: 'No friends to show',
+        favoritesEmpty: 'No favorites yet',
+        friendsNoResults: 'No friends found',
+        friendsSearch: 'Search friends...',
+        favoritesSearch: 'Search favorites...',
+        friendsUnknownCountry: 'Country unavailable',
+        historyTitle: 'History',
+        comparisonFavoritesTitle: 'Favorites',
+        historySearch: 'Search history...',
+        comparisonFavoritesSearch: 'Search favorites...',
+        historyEmpty: 'No recent comparisons',
+        comparisonFavoritesEmpty: 'No favorite comparisons',
+        historyNoResults: 'No comparisons found',
+        fillComparison: 'Fill comparison',
+        rerunComparison: 'Repeat comparison',
         focusBtn: '⤢',
         playedOnLazer: 'Played on Lazer',
         playedOnStable: 'Played on Stable',
@@ -128,6 +180,7 @@ const LANGS = {
     },
     de: {
         search: '▶ SPIELER SUCHEN',
+        compareFriends: '▶ FREUNDE VERGLEICHEN',
         loading: 'Wird geladen...',
         updated: 'Aktualisiert',
         refresh: '⟳ Aktualisieren',
@@ -135,6 +188,29 @@ const LANGS = {
         leader: '👑 Anführer',
         back: '← Zurück',
         theme: 'Thema',
+        loginOsu: 'Mit osu! anmelden',
+        logout: 'Abmelden',
+        connectedAs: 'Verbunden als',
+        loginError: 'Anmeldung fehlgeschlagen',
+        friendsTitle: 'Freunde',
+        favoritesTitle: 'Favoriten',
+        friendsLoading: 'Freunde werden geladen...',
+        friendsError: 'Freunde konnten nicht geladen werden',
+        friendsEmpty: 'Keine Freunde anzuzeigen',
+        favoritesEmpty: 'Noch keine Favoriten',
+        friendsNoResults: 'Keine Freunde gefunden',
+        friendsSearch: 'Freunde suchen...',
+        favoritesSearch: 'Favoriten suchen...',
+        friendsUnknownCountry: 'Land nicht verfügbar',
+        historyTitle: 'Verlauf',
+        comparisonFavoritesTitle: 'Favoriten',
+        historySearch: 'Verlauf suchen...',
+        comparisonFavoritesSearch: 'Favoriten suchen...',
+        historyEmpty: 'Keine letzten Vergleiche',
+        comparisonFavoritesEmpty: 'Keine Favoritenvergleiche',
+        historyNoResults: 'Keine Vergleiche gefunden',
+        fillComparison: 'Vergleich ausfüllen',
+        rerunComparison: 'Vergleich wiederholen',
         focusBtn: '⤢',
         playedOnLazer: 'Gespielt auf Lazer',
         playedOnStable: 'Gespielt auf Stable',
@@ -190,7 +266,7 @@ const LANGS = {
 
 function applyLang() {
     const t = LANGS[currentLang];
-    document.getElementById('btn-search').textContent = t.search;
+    updateSearchButtonLabel();
     document.getElementById('btn-refresh').textContent = t.refresh;
     document.getElementById('btn-back').textContent = t.back;
     document.getElementById('theme-label').textContent = t.theme;
@@ -204,6 +280,10 @@ function applyLang() {
 
     document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`.lang-btn[data-lang='${currentLang}']`)?.classList.add('active');
+
+    renderAuthWidget();
+    renderFriendsPanel();
+    renderComparisonHistoryPanel();
 
     if (document.getElementById('results').style.display !== 'none') {
         loadCards();
@@ -222,6 +302,22 @@ let currentMode = 'osu';
 let refreshTimer = null;
 // Cache de top plays para el Focus Mode: { 'username': scoreData | null }
 let topPlayCache = {};
+let loggedInUser = null;
+let authErrorVisible = false;
+let friendsState = {
+    loading: false,
+    loaded: false,
+    error: false,
+    items: []
+};
+let friendSearchQuery = '';
+const selectedFriendUsernames = new Set();
+let friendFilterMode = 'friends';
+const favoriteFriendIds = new Set();
+let comparisonHistory = [];
+let favoriteComparisons = [];
+let comparisonHistoryFilter = 'history';
+let comparisonHistorySearch = '';
 
 // ══ FONDO ANIMADO ══
 (function bgInit() {
@@ -496,6 +592,671 @@ function escapeHtml(value) {
 
 function isCreatorUsername(username) {
     return String(username ?? '').trim().toLowerCase() === 'manu is washed';
+}
+
+function normalizeUsername(username) {
+    return String(username ?? '').trim().toLowerCase();
+}
+
+function readFavoriteFriendIds() {
+    try {
+        const key = getFriendFavoritesStorageKey();
+        if (!key) return [];
+
+        const value = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(value) ? value.map(String) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveFavoriteFriendIds() {
+    const key = getFriendFavoritesStorageKey();
+    if (!key) return;
+
+    localStorage.setItem(key, JSON.stringify([...favoriteFriendIds]));
+}
+
+function getFriendFavoritesStorageKey() {
+    const userId = loggedInUser?.id;
+    return userId ? `${FRIEND_FAVORITES_STORAGE_KEY}_${userId}` : '';
+}
+
+function getHistoryOwnerKey() {
+    return loggedInUser?.id ? String(loggedInUser.id) : 'guest';
+}
+
+function getComparisonStorageKey(baseKey) {
+    return `${baseKey}_${getHistoryOwnerKey()}`;
+}
+
+function loadFavoriteFriendIdsForUser() {
+    favoriteFriendIds.clear();
+    readFavoriteFriendIds().forEach(id => favoriteFriendIds.add(id));
+}
+
+function migrateLegacyFavoriteFriendIds() {
+    const key = getFriendFavoritesStorageKey();
+    if (!key || localStorage.getItem(key)) return;
+
+    const legacy = localStorage.getItem(FRIEND_FAVORITES_STORAGE_KEY);
+    if (!legacy) return;
+
+    localStorage.setItem(key, legacy);
+    localStorage.removeItem(FRIEND_FAVORITES_STORAGE_KEY);
+}
+
+function readStoredComparisons(baseKey) {
+    try {
+        const value = JSON.parse(localStorage.getItem(getComparisonStorageKey(baseKey)) || '[]');
+        return Array.isArray(value) ? value.filter(isValidComparisonRecord) : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeStoredComparisons(baseKey, records) {
+    localStorage.setItem(getComparisonStorageKey(baseKey), JSON.stringify(records));
+}
+
+function isValidComparisonRecord(record) {
+    return record &&
+        typeof record.id === 'string' &&
+        Array.isArray(record.players) &&
+        record.players.length > 0 &&
+        typeof record.mode === 'string';
+}
+
+function loadComparisonHistoryForCurrentUser() {
+    comparisonHistory = readStoredComparisons(RECENT_COMPARISONS_STORAGE_KEY);
+    favoriteComparisons = readStoredComparisons(FAVORITE_COMPARISONS_STORAGE_KEY);
+    comparisonHistorySearch = '';
+    comparisonHistoryFilter = comparisonHistory.length ? 'history' : 'favorites';
+    renderComparisonHistoryPanel();
+}
+
+function consumeAuthStatusFromUrl() {
+    const url = new URL(window.location.href);
+    const status = url.searchParams.get('auth');
+    authErrorVisible = status === 'error' || status === 'missing_config';
+
+    if (status) {
+        url.searchParams.delete('auth');
+        const cleanUrl = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+}
+
+async function initAuth() {
+    consumeAuthStatusFromUrl();
+    await refreshAuthSession();
+}
+
+async function refreshAuthSession() {
+    try {
+        const res = await fetch('/api/me', { cache: 'no-store' });
+        if (!res.ok) throw new Error('me_failed');
+        const data = await res.json();
+        loggedInUser = data.authenticated ? data.user : null;
+    } catch {
+        loggedInUser = null;
+    }
+
+    renderAuthWidget();
+    loadComparisonHistoryForCurrentUser();
+    if (loggedInUser) {
+        migrateLegacyFavoriteFriendIds();
+        loadFavoriteFriendIdsForUser();
+        await loadFriends();
+    } else {
+        favoriteFriendIds.clear();
+        resetFriends();
+        renderFriendsPanel();
+    }
+}
+
+function renderAuthWidget() {
+    const widget = document.getElementById('auth-widget');
+    if (!widget) return;
+
+    const t = LANGS[currentLang];
+
+    if (!loggedInUser) {
+        widget.innerHTML = `
+            <a class="auth-login-btn" href="/auth/osu/login">${escapeHtml(t.loginOsu)}</a>
+            ${authErrorVisible ? `<div class="auth-error">${escapeHtml(t.loginError)}</div>` : ''}
+        `;
+        return;
+    }
+
+    authErrorVisible = false;
+    const username = loggedInUser.username || 'osu!';
+    const isCreator = isCreatorUsername(username);
+    const pp = Math.round(loggedInUser.statistics?.pp || 0);
+    const title = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
+    const avatar = loggedInUser.avatar_url || '';
+
+    widget.innerHTML = `
+        <div class="auth-card">
+            <img class="auth-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(username)}">
+            <div class="auth-meta">
+                <div class="auth-kicker">${escapeHtml(t.connectedAs)}</div>
+                <div class="auth-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+                <div class="auth-tag${isCreator ? ' creator-title' : ''}">${escapeHtml(title)}</div>
+            </div>
+            <button class="auth-logout" type="button" onclick="logoutOsu()">
+                <span>⏻</span>
+                <span>${escapeHtml(t.logout)}</span>
+            </button>
+        </div>
+    `;
+}
+
+async function logoutOsu() {
+    try {
+        await fetch('/auth/logout', { method: 'POST' });
+    } finally {
+        loggedInUser = null;
+        authErrorVisible = false;
+        favoriteFriendIds.clear();
+        resetFriends();
+        renderAuthWidget();
+        renderFriendsPanel();
+    }
+}
+
+function resetFriends() {
+    friendSearchQuery = '';
+    selectedFriendUsernames.clear();
+    getPlayerInputs().forEach(input => {
+        delete input.dataset.friendUsername;
+    });
+    updateSearchButtonLabel();
+
+    friendsState = {
+        loading: false,
+        loaded: false,
+        error: false,
+        items: []
+    };
+}
+
+async function loadFriends() {
+    friendsState = {
+        loading: true,
+        loaded: false,
+        error: false,
+        items: []
+    };
+    renderFriendsPanel();
+
+    try {
+        const res = await fetch('/api/me/friends', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`friends_${res.status}`);
+
+        const data = await res.json();
+        friendsState = {
+            loading: false,
+            loaded: true,
+            error: false,
+            items: Array.isArray(data) ? data : []
+        };
+    } catch {
+        friendsState = {
+            loading: false,
+            loaded: true,
+            error: true,
+            items: []
+        };
+    }
+
+    renderFriendsPanel();
+}
+
+function renderFriendsPanel() {
+    const panel = document.getElementById('friends-panel');
+    if (!panel) return;
+
+    if (!loggedInUser) {
+        panel.innerHTML = '';
+        panel.style.display = 'none';
+        return;
+    }
+
+    const t = LANGS[currentLang];
+    panel.style.display = 'block';
+    const activeFriends = getFriendsForActiveFilter();
+    const visibleFriends = getFilteredFriends();
+    const title = friendFilterMode === 'favorites' ? t.favoritesTitle : t.friendsTitle;
+    const searchPlaceholder = friendFilterMode === 'favorites' ? t.favoritesSearch : t.friendsSearch;
+
+    let body = '';
+    if (friendsState.loading) {
+        body = `
+            <div class="friends-state">
+                <div class="spinner"></div>
+                <span>${escapeHtml(t.friendsLoading)}</span>
+            </div>
+        `;
+    } else if (friendsState.error) {
+        body = `<div class="friends-state friends-state--error">${escapeHtml(t.friendsError)}</div>`;
+    } else if (!friendsState.items.length) {
+        body = `<div class="friends-state">${escapeHtml(t.friendsEmpty)}</div>`;
+    } else if (friendFilterMode === 'favorites' && !activeFriends.length) {
+        body = `<div class="friends-state friends-state--empty">${escapeHtml(t.favoritesEmpty)}</div>`;
+    } else if (!visibleFriends.length) {
+        body = `<div class="friends-state">${escapeHtml(t.friendsNoResults)}</div>`;
+    } else {
+        body = `
+            <div class="friends-grid">
+                ${visibleFriends.map(renderFriendItem).join('')}
+            </div>
+        `;
+    }
+
+    panel.innerHTML = `
+        <div class="friends-panel-toolbar">
+            <label class="friends-search-wrap">
+                <span class="friends-search-icon">⌕</span>
+                <input
+                    class="friends-search"
+                    id="friends-search"
+                    type="search"
+                    value="${escapeHtml(friendSearchQuery)}"
+                    placeholder="${escapeHtml(searchPlaceholder)}"
+                    oninput="updateFriendSearch(this.value)"
+                    autocomplete="off"
+                    spellcheck="false">
+            </label>
+            <div class="friends-panel-header">
+                <span class="friends-panel-mark">◎</span>
+                <span>${escapeHtml(title)}</span>
+            </div>
+            <div class="friends-filter-group" aria-label="${escapeHtml(title)}">
+                <button class="friends-filter-btn${friendFilterMode === 'friends' ? ' active' : ''}" type="button" onclick="setFriendFilterMode('friends')" title="${escapeHtml(t.friendsTitle)}" aria-label="${escapeHtml(t.friendsTitle)}">◎</button>
+                <button class="friends-filter-btn${friendFilterMode === 'favorites' ? ' active' : ''}" type="button" onclick="setFriendFilterMode('favorites')" title="${escapeHtml(t.favoritesTitle)}" aria-label="${escapeHtml(t.favoritesTitle)}">★</button>
+            </div>
+            <div class="friends-count">${fmtNum(visibleFriends.length)} / ${fmtNum(activeFriends.length)}</div>
+        </div>
+        ${body}
+    `;
+}
+
+function setFriendFilterMode(mode) {
+    friendFilterMode = mode === 'favorites' ? 'favorites' : 'friends';
+    friendSearchQuery = '';
+    renderFriendsPanel();
+}
+
+function updateFriendSearch(value) {
+    friendSearchQuery = value || '';
+    renderFriendsPanel();
+    const searchInput = document.getElementById('friends-search');
+    if (searchInput) {
+        const cursorPosition = searchInput.value.length;
+        searchInput.focus({ preventScroll: true });
+        searchInput.setSelectionRange(cursorPosition, cursorPosition);
+    }
+}
+
+function getFilteredFriends() {
+    const query = friendSearchQuery.trim().toLowerCase();
+    const source = getFriendsForActiveFilter();
+    if (!query) return source;
+
+    return source.filter(friend => {
+        const country = getFriendCountry(friend);
+        return [
+            friend?.username,
+            friend?.country_code,
+            friend?.country?.code,
+            friend?.country?.name,
+            country.label
+        ].some(value => String(value ?? '').toLowerCase().includes(query));
+    });
+}
+
+function getFriendsForActiveFilter() {
+    if (friendFilterMode !== 'favorites') return friendsState.items;
+    return friendsState.items.filter(friend => favoriteFriendIds.has(getFriendId(friend)));
+}
+
+function renderFriendItem(friend) {
+    const username = friend?.username || 'osu!';
+    const avatar = friend?.avatar_url || '';
+    const country = getFriendCountry(friend);
+    const selected = selectedFriendUsernames.has(normalizeUsername(username));
+    const friendId = getFriendId(friend);
+    const favorite = friendId && favoriteFriendIds.has(friendId);
+
+    return `
+        <div class="friend-card${selected ? ' friend-card--selected' : ''}" role="button" tabindex="0" data-friend-username="${escapeHtml(username)}" onclick="toggleFriendSelection(this.dataset.friendUsername)" onkeydown="handleFriendCardKey(event, this.dataset.friendUsername)">
+            <button class="friend-favorite${favorite ? ' active' : ''}" type="button" data-friend-id="${escapeHtml(friendId)}" onclick="toggleFriendFavorite(event, this.dataset.friendId)" title="${escapeHtml(LANGS[currentLang].favoritesTitle)}" aria-label="${escapeHtml(LANGS[currentLang].favoritesTitle)}"${friendId ? '' : ' disabled'}>★</button>
+            <img class="friend-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(username)}">
+            <div class="friend-info">
+                <div class="friend-name">${escapeHtml(username)}</div>
+                <div class="friend-country">
+                    ${country.flag ? `<span class="friend-country-flag">${escapeHtml(country.flag)}</span>` : ''}
+                    <span>${escapeHtml(country.label)}</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getFriendId(friend) {
+    return friend?.id != null ? String(friend.id) : '';
+}
+
+function toggleFriendFavorite(event, friendId) {
+    event.stopPropagation();
+    const id = String(friendId || '');
+    if (!id) return;
+
+    if (favoriteFriendIds.has(id)) {
+        favoriteFriendIds.delete(id);
+    } else {
+        favoriteFriendIds.add(id);
+    }
+
+    saveFavoriteFriendIds();
+    renderFriendsPanel();
+}
+
+function handleFriendCardKey(event, username) {
+    if (event.target.closest('.friend-favorite')) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    toggleFriendSelection(username);
+}
+
+function getFriendCountry(friend) {
+    const t = LANGS[currentLang];
+    const code = friend?.country_code || friend?.country?.code || '';
+    const label = friend?.country?.name || code || t.friendsUnknownCountry;
+
+    return {
+        flag: code ? getCountryFlag(code) : '',
+        label
+    };
+}
+
+function getPlayerInputs() {
+    return ['p1', 'p2', 'p3', 'p4']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+}
+
+function toggleFriendSelection(username) {
+    const key = normalizeUsername(username);
+    if (!key) return;
+
+    if (selectedFriendUsernames.has(key)) {
+        removeFriendSelection(username);
+        return;
+    }
+
+    const freeInput = getPlayerInputs().find(input => !input.value.trim());
+    if (!freeInput) return;
+
+    selectedFriendUsernames.add(key);
+    freeInput.value = username;
+    freeInput.dataset.friendUsername = key;
+    syncFriendSelectionsFromInputs();
+}
+
+function removeFriendSelection(username) {
+    const key = normalizeUsername(username);
+    selectedFriendUsernames.delete(key);
+
+    getPlayerInputs().forEach(input => {
+        if (input.dataset.friendUsername === key) {
+            input.value = '';
+            delete input.dataset.friendUsername;
+        }
+    });
+
+    syncFriendSelectionsFromInputs();
+}
+
+function syncFriendSelectionsFromInputs() {
+    getPlayerInputs().forEach(input => {
+        const friendKey = input.dataset.friendUsername;
+        if (!friendKey) return;
+
+        if (normalizeUsername(input.value) !== friendKey) {
+            selectedFriendUsernames.delete(friendKey);
+            delete input.dataset.friendUsername;
+        }
+    });
+
+    updateSearchButtonLabel();
+    renderFriendsPanel();
+}
+
+function updateSearchButtonLabel() {
+    const btn = document.getElementById('btn-search');
+    if (!btn) return;
+
+    const t = LANGS[currentLang];
+    btn.textContent = selectedFriendUsernames.size ? t.compareFriends : t.search;
+}
+
+function createComparisonRecord(players, mode) {
+    const cleanPlayers = players
+        .map(player => String(player ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 4);
+
+    if (!cleanPlayers.length) return null;
+
+    const normalizedKey = cleanPlayers
+        .map(player => normalizeUsername(player))
+        .sort()
+        .join('|');
+
+    return {
+        id: `${mode}:${normalizedKey}`,
+        players: cleanPlayers,
+        mode,
+        lastUsedAt: new Date().toISOString()
+    };
+}
+
+function saveComparisonToHistory(players, mode) {
+    const record = createComparisonRecord(players, mode);
+    if (!record) return;
+
+    comparisonHistory = [
+        record,
+        ...comparisonHistory.filter(item => item.id !== record.id)
+    ].slice(0, COMPARISON_HISTORY_LIMIT);
+
+    comparisonHistoryFilter = 'history';
+    writeStoredComparisons(RECENT_COMPARISONS_STORAGE_KEY, comparisonHistory);
+    renderComparisonHistoryPanel();
+}
+
+function renderComparisonHistoryPanel() {
+    const panel = document.getElementById('comparison-history-panel');
+    if (!panel) return;
+
+    const hasAnyItems = comparisonHistory.length || favoriteComparisons.length;
+    if (!hasAnyItems) {
+        panel.innerHTML = '';
+        panel.style.display = 'none';
+        return;
+    }
+
+    const t = LANGS[currentLang];
+    const activeItems = getComparisonItemsForActiveFilter();
+    const visibleItems = getFilteredComparisonItems();
+    const title = comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesTitle : t.historyTitle;
+    const placeholder = comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesSearch : t.historySearch;
+
+    let body = '';
+    if (!activeItems.length) {
+        body = `<div class="history-state">${escapeHtml(comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesEmpty : t.historyEmpty)}</div>`;
+    } else if (!visibleItems.length) {
+        body = `<div class="history-state">${escapeHtml(t.historyNoResults)}</div>`;
+    } else {
+        body = `
+            <div class="history-grid">
+                ${visibleItems.map(renderComparisonHistoryItem).join('')}
+            </div>
+        `;
+    }
+
+    panel.style.display = 'block';
+    panel.innerHTML = `
+        <div class="history-panel-toolbar">
+            <label class="history-search-wrap">
+                <span class="history-search-icon">⌕</span>
+                <input
+                    class="history-search"
+                    id="history-search"
+                    type="search"
+                    value="${escapeHtml(comparisonHistorySearch)}"
+                    placeholder="${escapeHtml(placeholder)}"
+                    oninput="updateComparisonHistorySearch(this.value)"
+                    autocomplete="off"
+                    spellcheck="false">
+            </label>
+            <div class="history-panel-header">
+                <span class="history-panel-mark">◇</span>
+                <span>${escapeHtml(title)}</span>
+            </div>
+            <div class="history-filter-group" aria-label="${escapeHtml(title)}">
+                <button class="history-filter-btn${comparisonHistoryFilter === 'history' ? ' active' : ''}" type="button" onclick="setComparisonHistoryFilter('history')" title="${escapeHtml(t.historyTitle)}" aria-label="${escapeHtml(t.historyTitle)}">≋</button>
+                <button class="history-filter-btn${comparisonHistoryFilter === 'favorites' ? ' active' : ''}" type="button" onclick="setComparisonHistoryFilter('favorites')" title="${escapeHtml(t.comparisonFavoritesTitle)}" aria-label="${escapeHtml(t.comparisonFavoritesTitle)}">★</button>
+            </div>
+            <div class="history-count">${fmtNum(visibleItems.length)} / ${fmtNum(activeItems.length)}</div>
+        </div>
+        ${body}
+    `;
+}
+
+function setComparisonHistoryFilter(filter) {
+    comparisonHistoryFilter = filter === 'favorites' ? 'favorites' : 'history';
+    comparisonHistorySearch = '';
+    renderComparisonHistoryPanel();
+}
+
+function updateComparisonHistorySearch(value) {
+    comparisonHistorySearch = value || '';
+    renderComparisonHistoryPanel();
+    const searchInput = document.getElementById('history-search');
+    if (searchInput) {
+        const cursorPosition = searchInput.value.length;
+        searchInput.focus({ preventScroll: true });
+        searchInput.setSelectionRange(cursorPosition, cursorPosition);
+    }
+}
+
+function getComparisonItemsForActiveFilter() {
+    return comparisonHistoryFilter === 'favorites' ? favoriteComparisons : comparisonHistory;
+}
+
+function getFilteredComparisonItems() {
+    const source = getComparisonItemsForActiveFilter();
+    const query = comparisonHistorySearch.trim().toLowerCase();
+    if (!query) return source;
+
+    return source.filter(item => [
+        item.mode,
+        ...(item.players || [])
+    ].some(value => String(value ?? '').toLowerCase().includes(query)));
+}
+
+function renderComparisonHistoryItem(item) {
+    const t = LANGS[currentLang];
+    const favorite = favoriteComparisons.some(fav => fav.id === item.id);
+    const modeLabel = LANGS[currentLang].modes[item.mode] || item.mode;
+    const usedAt = formatHistoryDate(item.lastUsedAt);
+
+    return `
+        <div class="history-card" role="button" tabindex="0" data-comparison-id="${escapeHtml(item.id)}" onclick="fillComparisonFromHistory(this.dataset.comparisonId)" onkeydown="handleComparisonHistoryKey(event, this.dataset.comparisonId)" title="${escapeHtml(t.fillComparison)}">
+            <button class="history-favorite${favorite ? ' active' : ''}" type="button" data-comparison-id="${escapeHtml(item.id)}" onclick="toggleFavoriteComparison(event, this.dataset.comparisonId)" title="${escapeHtml(t.comparisonFavoritesTitle)}" aria-label="${escapeHtml(t.comparisonFavoritesTitle)}">★</button>
+            <div class="history-players">${escapeHtml(item.players.join(' / '))}</div>
+            <div class="history-meta">
+                <span>${escapeHtml(modeLabel)}</span>
+                <span>${escapeHtml(usedAt)}</span>
+            </div>
+            <button class="history-run" type="button" data-comparison-id="${escapeHtml(item.id)}" onclick="runComparisonFromHistory(event, this.dataset.comparisonId)" title="${escapeHtml(t.rerunComparison)}" aria-label="${escapeHtml(t.rerunComparison)}">↻</button>
+        </div>
+    `;
+}
+
+function formatHistoryDate(dateString) {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+
+    return date.toLocaleString(currentLang, {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getAllComparisonRecords() {
+    const map = new Map();
+    [...comparisonHistory, ...favoriteComparisons].forEach(item => map.set(item.id, item));
+    return [...map.values()];
+}
+
+function findComparisonRecord(id) {
+    return getAllComparisonRecords().find(item => item.id === id) || null;
+}
+
+function fillComparisonFromHistory(id) {
+    const item = findComparisonRecord(id);
+    if (!item) return;
+
+    selectedFriendUsernames.clear();
+    getPlayerInputs().forEach((input, index) => {
+        input.value = item.players[index] || '';
+        delete input.dataset.friendUsername;
+    });
+
+    const modeSelect = document.getElementById('gamemode');
+    if (modeSelect) modeSelect.value = item.mode;
+
+    updateSearchButtonLabel();
+    renderFriendsPanel();
+}
+
+async function runComparisonFromHistory(event, id) {
+    event.stopPropagation();
+    fillComparisonFromHistory(id);
+    await doSearch();
+}
+
+function toggleFavoriteComparison(event, id) {
+    event.stopPropagation();
+    const item = findComparisonRecord(id);
+    if (!item) return;
+
+    if (favoriteComparisons.some(fav => fav.id === id)) {
+        favoriteComparisons = favoriteComparisons.filter(fav => fav.id !== id);
+    } else {
+        favoriteComparisons = [
+            { ...item, favoritedAt: new Date().toISOString() },
+            ...favoriteComparisons.filter(fav => fav.id !== id)
+        ];
+    }
+
+    writeStoredComparisons(FAVORITE_COMPARISONS_STORAGE_KEY, favoriteComparisons);
+    renderComparisonHistoryPanel();
+}
+
+function handleComparisonHistoryKey(event, id) {
+    if (event.target.closest('.history-favorite, .history-run')) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    fillComparisonFromHistory(id);
 }
 
 function renderCompareSummaryValue(item) {
@@ -1045,11 +1806,14 @@ async function doSearch() {
 
     currentPlayers = names;
     currentMode = document.getElementById('gamemode').value;
+    saveComparisonToHistory(currentPlayers, currentMode);
 
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'block';
     document.getElementById('lang-switch').classList.add('results-mode');
+    document.getElementById('top-right-controls').classList.add('results-mode');
     document.getElementById('theme-switch').classList.add('results-mode');
+    document.getElementById('auth-widget').classList.add('results-mode');
 
 
     const t = LANGS[currentLang];
@@ -1186,7 +1950,9 @@ function goBack() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('landing').style.display = 'flex';
     document.getElementById('lang-switch').classList.remove('results-mode');
+    document.getElementById('top-right-controls').classList.remove('results-mode');
     document.getElementById('theme-switch').classList.remove('results-mode');
+    document.getElementById('auth-widget').classList.remove('results-mode');
 
     topPlayCache = {};
 }
@@ -1195,16 +1961,20 @@ function goBack() {
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
     const langSwitch = document.querySelector('.lang-switch');
-    const themeSwitch = document.querySelector('.theme-switch');
+    const topRightControls = document.querySelector('.top-right-controls');
     if (window.scrollY > lastScrollY && window.scrollY > 80) {
         langSwitch.classList.add('hidden');
-        themeSwitch.classList.add('hidden');
+        topRightControls.classList.add('hidden');
     } else {
         langSwitch.classList.remove('hidden');
-        themeSwitch.classList.remove('hidden');
+        topRightControls.classList.remove('hidden');
     }
     lastScrollY = window.scrollY;
 });
 
 // Init
 applyLang();
+initAuth();
+getPlayerInputs().forEach(input => {
+    input.addEventListener('input', syncFriendSelectionsFromInputs);
+});

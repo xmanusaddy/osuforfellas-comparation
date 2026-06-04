@@ -28,10 +28,15 @@
         </button>
     </div>
 
-    <!-- Selector de theme — preparado para nuevos themes futuros -->
-    <div class="theme-switch" id="theme-switch">
-        <label class="theme-label" id="theme-label" for="theme-select"></label>
-        <select class="theme-select" id="theme-select"></select>
+    <div class="top-right-controls" id="top-right-controls">
+        <!-- Selector de theme — preparado para nuevos themes futuros -->
+        <div class="theme-switch" id="theme-switch">
+            <label class="theme-label" id="theme-label" for="theme-select"></label>
+            <select class="theme-select" id="theme-select"></select>
+        </div>
+
+        <!-- Login osu! — vive junto al selector de theme -->
+        <div class="auth-widget" id="auth-widget" aria-live="polite"></div>
     </div>
 
     <!-- Fondo animado -->
@@ -83,6 +88,9 @@
                 </div>
             </div>
         </div>
+
+        <div class="friends-panel" id="friends-panel" style="display:none;"></div>
+        <div class="comparison-history-panel" id="comparison-history-panel" style="display:none;"></div>
     </section>
 
     <!-- ══ RESULTADOS ══ -->
