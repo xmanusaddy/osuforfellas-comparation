@@ -6,6 +6,14 @@ A simple but clean way to compare osu! players stats — built for me and my fri
 
 ## 📋 Changelog
 
+### v1.4 — osu! Login + Friends + History
+- Added **osu! OAuth login** with server-side session handling
+- Added logged-in user mini-card with avatar, username, title, and logout
+- Added **friends list** for logged-in users using `friends.read`
+- Friends now support search, favorites, and quick selection for comparisons
+- Added **comparison history** with favorite comparisons, stored per logged-in user
+- Added backend endpoints for `/api/me` and `/api/me/friends`
+
 ### v1.3 — Compare Insights + Themes (BETA)
 - Added a new **comparison insights** strip for 2-4 players: PP lead, best accuracy, play count, and best top play
 - PP lead now shows who the leader is ahead of, using the actual second top player's name
@@ -77,6 +85,10 @@ So instead of checking profiles one by one… I just built this.
 ## ✨ Features
 
 * Compare up to 4 players
+* osu! OAuth login and logout
+* Logged-in user mini-card
+* Friends list with search, favorites, and quick comparison selection
+* Comparison history and favorite comparisons
 * Comparison insights for multi-player results
 * Top Play Showcase per player
 * Focus Mode for detailed player view
