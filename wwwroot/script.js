@@ -12,6 +12,37 @@ const DEFAULT_TOP_PLAYS_LIMIT = 5;
 const MAX_TOP_PLAYS_LIMIT = 20;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
+const MOD_FULL_NAMES = {
+    NM: 'No Mod',
+    NF: 'No Fail',
+    EZ: 'Easy',
+    TD: 'Touch Device',
+    HD: 'Hidden',
+    HR: 'Hard Rock',
+    SD: 'Sudden Death',
+    PF: 'Perfect',
+    DT: 'Double Time',
+    NC: 'Nightcore',
+    HT: 'Half Time',
+    FL: 'Flashlight',
+    SO: 'Spun Out',
+    AP: 'Autopilot',
+    RX: 'Relax',
+    AT: 'Auto',
+    CN: 'Cinema',
+    V2: 'ScoreV2',
+    SV2: 'ScoreV2',
+    MR: 'Mirror',
+    CL: 'Classic',
+    RD: 'Random',
+    DA: 'Difficulty Adjust',
+    TC: 'Traceable',
+    BL: 'Blinds',
+    ST: 'Strict Tracking',
+    AC: 'Accuracy Challenge',
+    WU: 'Wind Up',
+    WD: 'Wind Down'
+};
 
 const LANGS = {
     es: {
@@ -1414,7 +1445,7 @@ function getMods(score) {
 }
 
 function modClass(mod) {
-    const m = mod.toUpperCase();
+    const m = String(mod ?? '').toUpperCase();
     if (m === 'HD') return 'mod-hd';
     if (m === 'HR') return 'mod-hr';
     if (m === 'DT' || m === 'NC') return 'mod-dt';
@@ -1424,8 +1455,19 @@ function modClass(mod) {
     return '';
 }
 
+function getModFullName(mod) {
+    const normalized = String(mod ?? '').trim();
+    if (!normalized) return '';
+    const key = normalized.toUpperCase();
+    return MOD_FULL_NAMES[key] || normalized;
+}
+
 function renderModChips(mods) {
-    return mods.map(m => `<span class="mod-chip ${modClass(m)}">${m}</span>`).join('');
+    return mods.map(m => {
+        const code = escapeHtml(String(m ?? '').trim());
+        const fullName = escapeHtml(getModFullName(m));
+        return `<span class="mod-chip ${modClass(m)}" data-mod-name="${fullName}" aria-label="${fullName}">${code}</span>`;
+    }).join('');
 }
 
 function getCoverUrl(score) {

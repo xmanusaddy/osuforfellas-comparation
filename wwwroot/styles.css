@@ -1737,9 +1737,11 @@ body::after {
     gap: 3px;
     flex-wrap: wrap;
     margin-top: 1px;
+    overflow: visible;
 }
 
 .mod-chip {
+    position: relative;
     font-family: 'Oswald', sans-serif;
     font-size: 0.55rem;
     font-weight: 700;
@@ -1748,7 +1750,60 @@ body::after {
     border: 1px solid rgba(255,255,255,0.15);
     color: var(--text);
     letter-spacing: 0.05em;
+    cursor: help;
+    z-index: 2;
 }
+
+    .mod-chip::after {
+        content: attr(data-mod-name);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 7px);
+        transform: translate(-50%, 4px);
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 30;
+        padding: 0.28rem 0.5rem;
+        background: rgba(8,8,18,0.96);
+        border: 1px solid var(--pink);
+        color: var(--text);
+        box-shadow: 0 0 14px var(--pink-dim), inset 0 0 12px rgba(255,51,136,0.08);
+        font-family: 'Oswald', sans-serif;
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        line-height: 1;
+        text-transform: uppercase;
+        clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+        transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+
+    .mod-chip::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 2px);
+        transform: translateX(-50%);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 31;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid var(--pink);
+        transition: opacity 0.16s ease;
+    }
+
+    .mod-chip:hover::after,
+    .mod-chip:focus-visible::after {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+
+    .mod-chip:hover::before,
+    .mod-chip:focus-visible::before {
+        opacity: 1;
+    }
 
     .mod-chip.mod-hd {
         background: rgba(255,215,0,0.15);
@@ -4968,6 +5023,17 @@ body::after {
 [data-theme="heaven"] .tp-compact-pp {
     color: var(--pink-bright);
     text-shadow: 0 0 12px rgba(74,144,217,0.4);
+}
+
+[data-theme="heaven"] .mod-chip::after {
+    background: rgba(255,255,255,0.96);
+    border-color: rgba(74,144,217,0.55);
+    color: var(--text);
+    box-shadow: 0 8px 24px rgba(74,144,217,0.18), inset 0 0 12px rgba(74,144,217,0.08);
+}
+
+[data-theme="heaven"] .mod-chip::before {
+    border-top-color: rgba(74,144,217,0.55);
 }
 
 [data-theme="heaven"] .tp-compact-link {
