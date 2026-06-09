@@ -89,8 +89,21 @@
             </div>
         </div>
 
-        <div class="friends-panel" id="friends-panel" style="display:none;"></div>
-        <div class="comparison-history-panel" id="comparison-history-panel" style="display:none;"></div>
+        <nav class="room-nav" aria-label="App sections">
+            <a class="room-nav-link" href="#/compare" data-room-link="compare">
+                <span class="room-nav-icon">◇</span>
+                <span id="room-nav-compare"></span>
+            </a>
+            <a class="room-nav-link" href="#/friends" data-room-link="friends">
+                <span class="room-nav-icon">◎</span>
+                <span id="room-nav-friends"></span>
+            </a>
+            <a class="room-nav-link" href="#/history" data-room-link="history">
+                <span class="room-nav-icon">⌁</span>
+                <span id="room-nav-history"></span>
+            </a>
+        </nav>
+
     </section>
 
     <!-- ══ RESULTADOS ══ -->
@@ -120,6 +133,19 @@
         <div class="cards-container" id="cards"></div>
     </section>
 
+    <!-- ══ APP ROOMS ══ -->
+    <section id="room-view" class="room-view" style="display:none;">
+        <div class="room-header">
+            <div class="room-logo">osu!</div>
+            <button class="btn-back room-back" id="room-back" onclick="roomBack()">← Volver</button>
+        </div>
+        <div class="room-panel">
+            <h1 class="room-title" id="room-title">—</h1>
+            <p class="room-copy" id="room-copy">—</p>
+            <div class="room-actions" id="room-actions"></div>
+        </div>
+    </section>
+
     <footer class="site-footer" id="site-footer">
         <span id="footer-created-by"></span>
         <a class="footer-creator-link" href="https://guns.lol/xmanusaddy" target="_blank" rel="noopener noreferrer">manu is washed</a>
@@ -142,6 +168,7 @@
                         <div class="focus-player-name" id="focus-name">—</div>
                         <div class="focus-player-title" id="focus-title">—</div>
                         <div class="focus-activity" id="focus-activity"></div>
+                        <button class="focus-profile-link" id="focus-profile-link" type="button"></button>
                         <div class="focus-pp-wrap">
                             <div class="focus-pp-label">PERFORMANCE POINTS</div>
                             <div class="focus-pp-value" id="focus-pp">—<span class="focus-pp-unit">pp</span></div>

@@ -60,11 +60,12 @@ public class OsuController : ControllerBase
         return Content(content, "application/json");
     }
 
-    // GET /api/osu/{mode}/{username}/best
-    // Returns the #1 best performance score for the user, including beatmap and beatmapset
+    // GET /api/osu/{mode}/{username}/best?limit=5
+    // Returns best performance scores for the user, including beatmap and beatmapset
     [HttpGet("{mode}/{username}/best")]
-    public async Task<IActionResult> GetBestPlay(string mode, string username)
+    public async Task<IActionResult> GetBestPlay(string mode, string username, [FromQuery] int limit = 1)
     {
+        var safeLimit = Math.Clamp(limit, 1, 20);
         var token = await GetToken();
 
         // First resolve the user id (needed for scores endpoint)
@@ -81,10 +82,10 @@ public class OsuController : ControllerBase
         var userJson = await userResp.Content.ReadFromJsonAsync<JsonElement>();
         var userId = userJson.GetProperty("id").GetInt64();
 
-        // Fetch top 1 score with beatmap and beatmapset included
+        // Fetch best scores with beatmap and beatmapset included
         var scoresReq = new HttpRequestMessage(
             HttpMethod.Get,
-            $"https://osu.ppy.sh/api/v2/users/{userId}/scores/best?mode={mode}&limit=1&include_fails=0"
+            $"https://osu.ppy.sh/api/v2/users/{userId}/scores/best?mode={mode}&limit={safeLimit}&include_fails=0"
         );
         scoresReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         scoresReq.Headers.Add("x-api-version", "20220705");

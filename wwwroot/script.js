@@ -8,6 +8,10 @@ const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
 const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
 const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
+const DEFAULT_TOP_PLAYS_LIMIT = 5;
+const MAX_TOP_PLAYS_LIMIT = 20;
+const playerProfileCache = new Map();
+const topPlaysCache = new Map();
 
 const LANGS = {
     es: {
@@ -21,6 +25,52 @@ const LANGS = {
         back: '← Volver',
         theme: 'Tema',
         createdBy: 'creado por',
+        rooms: {
+            compare: 'Comparar',
+            friends: 'Amigos',
+            history: 'Historial',
+            back: '← Volver',
+            backToComparison: '← Volver a comparación',
+            friendsTitle: 'Amigos',
+            friendsCopy: 'Aquí vivirá una vista amplia para buscar, filtrar y organizar amigos sin cargar la pantalla principal.',
+            friendsRoomCopy: 'Busca, marca favoritos y selecciona hasta 4 amigos para compararlos desde una vista con más espacio.',
+            totalFriends: 'Amigos totales',
+            favoriteFriends: 'Favoritos',
+            selectedFriends: 'Seleccionados',
+            compareSelected: 'Comparar seleccionados',
+            noSelectedFriends: 'Selecciona amigos para preparar una comparación.',
+            loginForFriends: 'Inicia sesión con osu! para ver tu lista de amigos.',
+            historyTitle: 'Historial',
+            historyCopy: 'Aquí vivirá una vista amplia para revisar comparaciones recientes y favoritas con más espacio.',
+            historyRoomCopy: 'Revisa comparaciones anteriores, marca favoritas y recupera jugadores recientes sin ensuciar la pantalla principal.',
+            recentComparisons: 'Comparaciones recientes',
+            favoriteComparisons: 'Comparaciones favoritas',
+            recentPlayers: 'Jugadores recientes',
+            noRecentPlayers: 'Sin jugadores recientes',
+            loadPlayer: 'Cargar jugador',
+            playerTitle: 'Perfil de jugador',
+            playerCopy: 'Vista extendida de {player}, con resumen visual, top play y accesos rápidos.',
+            loadingProfile: 'Cargando perfil...',
+            profileError: 'No se pudo cargar el perfil',
+            noPlayerSelected: 'Selecciona un jugador para abrir su perfil extendido.',
+            viewFullProfile: 'Ver perfil completo',
+            viewTopPlays: 'Ver Top Plays',
+            viewRecent: 'Ver Recent Plays',
+            openOsuProfile: 'Abrir perfil en osu!',
+            topPlaysTitle: 'Top Plays',
+            topPlaysCopy: 'Las mejores jugadas de {player}, con resumen de PP, accuracy, mods y cliente usado.',
+            loadingTopPlays: 'Cargando top plays...',
+            topPlaysError: 'No se pudieron cargar los top plays',
+            topPlaysLoaded: 'Top plays cargadas',
+            averagePp: 'PP promedio',
+            averageAccuracy: 'Accuracy promedio',
+            mostUsedMod: 'Mod más usado',
+            noMod: 'Sin mod',
+            backToProfile: '← Volver al perfil',
+            recentTitle: 'Recent Plays',
+            recentCopy: 'Habitación preparada para actividad reciente y jugadas nuevas.',
+            openCompare: 'Ir a comparar'
+        },
         loginOsu: 'Iniciar sesión con osu!',
         logout: 'Cerrar sesión',
         connectedAs: 'Conectado como',
@@ -106,6 +156,52 @@ const LANGS = {
         back: '← Back',
         theme: 'Theme',
         createdBy: 'created by',
+        rooms: {
+            compare: 'Compare',
+            friends: 'Friends',
+            history: 'History',
+            back: '← Back',
+            backToComparison: '← Back to comparison',
+            friendsTitle: 'Friends',
+            friendsCopy: 'This will become a wider view for searching, filtering, and organizing friends without crowding the main screen.',
+            friendsRoomCopy: 'Search, favorite, and select up to 4 friends for comparison from a room with more space.',
+            totalFriends: 'Total friends',
+            favoriteFriends: 'Favorites',
+            selectedFriends: 'Selected',
+            compareSelected: 'Compare selected',
+            noSelectedFriends: 'Select friends to prepare a comparison.',
+            loginForFriends: 'Sign in with osu! to see your friends list.',
+            historyTitle: 'History',
+            historyCopy: 'This will become a wider view for recent and favorite comparisons with more breathing room.',
+            historyRoomCopy: 'Review previous comparisons, mark favorites, and recover recent players without crowding the main screen.',
+            recentComparisons: 'Recent comparisons',
+            favoriteComparisons: 'Favorite comparisons',
+            recentPlayers: 'Recent players',
+            noRecentPlayers: 'No recent players',
+            loadPlayer: 'Load player',
+            playerTitle: 'Player Profile',
+            playerCopy: 'Extended view of {player}, with visual summary, top play, and quick actions.',
+            loadingProfile: 'Loading profile...',
+            profileError: 'Could not load profile',
+            noPlayerSelected: 'Select a player to open their extended profile.',
+            viewFullProfile: 'View full profile',
+            viewTopPlays: 'View Top Plays',
+            viewRecent: 'View Recent Plays',
+            openOsuProfile: 'Open osu! profile',
+            topPlaysTitle: 'Top Plays',
+            topPlaysCopy: "{player}'s best plays, with PP, accuracy, mods, and game client summary.",
+            loadingTopPlays: 'Loading top plays...',
+            topPlaysError: 'Could not load top plays',
+            topPlaysLoaded: 'Top plays loaded',
+            averagePp: 'Average PP',
+            averageAccuracy: 'Average Accuracy',
+            mostUsedMod: 'Most used mod',
+            noMod: 'No mod',
+            backToProfile: '← Back to profile',
+            recentTitle: 'Recent Plays',
+            recentCopy: 'Room prepared for recent activity and new plays.',
+            openCompare: 'Go compare'
+        },
         loginOsu: 'Sign in with osu!',
         logout: 'Log out',
         connectedAs: 'Connected as',
@@ -191,6 +287,52 @@ const LANGS = {
         back: '← Zurück',
         theme: 'Thema',
         createdBy: 'erstellt von',
+        rooms: {
+            compare: 'Vergleichen',
+            friends: 'Freunde',
+            history: 'Verlauf',
+            back: '← Zurück',
+            backToComparison: '← Zurück zum Vergleich',
+            friendsTitle: 'Freunde',
+            friendsCopy: 'Hier entsteht eine größere Ansicht zum Suchen, Filtern und Organisieren von Freunden, ohne die Hauptseite zu überladen.',
+            friendsRoomCopy: 'Suche, favorisiere und wähle bis zu 4 Freunde zum Vergleichen in einer Ansicht mit mehr Platz.',
+            totalFriends: 'Freunde gesamt',
+            favoriteFriends: 'Favoriten',
+            selectedFriends: 'Ausgewählt',
+            compareSelected: 'Ausgewählte vergleichen',
+            noSelectedFriends: 'Wähle Freunde aus, um einen Vergleich vorzubereiten.',
+            loginForFriends: 'Melde dich mit osu! an, um deine Freundesliste zu sehen.',
+            historyTitle: 'Verlauf',
+            historyCopy: 'Hier entsteht eine größere Ansicht für letzte und favorisierte Vergleiche mit mehr Platz.',
+            historyRoomCopy: 'Prüfe frühere Vergleiche, markiere Favoriten und lade letzte Spieler, ohne die Hauptseite zu überladen.',
+            recentComparisons: 'Letzte Vergleiche',
+            favoriteComparisons: 'Favoritenvergleiche',
+            recentPlayers: 'Letzte Spieler',
+            noRecentPlayers: 'Keine letzten Spieler',
+            loadPlayer: 'Spieler laden',
+            playerTitle: 'Spielerprofil',
+            playerCopy: 'Erweiterte Ansicht von {player}, mit visueller Zusammenfassung, Top Play und Schnellaktionen.',
+            loadingProfile: 'Profil wird geladen...',
+            profileError: 'Profil konnte nicht geladen werden',
+            noPlayerSelected: 'Wähle einen Spieler aus, um sein erweitertes Profil zu öffnen.',
+            viewFullProfile: 'Vollständiges Profil',
+            viewTopPlays: 'Top Plays ansehen',
+            viewRecent: 'Recent Plays ansehen',
+            openOsuProfile: 'osu!-Profil öffnen',
+            topPlaysTitle: 'Top Plays',
+            topPlaysCopy: 'Die besten Plays von {player}, mit Zusammenfassung von PP, Accuracy, Mods und Spielclient.',
+            loadingTopPlays: 'Top Plays werden geladen...',
+            topPlaysError: 'Top Plays konnten nicht geladen werden',
+            topPlaysLoaded: 'Geladene Top Plays',
+            averagePp: 'Durchschnitts-PP',
+            averageAccuracy: 'Durchschnitts-Accuracy',
+            mostUsedMod: 'Häufigster Mod',
+            noMod: 'Kein Mod',
+            backToProfile: '← Zurück zum Profil',
+            recentTitle: 'Recent Plays',
+            recentCopy: 'Raum vorbereitet für letzte Aktivität und neue Plays.',
+            openCompare: 'Zum Vergleich'
+        },
         loginOsu: 'Mit osu! anmelden',
         logout: 'Abmelden',
         connectedAs: 'Verbunden als',
@@ -275,6 +417,10 @@ function applyLang() {
     document.getElementById('theme-label').textContent = t.theme;
     document.getElementById('theme-select').setAttribute('aria-label', t.theme);
     document.getElementById('footer-created-by').textContent = t.createdBy;
+    document.getElementById('room-nav-compare').textContent = t.rooms.compare;
+    document.getElementById('room-nav-friends').textContent = t.rooms.friends;
+    document.getElementById('room-nav-history').textContent = t.rooms.history;
+    updateRoomBackLabel();
 
     const label = document.querySelector('.podium-label');
     if (label) label.textContent = t.leader;
@@ -288,6 +434,7 @@ function applyLang() {
     renderAuthWidget();
     renderFriendsPanel();
     renderComparisonHistoryPanel();
+    renderRoomView(currentRoomRoute);
 
     if (document.getElementById('results').style.display !== 'none') {
         loadCards();
@@ -298,6 +445,726 @@ function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('lang', lang);
     applyLang();
+}
+
+function parseRoomRoute() {
+    const raw = (window.location.hash || '#/compare').replace(/^#\/?/, '');
+    const parts = raw.split('/').filter(Boolean);
+    const name = parts[0] || 'compare';
+    const param = parts.slice(1).join('/');
+
+    if (['compare', 'results', 'friends', 'history', 'player', 'top-plays', 'recent'].includes(name)) {
+        return { name, param: decodeURIComponent(param || '') };
+    }
+
+    return { name: 'compare', param: '' };
+}
+
+function buildRoomHash(name, param = '') {
+    const cleanName = name || 'compare';
+    const cleanParam = param ? `/${encodeURIComponent(param)}` : '';
+    return `#/${cleanName}${cleanParam}`;
+}
+
+function navigateToRoom(name, param = '') {
+    const nextHash = buildRoomHash(name, param);
+    if (window.location.hash === nextHash) {
+        handleRouteChange();
+        return;
+    }
+    window.location.hash = nextHash;
+}
+
+function setChromeMode(mode) {
+    const active = mode !== 'compare';
+    document.getElementById('lang-switch').classList.toggle('results-mode', active);
+    document.getElementById('top-right-controls').classList.toggle('results-mode', active);
+    document.getElementById('theme-switch').classList.toggle('results-mode', active);
+    document.getElementById('auth-widget').classList.toggle('results-mode', active);
+}
+
+function setActiveRoomLink(name) {
+    document.querySelectorAll('[data-room-link]').forEach(link => {
+        link.classList.toggle('active', link.dataset.roomLink === name);
+    });
+}
+
+function setRoomTitle(text, extraClass = '') {
+    const title = document.getElementById('room-title');
+    if (!title) return;
+
+    title.textContent = text;
+    title.className = `room-title${extraClass}`;
+}
+
+function hasActiveComparison() {
+    return Array.isArray(currentPlayers) && currentPlayers.length > 0;
+}
+
+function shouldReturnToResultsFromRoom() {
+    return currentRoomRoute?.name === 'player' && hasActiveComparison();
+}
+
+function getRoomBackLabel() {
+    const rooms = LANGS[currentLang].rooms;
+    if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+        return rooms.backToProfile;
+    }
+    return shouldReturnToResultsFromRoom() ? rooms.backToComparison : rooms.back;
+}
+
+function updateRoomBackLabel() {
+    const back = document.getElementById('room-back');
+    if (back) back.textContent = getRoomBackLabel();
+}
+
+function roomBack() {
+    if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+        navigateToRoom('player', currentRoomRoute.param);
+        return;
+    }
+
+    navigateToRoom(shouldReturnToResultsFromRoom() ? 'results' : 'compare');
+}
+
+function showCompareRoom() {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    }
+    closeFocusBtn();
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('room-view').style.display = 'none';
+    document.getElementById('landing').style.display = 'flex';
+    setChromeMode('compare');
+    setActiveRoomLink('compare');
+    currentRoomRoute = { name: 'compare', param: '' };
+    topPlayCache = {};
+    topPlaysCache.clear();
+}
+
+function showResultsRoom() {
+    if (!currentPlayers.length) {
+        history.replaceState(null, '', buildRoomHash('compare'));
+        showCompareRoom();
+        return;
+    }
+
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('room-view').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+    setChromeMode('results');
+    setActiveRoomLink('');
+    currentRoomRoute = { name: 'results', param: '' };
+    updateRoomBackLabel();
+
+    if (!refreshTimer) {
+        refreshTimer = setInterval(refreshData, 60000);
+    }
+}
+
+function showFutureRoom(route) {
+    if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    }
+    closeFocusBtn();
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('room-view').style.display = 'block';
+    setChromeMode('room');
+    setActiveRoomLink(route.name);
+    currentRoomRoute = route;
+    updateRoomBackLabel();
+    renderRoomView(route);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function renderRoomView(route = currentRoomRoute) {
+    const view = document.getElementById('room-view');
+    if (!view || !route || route.name === 'compare' || route.name === 'results') return;
+
+    const t = LANGS[currentLang].rooms;
+    if (route.name === 'friends') {
+        renderFriendsRoom();
+        return;
+    }
+    if (route.name === 'history') {
+        renderHistoryRoom();
+        return;
+    }
+    if (route.name === 'player') {
+        renderPlayerRoom(route);
+        return;
+    }
+    if (route.name === 'top-plays') {
+        renderTopPlaysRoom(route);
+        return;
+    }
+
+    const player = route.param || '—';
+    const configs = {
+        recent: {
+            title: t.recentTitle,
+            copy: t.recentCopy
+        }
+    };
+    const config = configs[route.name] || configs.friends;
+
+    setRoomTitle(config.title);
+    document.getElementById('room-copy').textContent = config.copy;
+    document.getElementById('room-actions').innerHTML = `
+        <a class="room-action-link" href="#/compare">${t.openCompare}</a>
+    `;
+}
+
+async function renderPlayerRoom(route) {
+    const rooms = LANGS[currentLang].rooms;
+    const username = String(route.param || '').trim();
+    const mode = getActiveMode();
+
+    setRoomTitle(rooms.playerTitle, ' room-title--profile');
+
+    if (!username) {
+        document.getElementById('room-copy').textContent = rooms.noPlayerSelected;
+        document.getElementById('room-actions').innerHTML = `
+            <div class="player-profile-state">${escapeHtml(rooms.noPlayerSelected)}</div>
+            <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
+        `;
+        return;
+    }
+
+    document.getElementById('room-copy').textContent = rooms.playerCopy.replace('{player}', username);
+
+    const cacheKey = `${mode}:${normalizeUsername(username)}`;
+    if (playerProfileCache.has(cacheKey)) {
+        const cached = playerProfileCache.get(cacheKey);
+        renderPlayerProfileContent(cached.user, cached.topPlay, mode);
+        return;
+    }
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="player-profile-state">
+            <div class="spinner"></div>
+            <span>${escapeHtml(rooms.loadingProfile)}</span>
+        </div>
+    `;
+
+    try {
+        const [user, topPlay] = await Promise.all([
+            fetchPlayer(username, mode),
+            fetchBestPlay(username, mode)
+        ]);
+
+        playerProfileCache.set(cacheKey, { user, topPlay });
+
+        if (currentRoomRoute?.name === 'player' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            renderPlayerProfileContent(user, topPlay, mode);
+        }
+    } catch (error) {
+        if (currentRoomRoute?.name !== 'player') return;
+
+        document.getElementById('room-actions').innerHTML = `
+            <div class="player-profile-state player-profile-state--error">
+                ${escapeHtml(error?.message || rooms.profileError)}
+            </div>
+            <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
+        `;
+    }
+}
+
+function renderPlayerProfileContent(user, topPlay, mode) {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const username = user.username || 'osu!';
+    const pp = Math.round(user.statistics?.pp || 0);
+    const isCreator = isCreatorUsername(username);
+    const title = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
+    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const flag = getCountryFlag(user.country_code);
+    const activity = getActivityLabel(user.last_visit);
+    const peakRank = user.rank_highest?.rank;
+    const trend = getRankTrend(user.rank_history);
+    const osuProfileUrl = `https://osu.ppy.sh/users/${user.id}/${mode}`;
+
+    setRoomTitle(rooms.playerTitle, ' room-title--profile');
+    document.getElementById('room-copy').textContent = rooms.playerCopy.replace('{player}', username);
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="player-profile-room">
+            <div class="player-profile-hero">
+                <div class="player-profile-avatar-wrap${isCreator ? ' creator-frame' : ''}">
+                    <div class="avatar-glow"></div>
+                    <img class="player-profile-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+                </div>
+                <div class="player-profile-identity">
+                    <div class="player-profile-flag">${escapeHtml(flag)}</div>
+                    <div class="player-profile-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+                    <div class="player-profile-title${isCreator ? ' creator-title' : ''}">${escapeHtml(title)}</div>
+                    ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${escapeHtml(activity.text)}</div>` : ''}
+                    <div class="player-profile-pp">
+                        <span>${escapeHtml(t.stats.pp)}</span>
+                        <strong>${fmtNum(pp)}<small>pp</small></strong>
+                    </div>
+                </div>
+                <div class="player-profile-ranks">
+                    <div class="player-profile-rank">
+                        <strong>#${fmtNum(user.statistics?.global_rank) || '—'}</strong>
+                        <span>${escapeHtml(t.stats.global)}</span>
+                    </div>
+                    <div class="player-profile-rank">
+                        <strong>#${fmtNum(user.statistics?.country_rank) || '—'}</strong>
+                        <span>${escapeHtml(user.country_code || t.stats.country)}</span>
+                    </div>
+                    <div class="player-profile-rank">
+                        <strong>${escapeHtml(String(user.statistics?.level?.current || '—'))}</strong>
+                        <span>${escapeHtml(t.stats.level)}</span>
+                    </div>
+                </div>
+            </div>
+
+            ${(peakRank || trend) ? `
+                <div class="player-profile-rankline">
+                    ${peakRank ? `<div class="focus-peak"><span class="focus-peak-icon">★</span><span class="focus-peak-label">${escapeHtml(t.peakRank)}</span><span class="focus-peak-value">#${fmtNum(peakRank)}</span></div>` : ''}
+                    ${trend ? renderTrendLine(trend) : ''}
+                </div>
+            ` : ''}
+
+            <div class="player-profile-stats">
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.acc)}</span>
+                    <strong class="accent">${fmtAcc(user.statistics?.hit_accuracy)}</strong>
+                </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.playcount)}</span>
+                    <strong>${fmtNum(user.statistics?.play_count)}</strong>
+                </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.playtime)}</span>
+                    <strong>${fmtTime(user.statistics?.play_time)}</strong>
+                </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.score)}</span>
+                    <strong class="gold">${fmtNum(user.statistics?.total_score)}</strong>
+                </div>
+            </div>
+
+            <div class="player-profile-topplay">
+                ${renderTopPlayFull(topPlay)}
+            </div>
+
+            <div class="player-profile-actions">
+                <a class="room-action-link" href="${buildRoomHash('top-plays', username)}">${escapeHtml(rooms.viewTopPlays)}</a>
+                <a class="room-action-link" href="${buildRoomHash('recent', username)}">${escapeHtml(rooms.viewRecent)}</a>
+                <a class="room-action-link" href="${escapeHtml(osuProfileUrl)}" target="_blank" rel="noopener">${escapeHtml(rooms.openOsuProfile)}</a>
+            </div>
+        </div>
+    `;
+}
+
+function renderTrendLine(trend) {
+    const t = LANGS[currentLang];
+    if (trend.state === 'stable') {
+        return `<div class="focus-trend focus-trend--stable">${escapeHtml(t.trendStable)} <span class="focus-trend-label">${escapeHtml(t.trend90)}</span></div>`;
+    }
+
+    const arrow = trend.state === 'up' ? '↗' : '↘';
+    const sign = trend.state === 'up' ? '+' : '−';
+    const cls = trend.state === 'up' ? 'focus-trend--up' : 'focus-trend--down';
+    return `<div class="focus-trend ${cls}">${arrow} ${sign}${fmtNum(Math.abs(trend.diff))} <span class="focus-trend-label">${escapeHtml(t.trend90)}</span></div>`;
+}
+
+async function renderTopPlaysRoom(route) {
+    const rooms = LANGS[currentLang].rooms;
+    const username = String(route.param || '').trim();
+    const mode = getActiveMode();
+    const limit = DEFAULT_TOP_PLAYS_LIMIT;
+
+    setRoomTitle(rooms.topPlaysTitle);
+
+    if (!username) {
+        document.getElementById('room-copy').textContent = rooms.noPlayerSelected;
+        document.getElementById('room-actions').innerHTML = `
+            <div class="top-plays-state">${escapeHtml(rooms.noPlayerSelected)}</div>
+            <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
+        `;
+        return;
+    }
+
+    document.getElementById('room-copy').textContent = rooms.topPlaysCopy.replace('{player}', username);
+    document.getElementById('room-actions').innerHTML = `
+        <div class="top-plays-state">
+            <div class="spinner"></div>
+            <span>${escapeHtml(rooms.loadingTopPlays)}</span>
+        </div>
+    `;
+
+    try {
+        const [user, scores] = await Promise.all([
+            fetchPlayer(username, mode),
+            fetchBestPlays(username, mode, limit)
+        ]);
+
+        if (currentRoomRoute?.name === 'top-plays' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            renderTopPlaysContent(user, scores, mode, limit);
+        }
+    } catch (error) {
+        if (currentRoomRoute?.name !== 'top-plays') return;
+
+        document.getElementById('room-actions').innerHTML = `
+            <div class="top-plays-state top-plays-state--error">
+                ${escapeHtml(error?.message || rooms.topPlaysError)}
+            </div>
+            <a class="room-action-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+        `;
+    }
+}
+
+function renderTopPlaysContent(user, scores, mode, limit) {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const username = user.username || 'osu!';
+    const pp = Math.round(user.statistics?.pp || 0);
+    const isCreator = isCreatorUsername(username);
+    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const safeScores = Array.isArray(scores) ? scores.slice(0, limit) : [];
+    const summary = getTopPlaysSummary(safeScores);
+
+    setRoomTitle(rooms.topPlaysTitle);
+    document.getElementById('room-copy').textContent = rooms.topPlaysCopy.replace('{player}', username);
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="top-plays-room">
+            <div class="top-plays-player">
+                <img class="top-plays-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+                <div class="top-plays-player-info">
+                    <div class="top-plays-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+                    <div class="top-plays-meta">
+                        <span>${escapeHtml(t.modes[mode] || mode)}</span>
+                        <span>${fmtNum(pp)}pp</span>
+                    </div>
+                </div>
+                <a class="room-action-link top-plays-profile-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+            </div>
+
+            <div class="top-plays-summary">
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.topPlaysLoaded)}</span>
+                    <strong>${fmtNum(safeScores.length)} / ${fmtNum(limit)}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.averagePp)}</span>
+                    <strong>${summary.avgPp ? `${fmtNum(summary.avgPp)}pp` : '—'}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.averageAccuracy)}</span>
+                    <strong>${summary.avgAcc ? `${summary.avgAcc.toFixed(2)}%` : '—'}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.mostUsedMod)}</span>
+                    <strong>${escapeHtml(summary.topMod || rooms.noMod)}</strong>
+                </div>
+            </div>
+
+            ${safeScores.length
+                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index)).join('')}</div>`
+                : `<div class="top-plays-state">${escapeHtml(t.noTopPlay)}</div>`}
+        </div>
+    `;
+}
+
+function getTopPlaysSummary(scores) {
+    const validScores = scores.filter(Boolean);
+    const ppScores = validScores.filter(score => typeof score.pp === 'number');
+    const accScores = validScores.filter(score => typeof score.accuracy === 'number');
+    const modCounts = new Map();
+
+    validScores.forEach(score => {
+        const mods = getMods(score);
+        if (!mods.length) {
+            modCounts.set('NM', (modCounts.get('NM') || 0) + 1);
+            return;
+        }
+
+        mods.forEach(mod => {
+            modCounts.set(mod, (modCounts.get(mod) || 0) + 1);
+        });
+    });
+
+    const topMod = [...modCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+
+    return {
+        avgPp: ppScores.length ? Math.round(ppScores.reduce((sum, score) => sum + (score.pp || 0), 0) / ppScores.length) : 0,
+        avgAcc: accScores.length ? accScores.reduce((sum, score) => sum + ((score.accuracy || 0) * 100), 0) / accScores.length : 0,
+        topMod
+    };
+}
+
+function renderTopPlayListItem(score, index) {
+    const t = LANGS[currentLang];
+    const cover = getCoverUrl(score);
+    const mapName = score.beatmapset?.title || '—';
+    const artist = score.beatmapset?.artist || '';
+    const diff = score.beatmap?.version || '';
+    const stars = score.beatmap?.difficulty_rating?.toFixed(2);
+    const mods = getMods(score);
+    const pp = Math.round(score.pp || 0);
+    const acc = typeof score.accuracy === 'number' ? (score.accuracy * 100).toFixed(2) : '—';
+    const rank = score.rank || 'D';
+    const misses = score.statistics?.miss ?? score.statistics?.count_miss ?? 0;
+    const dateStr = fmtDate(score.ended_at || score.created_at);
+    const mapUrl = getBeatmapUrl(score);
+    const hasReplay = score.replay === true || score.has_replay === true;
+    const replayUrl = hasReplay && score.id
+        ? `https://osu.ppy.sh/scores/${score.id}/download`
+        : null;
+
+    return `
+        <article class="top-play-row">
+            <div class="top-play-position">#${index + 1}</div>
+            <div class="top-play-cover-wrap">
+                ${cover
+                    ? `<img class="top-play-cover" src="${cover}" alt="${escapeHtml(mapName)}" onerror="this.style.display='none'">`
+                    : `<div class="top-play-cover top-play-cover--empty">♫</div>`}
+            </div>
+            <div class="top-play-main">
+                <div class="top-play-header-line">
+                    <div class="top-play-map">${escapeHtml(mapName)}</div>
+                    ${renderScoreClient(score)}
+                </div>
+                <div class="top-play-artist">by ${escapeHtml(artist)}</div>
+                <div class="top-play-tags">
+                    ${renderModChips(mods)}
+                    ${stars ? `<span class="tp-full-stars">✦ ${stars}</span>` : ''}
+                    ${diff ? `<span class="top-play-diff">[${escapeHtml(diff)}]</span>` : ''}
+                </div>
+                <div class="top-play-metrics">
+                    <div><span>${escapeHtml(t.stats.accuracy)}</span><strong class="accent">${acc}%</strong></div>
+                    <div><span>${escapeHtml(t.stats.rank)}</span><strong>${getRankDisplay(rank)}</strong></div>
+                    <div><span>${escapeHtml(t.stats.misses)}</span><strong class="${misses > 0 ? 'miss-val' : ''}">${misses}</strong></div>
+                    <div><span>${escapeHtml(t.stats.date)}</span><strong>${escapeHtml(dateStr.replace('\n', ' '))}</strong></div>
+                </div>
+            </div>
+            <div class="top-play-side">
+                <div class="top-play-pp">${fmtNum(pp)}<span>pp</span></div>
+                <a class="top-play-action" href="${mapUrl}" target="_blank" rel="noopener">↗</a>
+                ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${replayUrl}" target="_blank" rel="noopener">⬇</a>` : ''}
+            </div>
+        </article>
+    `;
+}
+
+function getActiveMode() {
+    return currentMode || document.getElementById('gamemode')?.value || 'osu';
+}
+
+function renderHistoryRoom() {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const activeItems = getComparisonItemsForActiveFilter();
+    const visibleItems = getFilteredComparisonItems();
+    const title = comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesTitle : t.historyTitle;
+    const placeholder = comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesSearch : t.historySearch;
+    const recentPlayers = getRecentHistoryPlayers();
+
+    setRoomTitle(rooms.historyTitle);
+    document.getElementById('room-copy').textContent = rooms.historyRoomCopy;
+
+    let body = '';
+    if (!activeItems.length) {
+        body = `<div class="history-room-state">${escapeHtml(comparisonHistoryFilter === 'favorites' ? t.comparisonFavoritesEmpty : t.historyEmpty)}</div>`;
+    } else if (!visibleItems.length) {
+        body = `<div class="history-room-state">${escapeHtml(t.historyNoResults)}</div>`;
+    } else {
+        body = `
+            <div class="history-room-grid">
+                ${visibleItems.map(renderComparisonHistoryItem).join('')}
+            </div>
+        `;
+    }
+
+    const playersHtml = recentPlayers.length
+        ? recentPlayers.map(player => `
+            <button class="history-player-chip" type="button" onclick="loadHistoryPlayer('${escapeJsArg(player)}')" title="${escapeHtml(rooms.loadPlayer)}">
+                ${escapeHtml(player)}
+            </button>
+        `).join('')
+        : `<span class="history-player-empty">${escapeHtml(rooms.noRecentPlayers)}</span>`;
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="history-room">
+            <div class="history-room-summary" aria-label="${escapeHtml(rooms.historyTitle)}">
+                <div class="history-room-stat">
+                    <span>${escapeHtml(rooms.recentComparisons)}</span>
+                    <strong>${fmtNum(comparisonHistory.length)}</strong>
+                </div>
+                <div class="history-room-stat">
+                    <span>${escapeHtml(rooms.favoriteComparisons)}</span>
+                    <strong>${fmtNum(favoriteComparisons.length)}</strong>
+                </div>
+                <div class="history-room-stat">
+                    <span>${escapeHtml(rooms.recentPlayers)}</span>
+                    <strong>${fmtNum(recentPlayers.length)}</strong>
+                </div>
+            </div>
+
+            <div class="history-room-toolbar">
+                <label class="history-search-wrap history-room-search-wrap">
+                    <span class="history-search-icon">⌕</span>
+                    <input
+                        class="history-search history-room-search"
+                        id="history-room-search"
+                        type="search"
+                        value="${escapeHtml(comparisonHistorySearch)}"
+                        placeholder="${escapeHtml(placeholder)}"
+                        oninput="updateComparisonHistorySearch(this.value)"
+                        autocomplete="off"
+                        spellcheck="false">
+                </label>
+                <div class="history-panel-header history-room-filter-title">
+                    <span class="history-panel-mark">◇</span>
+                    <span>${escapeHtml(title)}</span>
+                </div>
+                <div class="history-filter-group history-room-filter-group" aria-label="${escapeHtml(title)}">
+                    <button class="history-filter-btn${comparisonHistoryFilter === 'history' ? ' active' : ''}" type="button" onclick="setComparisonHistoryFilter('history')" title="${escapeHtml(t.historyTitle)}" aria-label="${escapeHtml(t.historyTitle)}">≋</button>
+                    <button class="history-filter-btn${comparisonHistoryFilter === 'favorites' ? ' active' : ''}" type="button" onclick="setComparisonHistoryFilter('favorites')" title="${escapeHtml(t.comparisonFavoritesTitle)}" aria-label="${escapeHtml(t.comparisonFavoritesTitle)}">★</button>
+                </div>
+                <div class="history-count">${fmtNum(visibleItems.length)} / ${fmtNum(activeItems.length)}</div>
+            </div>
+
+            <div class="history-players-row">
+                <div class="history-players-label">${escapeHtml(rooms.recentPlayers)}</div>
+                <div class="history-players-list">${playersHtml}</div>
+            </div>
+
+            ${body}
+        </div>
+    `;
+}
+
+function renderFriendsRoom() {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const activeFriends = getFriendsForActiveFilter();
+    const visibleFriends = getFilteredFriends();
+    const favoriteCount = friendsState.items.filter(friend => favoriteFriendIds.has(getFriendId(friend))).length;
+    const selectedFriends = getSelectedFriendNames();
+    const title = friendFilterMode === 'favorites' ? t.favoritesTitle : t.friendsTitle;
+    const searchPlaceholder = friendFilterMode === 'favorites' ? t.favoritesSearch : t.friendsSearch;
+
+    setRoomTitle(rooms.friendsTitle);
+    document.getElementById('room-copy').textContent = rooms.friendsRoomCopy;
+
+    if (!loggedInUser) {
+        document.getElementById('room-actions').innerHTML = `
+            <div class="friends-room">
+                <div class="friends-room-state">
+                    <span>${escapeHtml(rooms.loginForFriends)}</span>
+                    <a class="room-action-link" href="/auth/osu/login">${escapeHtml(t.loginOsu)}</a>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let body = '';
+    if (friendsState.loading) {
+        body = `
+            <div class="friends-room-state">
+                <div class="spinner"></div>
+                <span>${escapeHtml(t.friendsLoading)}</span>
+            </div>
+        `;
+    } else if (friendsState.error) {
+        body = `<div class="friends-room-state friends-state--error">${escapeHtml(t.friendsError)}</div>`;
+    } else if (!friendsState.items.length) {
+        body = `<div class="friends-room-state">${escapeHtml(t.friendsEmpty)}</div>`;
+    } else if (friendFilterMode === 'favorites' && !activeFriends.length) {
+        body = `<div class="friends-room-state friends-state--empty">${escapeHtml(t.favoritesEmpty)}</div>`;
+    } else if (!visibleFriends.length) {
+        body = `<div class="friends-room-state">${escapeHtml(t.friendsNoResults)}</div>`;
+    } else {
+        body = `
+            <div class="friends-room-grid">
+                ${visibleFriends.map(renderFriendItem).join('')}
+            </div>
+        `;
+    }
+
+    const selectedHtml = selectedFriends.length
+        ? selectedFriends.map(name => `
+            <button class="friends-selected-pill" type="button" onclick="removeFriendSelection('${escapeJsArg(name)}')">
+                <span>${escapeHtml(name)}</span>
+                <span>×</span>
+            </button>
+        `).join('')
+        : `<span class="friends-selected-empty">${escapeHtml(rooms.noSelectedFriends)}</span>`;
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="friends-room">
+            <div class="friends-room-summary" aria-label="${escapeHtml(rooms.friendsTitle)}">
+                <div class="friends-room-stat">
+                    <span>${escapeHtml(rooms.totalFriends)}</span>
+                    <strong>${fmtNum(friendsState.items.length)}</strong>
+                </div>
+                <div class="friends-room-stat">
+                    <span>${escapeHtml(rooms.favoriteFriends)}</span>
+                    <strong>${fmtNum(favoriteCount)}</strong>
+                </div>
+                <div class="friends-room-stat">
+                    <span>${escapeHtml(rooms.selectedFriends)}</span>
+                    <strong>${fmtNum(selectedFriends.length)} / 4</strong>
+                </div>
+            </div>
+
+            <div class="friends-room-toolbar">
+                <label class="friends-search-wrap friends-room-search-wrap">
+                    <span class="friends-search-icon">⌕</span>
+                    <input
+                        class="friends-search friends-room-search"
+                        id="friends-room-search"
+                        type="search"
+                        value="${escapeHtml(friendSearchQuery)}"
+                        placeholder="${escapeHtml(searchPlaceholder)}"
+                        oninput="updateFriendSearch(this.value)"
+                        autocomplete="off"
+                        spellcheck="false">
+                </label>
+                <div class="friends-panel-header friends-room-filter-title">
+                    <span class="friends-panel-mark">◎</span>
+                    <span>${escapeHtml(title)}</span>
+                </div>
+                <div class="friends-filter-group friends-room-filter-group" aria-label="${escapeHtml(title)}">
+                    <button class="friends-filter-btn${friendFilterMode === 'friends' ? ' active' : ''}" type="button" onclick="setFriendFilterMode('friends')" title="${escapeHtml(t.friendsTitle)}" aria-label="${escapeHtml(t.friendsTitle)}">◎</button>
+                    <button class="friends-filter-btn${friendFilterMode === 'favorites' ? ' active' : ''}" type="button" onclick="setFriendFilterMode('favorites')" title="${escapeHtml(t.favoritesTitle)}" aria-label="${escapeHtml(t.favoritesTitle)}">★</button>
+                </div>
+                <div class="friends-count">${fmtNum(visibleFriends.length)} / ${fmtNum(activeFriends.length)}</div>
+            </div>
+
+            <div class="friends-selected-row">
+                <div class="friends-selected-label">${escapeHtml(rooms.selectedFriends)}</div>
+                <div class="friends-selected-list">${selectedHtml}</div>
+                <button class="friends-compare-btn" type="button" onclick="doSearch()" ${selectedFriends.length ? '' : 'disabled'}>
+                    ${escapeHtml(rooms.compareSelected)}
+                </button>
+            </div>
+
+            ${body}
+        </div>
+    `;
+}
+
+function handleRouteChange() {
+    const route = parseRoomRoute();
+    if (route.name === 'compare') {
+        showCompareRoom();
+        return;
+    }
+    if (route.name === 'results') {
+        showResultsRoom();
+        return;
+    }
+    showFutureRoom(route);
 }
 
 // ══ ESTADO ══
@@ -322,6 +1189,7 @@ let comparisonHistory = [];
 let favoriteComparisons = [];
 let comparisonHistoryFilter = 'history';
 let comparisonHistorySearch = '';
+let currentRoomRoute = { name: 'compare', param: '' };
 
 // ══ FONDO ANIMADO ══
 (function bgInit() {
@@ -436,17 +1304,29 @@ async function fetchBestPlay(username, mode) {
     if (cacheKey in topPlayCache) return topPlayCache[cacheKey];
 
     try {
-        const res = await fetch(`/api/osu/${mode}/${encodeURIComponent(username)}/best`);
-        if (!res.ok) { topPlayCache[cacheKey] = null; return null; }
-        const data = await res.json();
-        // El endpoint devuelve un array con 1 score
-        const score = Array.isArray(data) ? data[0] : null;
+        const scores = await fetchBestPlays(username, mode, 1);
+        const score = scores[0] || null;
         topPlayCache[cacheKey] = score || null;
         return topPlayCache[cacheKey];
     } catch {
         topPlayCache[cacheKey] = null;
         return null;
     }
+}
+
+async function fetchBestPlays(username, mode, limit = DEFAULT_TOP_PLAYS_LIMIT) {
+    const safeLimit = Math.max(1, Math.min(MAX_TOP_PLAYS_LIMIT, Number(limit) || DEFAULT_TOP_PLAYS_LIMIT));
+    const cacheKey = `${mode}:${normalizeUsername(username)}:${safeLimit}`;
+
+    if (topPlaysCache.has(cacheKey)) return topPlaysCache.get(cacheKey);
+
+    const res = await fetch(`/api/osu/${mode}/${encodeURIComponent(username)}/best?limit=${safeLimit}`);
+    if (!res.ok) throw new Error(LANGS[currentLang].rooms.topPlaysError);
+
+    const data = await res.json();
+    const scores = Array.isArray(data) ? data : [];
+    topPlaysCache.set(cacheKey, scores);
+    return scores;
 }
 
 // ══ HELPERS ══
@@ -592,6 +1472,10 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#39;'
     }[char]));
+}
+
+function escapeJsArg(value) {
+    return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 function isCreatorUsername(username) {
@@ -766,6 +1650,7 @@ async function logoutOsu() {
         resetFriends();
         renderAuthWidget();
         renderFriendsPanel();
+        renderRoomView(currentRoomRoute);
     }
 }
 
@@ -819,11 +1704,15 @@ async function loadFriends() {
 
 function renderFriendsPanel() {
     const panel = document.getElementById('friends-panel');
-    if (!panel) return;
+    if (!panel) {
+        renderFriendsRoomIfActive();
+        return;
+    }
 
     if (!loggedInUser) {
         panel.innerHTML = '';
         panel.style.display = 'none';
+        renderFriendsRoomIfActive();
         return;
     }
 
@@ -884,6 +1773,14 @@ function renderFriendsPanel() {
         </div>
         ${body}
     `;
+
+    renderFriendsRoomIfActive();
+}
+
+function renderFriendsRoomIfActive() {
+    if (currentRoomRoute?.name === 'friends') {
+        renderFriendsRoom();
+    }
 }
 
 function setFriendFilterMode(mode) {
@@ -895,12 +1792,19 @@ function setFriendFilterMode(mode) {
 function updateFriendSearch(value) {
     friendSearchQuery = value || '';
     renderFriendsPanel();
-    const searchInput = document.getElementById('friends-search');
+    const searchInput = document.getElementById('friends-room-search') || document.getElementById('friends-search');
     if (searchInput) {
         const cursorPosition = searchInput.value.length;
         searchInput.focus({ preventScroll: true });
         searchInput.setSelectionRange(cursorPosition, cursorPosition);
     }
+}
+
+function getSelectedFriendNames() {
+    return getPlayerInputs()
+        .filter(input => input.dataset.friendUsername && selectedFriendUsernames.has(input.dataset.friendUsername))
+        .map(input => input.value.trim())
+        .filter(Boolean);
 }
 
 function getFilteredFriends() {
@@ -1084,12 +1988,16 @@ function saveComparisonToHistory(players, mode) {
 
 function renderComparisonHistoryPanel() {
     const panel = document.getElementById('comparison-history-panel');
-    if (!panel) return;
+    if (!panel) {
+        renderHistoryRoomIfActive();
+        return;
+    }
 
     const hasAnyItems = comparisonHistory.length || favoriteComparisons.length;
     if (!hasAnyItems) {
         panel.innerHTML = '';
         panel.style.display = 'none';
+        renderHistoryRoomIfActive();
         return;
     }
 
@@ -1139,6 +2047,14 @@ function renderComparisonHistoryPanel() {
         </div>
         ${body}
     `;
+
+    renderHistoryRoomIfActive();
+}
+
+function renderHistoryRoomIfActive() {
+    if (currentRoomRoute?.name === 'history') {
+        renderHistoryRoom();
+    }
 }
 
 function setComparisonHistoryFilter(filter) {
@@ -1150,7 +2066,7 @@ function setComparisonHistoryFilter(filter) {
 function updateComparisonHistorySearch(value) {
     comparisonHistorySearch = value || '';
     renderComparisonHistoryPanel();
-    const searchInput = document.getElementById('history-search');
+    const searchInput = document.getElementById('history-room-search') || document.getElementById('history-search');
     if (searchInput) {
         const cursorPosition = searchInput.value.length;
         searchInput.focus({ preventScroll: true });
@@ -1210,11 +2126,46 @@ function getAllComparisonRecords() {
     return [...map.values()];
 }
 
+function getRecentHistoryPlayers(limit = 16) {
+    const seen = new Set();
+    const players = [];
+    const records = [...comparisonHistory, ...favoriteComparisons]
+        .filter(isValidComparisonRecord)
+        .sort((a, b) => new Date(b.lastUsedAt || b.favoritedAt || 0) - new Date(a.lastUsedAt || a.favoritedAt || 0));
+
+    records.forEach(record => {
+        record.players.forEach(player => {
+            const clean = String(player ?? '').trim();
+            const key = normalizeUsername(clean);
+            if (!clean || seen.has(key)) return;
+            seen.add(key);
+            players.push(clean);
+        });
+    });
+
+    return players.slice(0, limit);
+}
+
+function loadHistoryPlayer(username) {
+    const clean = String(username ?? '').trim();
+    if (!clean) return;
+
+    selectedFriendUsernames.delete(normalizeUsername(clean));
+    const inputs = getPlayerInputs();
+    const target = inputs.find(input => !input.value.trim()) || inputs[0];
+    if (!target) return;
+
+    target.value = clean;
+    delete target.dataset.friendUsername;
+    syncFriendSelectionsFromInputs();
+    navigateToRoom('compare');
+}
+
 function findComparisonRecord(id) {
     return getAllComparisonRecords().find(item => item.id === id) || null;
 }
 
-function fillComparisonFromHistory(id) {
+function fillComparisonFromHistory(id, shouldNavigate = true) {
     const item = findComparisonRecord(id);
     if (!item) return;
 
@@ -1229,11 +2180,16 @@ function fillComparisonFromHistory(id) {
 
     updateSearchButtonLabel();
     renderFriendsPanel();
+    renderHistoryRoomIfActive();
+
+    if (shouldNavigate && currentRoomRoute?.name === 'history') {
+        navigateToRoom('compare');
+    }
 }
 
 async function runComparisonFromHistory(event, id) {
     event.stopPropagation();
-    fillComparisonFromHistory(id);
+    fillComparisonFromHistory(id, false);
     await doSearch();
 }
 
@@ -1600,6 +2556,13 @@ function openFocusWithData(user, topPlay) {
         activityEl.className = 'focus-activity';
     }
 
+    const profileLink = document.getElementById('focus-profile-link');
+    profileLink.textContent = t.rooms.viewFullProfile;
+    profileLink.onclick = () => {
+        closeFocusBtn();
+        navigateToRoom('player', user.username);
+    };
+
     document.getElementById('focus-pp').innerHTML =
         `${fmtNum(pp)}<span class="focus-pp-unit">pp</span>`;
 
@@ -1788,7 +2751,24 @@ function closeFocus(e) {
 
 // ESC para cerrar
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeFocusBtn();
+    if (e.key === 'Escape') {
+        const focusOverlay = document.getElementById('focus-overlay');
+        if (focusOverlay?.classList.contains('active')) {
+            closeFocusBtn();
+            return;
+        }
+
+        if (shouldReturnToResultsFromRoom()) {
+            navigateToRoom('results');
+            return;
+        }
+
+        if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+            navigateToRoom('player', currentRoomRoute.param);
+            return;
+        }
+    }
+
     if (e.key === 'Enter' && document.getElementById('landing').style.display !== 'none') {
         doSearch();
     }
@@ -1807,17 +2787,14 @@ async function doSearch() {
 
     // Limpiar cache al hacer nueva búsqueda
     topPlayCache = {};
+    topPlaysCache.clear();
 
     currentPlayers = names;
     currentMode = document.getElementById('gamemode').value;
     saveComparisonToHistory(currentPlayers, currentMode);
 
-    document.getElementById('landing').style.display = 'none';
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('lang-switch').classList.add('results-mode');
-    document.getElementById('top-right-controls').classList.add('results-mode');
-    document.getElementById('theme-switch').classList.add('results-mode');
-    document.getElementById('auth-widget').classList.add('results-mode');
+    history.replaceState(null, '', buildRoomHash('results'));
+    showResultsRoom();
 
 
     const t = LANGS[currentLang];
@@ -1935,6 +2912,7 @@ async function loadCards() {
 async function refreshData() {
     // Limpiar cache para obtener datos frescos
     topPlayCache = {};
+    topPlaysCache.clear();
     const btn = document.getElementById('btn-refresh');
     btn.textContent = LANGS[currentLang].refreshing;
     btn.style.opacity = '0.5';
@@ -1949,16 +2927,7 @@ async function refreshData() {
 }
 
 function goBack() {
-    if (refreshTimer) clearInterval(refreshTimer);
-    closeFocusBtn();
-    document.getElementById('results').style.display = 'none';
-    document.getElementById('landing').style.display = 'flex';
-    document.getElementById('lang-switch').classList.remove('results-mode');
-    document.getElementById('top-right-controls').classList.remove('results-mode');
-    document.getElementById('theme-switch').classList.remove('results-mode');
-    document.getElementById('auth-widget').classList.remove('results-mode');
-
-    topPlayCache = {};
+    navigateToRoom('compare');
 }
 
 // ══ HIDE LANG-SWITCH ON SCROLL ══
@@ -1978,6 +2947,8 @@ window.addEventListener('scroll', () => {
 
 // Init
 applyLang();
+window.addEventListener('hashchange', handleRouteChange);
+handleRouteChange();
 initAuth();
 getPlayerInputs().forEach(input => {
     input.addEventListener('input', syncFriendSelectionsFromInputs);
