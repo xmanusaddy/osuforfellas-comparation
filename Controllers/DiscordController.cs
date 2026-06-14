@@ -94,32 +94,79 @@ public class DiscordController : ControllerBase
             ? $"https://osu.ppy.sh/users/{userId}/{mode}"
             : $"https://osu.ppy.sh/users/{Uri.EscapeDataString(userName)}/{mode}";
         var siteUrl = BuildSitePlayerUrl(userName);
+        var fields = new List<object?>
+        {
+            CreateEmbedField("PP", pp > 0 ? $"{FormatNumber(pp)}pp" : "N/A", inline: true),
+            CreateEmbedField("Global rank", globalRank > 0 ? $"#{FormatNumber(globalRank)}" : "N/A", inline: true),
+            CreateEmbedField($"{countryCode} rank", countryRank > 0 ? $"#{FormatNumber(countryRank)}" : "N/A", inline: true),
+            CreateEmbedField("Accuracy", accuracy > 0 ? $"{accuracy:0.00}%" : "N/A", inline: true),
+            CreateEmbedField("Play count", playCount > 0 ? FormatNumber(playCount) : "N/A", inline: true)
+        };
+
+        var topPlayValue = await BuildTopPlayValue(mode, userName);
+        if (!string.IsNullOrWhiteSpace(topPlayValue))
+            fields.Add(CreateEmbedField("Top play", topPlayValue, inline: false));
+
+        fields.Add(CreateEmbedField("Links", $"[Open in osu! for fellas]({siteUrl}) | [Open osu! profile]({profileUrl})", inline: false));
 
         var embed = new Dictionary<string, object?>
         {
-            ["title"] = $"{userName} · {GetModeLabel(mode)}",
+            ["title"] = $"{userName} - {GetModeLabel(mode)}",
             ["url"] = profileUrl,
-            ["color"] = 0xFF66AA,
+            ["description"] = "Profile snapshot from osu! for fellas.",
+            ["color"] = IsCreatorUsername(userName) ? 0xFF3355 : 0xFF66AA,
             ["thumbnail"] = new Dictionary<string, object?>
             {
                 ["url"] = avatarUrl
             },
-            ["fields"] = new object?[]
-            {
-                CreateEmbedField("PP", pp > 0 ? $"{FormatNumber(pp)}pp" : "—", inline: true),
-                CreateEmbedField("Global", globalRank > 0 ? $"#{FormatNumber(globalRank)}" : "—", inline: true),
-                CreateEmbedField(countryCode, countryRank > 0 ? $"#{FormatNumber(countryRank)}" : "—", inline: true),
-                CreateEmbedField("Accuracy", accuracy > 0 ? $"{accuracy:0.00}%" : "—", inline: true),
-                CreateEmbedField("Play count", playCount > 0 ? FormatNumber(playCount) : "—", inline: true),
-                CreateEmbedField("Open in osu! for fellas", siteUrl, inline: false)
-            },
+            ["fields"] = fields.ToArray(),
             ["footer"] = new Dictionary<string, object?>
             {
-                ["text"] = "osu! for fellas"
+                ["text"] = "osu! for fellas - /osu-profile"
             }
         };
 
         return CreateEmbedResponse(embed);
+    }
+
+    private async Task<string?> BuildTopPlayValue(string mode, string username)
+    {
+        try
+        {
+            var result = await _osuApi.GetBestScoresJsonAsync(mode, username, 1);
+            if (!result.Success || string.IsNullOrWhiteSpace(result.Content))
+                return null;
+
+            using var scoresJson = JsonDocument.Parse(result.Content);
+            if (scoresJson.RootElement.ValueKind != JsonValueKind.Array || scoresJson.RootElement.GetArrayLength() == 0)
+                return null;
+
+            var score = scoresJson.RootElement[0];
+            var beatmapset = score.TryGetProperty("beatmapset", out var beatmapsetValue) ? beatmapsetValue : default;
+            var beatmap = score.TryGetProperty("beatmap", out var beatmapValue) ? beatmapValue : default;
+            var title = GetString(beatmapset, "title") ?? "Unknown map";
+            var artist = GetString(beatmapset, "artist");
+            var diff = GetString(beatmap, "version") ?? "?";
+            var beatmapId = GetNumber(beatmap, "id");
+            var mapLabel = string.IsNullOrWhiteSpace(artist)
+                ? $"{EscapeMarkdown(title)} [{EscapeMarkdown(diff)}]"
+                : $"{EscapeMarkdown(artist)} - {EscapeMarkdown(title)} [{EscapeMarkdown(diff)}]";
+            var mapUrl = beatmapId > 0 ? $"https://osu.ppy.sh/b/{beatmapId}" : null;
+            var mapText = mapUrl is null ? mapLabel : $"[{mapLabel}]({mapUrl})";
+            var topPp = GetDouble(score, "pp");
+            var topAccuracy = GetDouble(score, "accuracy");
+            var rank = GetString(score, "rank") ?? "N/A";
+            var mods = GetMods(score);
+            var modText = mods.Count > 0 ? string.Join("", mods) : "NM";
+            var ppText = topPp > 0 ? $"{Math.Round(topPp)}pp" : "N/A";
+            var accText = topAccuracy > 0 ? $"{topAccuracy * 100:0.00}%" : "N/A";
+
+            return $"{mapText}\n**{ppText}** - {accText} - {rank} - {modText}";
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string BuildSitePlayerUrl(string username)
@@ -225,9 +272,57 @@ public class DiscordController : ControllerBase
             : 0;
     }
 
+    private static List<string> GetMods(JsonElement score)
+    {
+        if (!score.TryGetProperty("mods", out var mods) || mods.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var result = new List<string>();
+        foreach (var mod in mods.EnumerateArray())
+        {
+            if (mod.ValueKind == JsonValueKind.String)
+            {
+                var value = mod.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                    result.Add(value);
+                continue;
+            }
+
+            if (mod.ValueKind == JsonValueKind.Object
+                && mod.TryGetProperty("acronym", out var acronym)
+                && acronym.ValueKind == JsonValueKind.String)
+            {
+                var value = acronym.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
+                    result.Add(value);
+            }
+        }
+
+        return result;
+    }
+
     private static string FormatNumber(double value)
     {
         return Math.Round(value).ToString("N0");
+    }
+
+    private static string EscapeMarkdown(string value)
+    {
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("*", "\\*")
+            .Replace("_", "\\_")
+            .Replace("~", "\\~")
+            .Replace("`", "\\`")
+            .Replace("[", "\\[")
+            .Replace("]", "\\]")
+            .Replace("(", "\\(")
+            .Replace(")", "\\)");
+    }
+
+    private static bool IsCreatorUsername(string username)
+    {
+        return string.Equals(username.Trim(), "manu is washed", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetModeLabel(string mode)
