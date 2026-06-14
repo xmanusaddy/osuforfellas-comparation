@@ -17,8 +17,9 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
 * `wwwroot/index.html`
 
   * Interfaz principal.
-  * Contiene el selector de idiomas, selector de themes, formulario de busqueda, resultados y contenedores principales.
+  * Contiene el selector de idiomas, selector de themes, formulario de busqueda, resultados, navegacion de rooms y contenedores principales.
   * Contiene el contenedor `#auth-widget` para login OAuth con osu!.
+  * Contiene `#room-view` para las secciones internas tipo Friends, History, perfil extendido y Top Plays.
 
 * `wwwroot/styles.css`
 
@@ -26,7 +27,7 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Contiene el diseno cyberpunk actual.
   * Contiene variables CSS semanticas para themes.
   * Contiene overrides del theme Heaven.
-  * Contiene estilos de comparativas, Top Play, Focus Mode y responsive.
+  * Contiene estilos de comparativas, Top Play, Focus Mode, rooms, perfil extendido, Top Plays ampliados, Friends/History y responsive.
 
 * `wwwroot/script.js`
 
@@ -37,8 +38,14 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Renderizado de resultados.
   * Focus Mode.
   * Top Play.
+  * Rooms internas por hash route.
+  * Friends Room.
+  * History Room.
+  * Perfil extendido de jugador.
+  * Sala de Top Plays.
   * Resumen comparativo entre jugadores.
   * Indicador osu!lazer / osu!stable dentro de Focus Mode.
+  * Tooltips para mostrar nombres completos de mods al pasar el mouse.
 
 * `wwwroot/theme-manager.js`
 
@@ -55,7 +62,8 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Endpoint principal: `/api/osu`.
   * Para Top Plays usa el header `x-api-version: 20220705`.
   * Ese header es necesario para recibir el Score object moderno y leer `legacy_score_id`.
-  * Mantiene el flujo publico/client credentials para busqueda manual y Top Play.
+  * Mantiene el flujo publico/client credentials para busqueda manual, Top Play y Top Plays ampliados.
+  * Endpoint de best plays acepta `limit` por query y lo limita internamente entre 1 y 20.
 
 * `Controllers/AuthController.cs`
 
@@ -67,10 +75,11 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
     * `POST /auth/logout`
     * `GET /auth/logout`
     * `GET /api/me`
+    * `GET /api/me/friends`
 
   * No debe exponer `access_token` ni `refresh_token` al frontend.
   * Guarda la sesion del usuario en backend mediante session/cookie.
-  * Fase actual: login basico solamente; no implementar amigos aqui todavia.
+  * Fase actual: login con lista de amigos, favoritos locales y seleccion de amigos para comparacion.
 
 ### Prototipos
 
@@ -161,6 +170,40 @@ Caracteristicas principales:
 
 ## Funcionalidades Implementadas
 
+### Navegacion por Rooms
+
+Implementado sistema de secciones internas usando hash routes.
+
+Rutas actuales:
+
+* `#/compare`
+* `#/results`
+* `#/friends`
+* `#/history`
+* `#/player/:username`
+* `#/top-plays/:username`
+* `#/recent/:username`
+
+Detalles:
+
+* `#/compare` es el landing/formulario principal.
+* `#/results` muestra la comparacion activa.
+* `#/friends` muestra una vista amplia de amigos.
+* `#/history` muestra historial de comparaciones y jugadores recientes.
+* `#/player/:username` muestra perfil extendido del jugador.
+* `#/top-plays/:username` muestra las mejores jugadas del jugador.
+* `#/recent/:username` esta preparado como habitacion futura, pero aun no tiene feature completa.
+* `roomBack()` debe volver de forma contextual:
+
+  * Desde perfil extendido con comparacion activa: volver a `#/results`.
+  * Desde Top Plays: volver al perfil extendido del jugador.
+  * Si no hay comparacion activa: volver a `#/compare`.
+
+* `Escape` debe cerrar Focus Mode si esta abierto.
+* `Escape` desde perfil extendido debe volver a resultados si hay comparacion activa.
+* `Escape` desde Top Plays debe volver al perfil.
+* No mostrar textos temporales tipo "room ready" en produccion.
+
 ### Comparacion de jugadores
 
 * Soporta hasta 4 jugadores.
@@ -181,9 +224,84 @@ Regla visual del resumen comparativo:
 * Si el jugador destacado es `manu is washed`, solo el nombre principal de la metrica debe usar el rojo especial `creator-name`.
 * La linea secundaria, por ejemplo `contra manu is washed` o `vs manu is washed`, debe quedarse como informacion secundaria gris.
 
-### OAuth osu! Fase 1
+### Friends Room
 
-Implementado login basico con osu!, sin amigos.
+Disponible en `#/friends`.
+
+Objetivo:
+
+* Dar mas espacio a la gestion de amigos sin cargar el landing.
+* Mantener el panel compacto del landing fuera de la pantalla principal.
+
+Incluye:
+
+* Resumen de amigos totales, favoritos y seleccionados.
+* Buscador.
+* Filtro Friends/Favorites con iconos.
+* Lista amplia responsive.
+* Fila de seleccionados.
+* Boton para comparar seleccionados reutilizando `doSearch()`.
+
+Reglas:
+
+* No hacer llamadas extra innecesarias a la API.
+* Usar los datos ya cargados en memoria cuando sea posible.
+* Mantener compatibilidad Cyberpunk y Heaven.
+
+### History Room
+
+Disponible en `#/history`.
+
+Incluye:
+
+* Comparaciones recientes.
+* Comparaciones favoritas.
+* Jugadores recientes.
+* Buscador.
+* Filtros con iconos.
+* Acciones para repetir comparacion o recuperar jugadores.
+
+Persistencia local:
+
+* `osu_recent_comparisons_<userId|guest>`
+* `osu_favorite_comparisons_<userId|guest>`
+
+Reglas:
+
+* El historial debe separarse por usuario logueado.
+* Si no hay usuario, usar contexto `guest`.
+* No reemplazar el flujo de busqueda manual.
+
+### Perfil extendido
+
+Disponible en `#/player/:username`.
+
+Se puede abrir desde Focus Mode mediante el boton de perfil completo.
+
+Incluye:
+
+* Avatar grande.
+* Username, bandera y titulo.
+* PP.
+* Rank global, rank de pais y nivel.
+* Peak rank y tendencia cuando la API lo ofrece.
+* Stats principales.
+* Top Play principal.
+* Acciones:
+
+  * Ver Top Plays.
+  * Ver Recent Plays.
+  * Abrir perfil en osu!.
+
+Reglas UX:
+
+* No mostrar el username gigante duplicado en la cabecera.
+* No incluir boton "Compare player" dentro del perfil extendido.
+* Debe poder volver a la comparacion activa sin obligar al usuario a rehacer la busqueda.
+
+### OAuth osu!
+
+Implementado login con osu! y lectura de amigos.
 
 Flujo actual:
 
@@ -192,6 +310,7 @@ Flujo actual:
 * Callback en backend.
 * Sesion guardada del lado servidor.
 * Endpoint `/api/me` para consultar si hay usuario logueado.
+* Endpoint `/api/me/friends` para consultar amigos del usuario logueado.
 * Mini-card del usuario logueado en landing y resultados.
 * Logout.
 
@@ -199,8 +318,9 @@ Scopes actuales:
 
 * `identify`
 * `public`
+* `friends.read`
 
-No pedir `friends.read` todavia.
+No implementar integraciones sociales adicionales sin pedirlo explicitamente.
 
 Reglas de seguridad:
 
@@ -249,6 +369,44 @@ UI login:
 * Si el usuario logueado es `manu is washed`, usar `creator-name` y tag `PAGE CREATOR`.
 * Para otros usuarios, usar tag normal via `getUserTitle(pp)`.
 
+### Amigos osu!
+
+Implementado con OAuth y scope `friends.read`.
+
+Backend:
+
+* Endpoint: `GET /api/me/friends`.
+* Devuelve 401 si no hay usuario logueado.
+* No expone tokens al frontend.
+
+Frontend:
+
+* La lista de amigos se carga solo si hay sesion.
+* Muestra avatar, username y pais cuando esta disponible.
+* Tiene loading, error y empty states traducidos.
+* Tiene buscador de amigos.
+* Tiene filtros compactos con iconos:
+
+  * Friends / Amigos / Freunde.
+  * Favorites / Favoritos / Favoriten.
+
+* Los favoritos se guardan en `localStorage` por usuario logueado, usando el id de osu! del usuario para separar cuentas.
+* Cada card tiene estrella:
+
+  * Gris = no favorito.
+  * Dorada = favorito.
+
+* Click en la estrella solo marca/desmarca favorito.
+* Click en la card selecciona o deselecciona amigo para comparacion.
+* Maximo 4 amigos seleccionados.
+* Si al menos un input fue rellenado desde amigos, el boton principal cambia a:
+
+  * `Comparar amigos`
+  * `Compare friends`
+  * `Freunde vergleichen`
+
+* No crear un flujo nuevo para comparar amigos; reutilizar siempre `doSearch()`.
+
 ### Top Play
 
 Incluye:
@@ -263,6 +421,71 @@ Incluye:
 * Fecha.
 * Enlace al beatmap.
 * Descarga de replay cuando este disponible.
+* Mods con tooltip de nombre completo al pasar el mouse.
+
+### Top Plays ampliados
+
+Disponible en `#/top-plays/:username`.
+
+Estado actual:
+
+* La UI muestra 5 Top Plays por jugador.
+* El sistema queda preparado para subir a 10 o mas en el futuro.
+* `DEFAULT_TOP_PLAYS_LIMIT = 5`.
+* `MAX_TOP_PLAYS_LIMIT = 20`.
+* El backend acepta `?limit=` y limita el valor entre 1 y 20.
+
+La sala muestra:
+
+* Header compacto del jugador.
+* Top Plays cargadas.
+* PP promedio.
+* Accuracy promedio.
+* Mod mas usado.
+* Lista de plays con:
+
+  * Posicion.
+  * Cover.
+  * Titulo/artista/dificultad.
+  * Stars.
+  * Mods.
+  * PP.
+  * Accuracy.
+  * Rank.
+  * Misses.
+  * Fecha.
+  * Cliente osu!lazer/osu!stable.
+  * Link al beatmap.
+  * Link de replay si esta disponible.
+
+Importante:
+
+* Si solo aparece 1/5, revisar que el backend local este actualizado y reiniciado.
+* Si aun asi sigue 1/5, puede ser que la API solo este devolviendo una score para ese usuario/modo.
+* No asumir que siempre habra 5 scores.
+
+### Tooltips de Mods
+
+Implementado.
+
+Funcionamiento:
+
+* Los chips de mods conservan su apariencia actual.
+* Al pasar el mouse por encima aparece el nombre completo del mod.
+* No usa imagenes externas.
+* Usa `data-mod-name` y CSS con `::after` / `::before`.
+* Incluye variante visual para Heaven.
+
+Ejemplos:
+
+* `HD` => `Hidden`.
+* `HR` => `Hard Rock`.
+* `DT` => `Double Time`.
+* `NC` => `Nightcore`.
+* `FL` => `Flashlight`.
+* `NM` => `No Mod`.
+
+Los nombres de mods son nombres oficiales de osu!, por eso se mantienen en ingles.
 
 ### Focus Mode
 
@@ -358,6 +581,88 @@ Heaven Theme puede sentirse mas lento que Cyberpunk en hardware modesto. Cualqui
 * Animaciones con `transform` y `opacity`.
 * Respeto a `prefers-reduced-motion`.
 * Evitar filtros SVG animados pesados en produccion si afectan FPS.
+
+---
+
+## Migracion a PC Nueva
+
+Contexto:
+
+* El usuario esta migrando el proyecto a una PC nueva.
+* El repo de GitHub es la fuente para mover el codigo.
+* Los chats de Codex no forman parte del repo.
+* Este `AGENTS.md` debe funcionar como memoria portable del proyecto.
+
+Repo:
+
+* Remoto usado:
+
+  * `https://github.com/xmanusaddy/osuforfellas-comparation.git`
+
+* Rama principal actual:
+
+  * `master`
+
+Ultimos commits relevantes ya pusheados:
+
+* `feat: add app rooms and expanded player views`
+* `feat: add mod name tooltips`
+* `feat: add "created by manu is washed" footer`
+* `updating README.md with the new stuff`
+* `docs: update project context`
+
+Al preparar una PC nueva:
+
+1. Instalar Visual Studio con workload `ASP.NET and web development`.
+2. Confirmar `.NET 8 SDK`.
+3. Instalar Git y GitHub Desktop si se desea.
+4. Clonar el repo desde GitHub.
+5. Abrir `osuforfellascomparison.csproj` si `.slnx` muestra Migration Report.
+6. Ejecutar `git pull origin master` si GitHub Desktop muestra `Pull origin`.
+7. Verificar que aparecen los commits nuevos:
+
+   * `feat: add app rooms and expanded player views`
+   * `feat: add mod name tooltips`
+
+Secrets locales:
+
+* Los .NET User Secrets no viajan con GitHub.
+* En cada PC hay que configurarlos de nuevo.
+* Ejecutar desde la carpeta donde esta `osuforfellascomparison.csproj`:
+
+```powershell
+dotnet user-secrets set "OsuApi:ClientId" "TU_CLIENT_ID"
+dotnet user-secrets set "OsuApi:ClientSecret" "TU_CLIENT_SECRET"
+dotnet user-secrets set "OsuApi:RedirectUri" "http://localhost:8080/auth/osu/callback"
+dotnet user-secrets list
+```
+
+Render:
+
+* Render ya tiene sus propias Environment Variables.
+* No depende de los User Secrets locales.
+* En Render las keys deben usar doble underscore:
+
+  * `OsuApi__ClientId`
+  * `OsuApi__ClientSecret`
+  * `OsuApi__RedirectUri`
+
+OAuth local:
+
+* El callback local esperado sigue siendo:
+
+  * `http://localhost:8080/auth/osu/callback`
+
+* Si Visual Studio abre otro puerto, mantener o ajustar el perfil para usar `8080`, o cambiar el RedirectUri en secrets y en la OAuth App de osu!.
+
+Codex/chat:
+
+* Si el historial de chat no aparece en la PC nueva, abrir un chat nuevo y pedir:
+
+  * `Lee AGENTS.md y continua con este proyecto.`
+
+* No subir chats completos al repo.
+* Mantener este archivo actualizado despues de cambios grandes.
 
 ---
 
