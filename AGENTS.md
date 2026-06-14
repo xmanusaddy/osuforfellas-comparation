@@ -56,7 +56,7 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
 
 ### Backend
 
-* `Controllers/OsuController.cs`
+* `Features/Osu/OsuController.cs`
 
   * Comunicacion con la API de osu!.
   * Endpoint principal: `/api/osu`.
@@ -64,7 +64,7 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Ese header es necesario para recibir el Score object moderno y leer `legacy_score_id`.
   * Mantiene el flujo publico/client credentials para busqueda manual, Top Play y Top Plays ampliados.
   * Endpoint de best plays acepta `limit` por query y lo limita internamente entre 1 y 20.
-  * La logica compartida de API de osu! vive en `Services/OsuApiService.cs`.
+  * La logica compartida de API de osu! vive en `Features/Osu/OsuApiService.cs`.
 
 * `Controllers/AuthController.cs`
 
@@ -82,19 +82,19 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Guarda la sesion del usuario en backend mediante session/cookie.
   * Fase actual: login con lista de amigos, favoritos locales y seleccion de amigos para comparacion.
 
-* `Controllers/DiscordController.cs`
+* `Features/Discord/DiscordController.cs`
 
   * Endpoint principal para Discord Interactions: `POST /discord/interactions`.
   * Verifica firmas Ed25519 de Discord mediante `Discord__PublicKey`.
   * Responde `PING` con `PONG`.
   * MVP actual: comando `/osu-profile`.
 
-* `Services/DiscordCommandRegistrationService.cs`
+* `Features/Discord/DiscordCommandRegistrationService.cs`
 
   * Registra slash commands al iniciar la app si existen `Discord__ApplicationId` y `Discord__BotToken`.
   * Primer comando registrado: `/osu-profile username mode`.
 
-* `Services/DiscordSignatureVerifier.cs`
+* `Features/Discord/DiscordSignatureVerifier.cs`
 
   * Verifica headers `X-Signature-Ed25519` y `X-Signature-Timestamp`.
   * Usa `BouncyCastle.Cryptography` para Ed25519.
