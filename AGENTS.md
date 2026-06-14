@@ -64,6 +64,7 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Ese header es necesario para recibir el Score object moderno y leer `legacy_score_id`.
   * Mantiene el flujo publico/client credentials para busqueda manual, Top Play y Top Plays ampliados.
   * Endpoint de best plays acepta `limit` por query y lo limita internamente entre 1 y 20.
+  * La logica compartida de API de osu! vive en `Services/OsuApiService.cs`.
 
 * `Controllers/AuthController.cs`
 
@@ -80,6 +81,23 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * No debe exponer `access_token` ni `refresh_token` al frontend.
   * Guarda la sesion del usuario en backend mediante session/cookie.
   * Fase actual: login con lista de amigos, favoritos locales y seleccion de amigos para comparacion.
+
+* `Controllers/DiscordController.cs`
+
+  * Endpoint principal para Discord Interactions: `POST /discord/interactions`.
+  * Verifica firmas Ed25519 de Discord mediante `Discord__PublicKey`.
+  * Responde `PING` con `PONG`.
+  * MVP actual: comando `/osu-profile`.
+
+* `Services/DiscordCommandRegistrationService.cs`
+
+  * Registra slash commands al iniciar la app si existen `Discord__ApplicationId` y `Discord__BotToken`.
+  * Primer comando registrado: `/osu-profile username mode`.
+
+* `Services/DiscordSignatureVerifier.cs`
+
+  * Verifica headers `X-Signature-Ed25519` y `X-Signature-Timestamp`.
+  * Usa `BouncyCastle.Cryptography` para Ed25519.
 
 ### Prototipos
 
@@ -336,12 +354,20 @@ Configuracion usada por OAuth:
 * `OsuApi:ClientId`
 * `OsuApi:ClientSecret`
 * `OsuApi:RedirectUri`
+* `Discord:ApplicationId`
+* `Discord:PublicKey`
+* `Discord:BotToken`
+* `App:PublicBaseUrl`
 
 En Render usar formato de variables:
 
 * `OsuApi__ClientId`
 * `OsuApi__ClientSecret`
 * `OsuApi__RedirectUri`
+* `Discord__ApplicationId`
+* `Discord__PublicKey`
+* `Discord__BotToken`
+* `App__PublicBaseUrl`
 
 Local User Secrets:
 
@@ -429,9 +455,9 @@ Disponible en `#/top-plays/:username`.
 
 Estado actual:
 
-* La UI muestra 5 Top Plays por jugador.
+* La UI muestra 10 Top Plays por jugador.
 * El sistema queda preparado para subir a 10 o mas en el futuro.
-* `DEFAULT_TOP_PLAYS_LIMIT = 5`.
+* `DEFAULT_TOP_PLAYS_LIMIT = 10`.
 * `MAX_TOP_PLAYS_LIMIT = 20`.
 * El backend acepta `?limit=` y limita el valor entre 1 y 20.
 
@@ -486,6 +512,34 @@ Ejemplos:
 * `NM` => `No Mod`.
 
 Los nombres de mods son nombres oficiales de osu!, por eso se mantienen en ingles.
+
+### Choke Detector
+
+Implementado en las listas de Top Plays y Recent Plays.
+
+Objetivo:
+
+* Marcar jugadas con senales simples de posible choke sin convertir la UI en una calculadora compleja.
+* Mantenerlo facil de leer mediante chips visuales.
+
+Chips actuales:
+
+* `1 miss choke`
+* `Choke de alta acc` / `High acc choke` / `High-Acc-Choke`
+* `Combo drop` / `Combo-Drop`
+
+Reglas base:
+
+* 1 miss con accuracy alta marca `1 miss choke`.
+* Misses bajos con accuracy muy alta marca choke de alta acc.
+* Combo bajo contra el max combo del beatmap, con accuracy decente y pocos misses o rank alto, marca combo drop.
+
+Reglas UX:
+
+* No mostrar ningun chip si no hay una senal clara.
+* Mostrar una explicacion corta en tooltip con accuracy, misses y combo.
+* Mantener estilos compatibles con Cyberpunk y Heaven.
+* No tocar Focus Mode para esta feature salvo que se pida explicitamente.
 
 ### Focus Mode
 
