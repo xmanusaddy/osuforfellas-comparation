@@ -8,10 +8,12 @@ const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
 const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
 const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
-const DEFAULT_TOP_PLAYS_LIMIT = 5;
+const DEFAULT_TOP_PLAYS_LIMIT = 10;
 const MAX_TOP_PLAYS_LIMIT = 20;
+const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
+const recentPlaysCache = new Map();
 const MOD_FULL_NAMES = {
     NM: 'No Mod',
     NF: 'No Fail',
@@ -86,7 +88,7 @@ const LANGS = {
             noPlayerSelected: 'Selecciona un jugador para abrir su perfil extendido.',
             viewFullProfile: 'Ver perfil completo',
             viewTopPlays: 'Ver Top Plays',
-            viewRecent: 'Ver Recent Plays',
+            viewRecent: 'Ver jugadas recientes',
             openOsuProfile: 'Abrir perfil en osu!',
             topPlaysTitle: 'Top Plays',
             topPlaysCopy: 'Las mejores jugadas de {player}, con resumen de PP, accuracy, mods y cliente usado.',
@@ -98,8 +100,14 @@ const LANGS = {
             mostUsedMod: 'Mod más usado',
             noMod: 'Sin mod',
             backToProfile: '← Volver al perfil',
-            recentTitle: 'Recent Plays',
-            recentCopy: 'Habitación preparada para actividad reciente y jugadas nuevas.',
+            refreshPlays: 'Actualizar jugadas',
+            recentTitle: 'Jugadas recientes',
+            recentCopy: 'Jugadas recientes de {player}, con fecha, rank, accuracy, mods y cliente usado.',
+            loadingRecentPlays: 'Cargando jugadas recientes...',
+            recentPlaysError: 'No se pudieron cargar las jugadas recientes',
+            recentPlaysLoaded: 'Jugadas recientes cargadas',
+            latestPlay: 'Última jugada',
+            noRecentPlays: 'Sin jugadas recientes',
             openCompare: 'Ir a comparar'
         },
         loginOsu: 'Iniciar sesión con osu!',
@@ -133,6 +141,11 @@ const LANGS = {
         ppGained: 'PP GANADOS',
         noTopPlay: 'Sin top play',
         misses: 'Misses',
+        missSingular: 'miss',
+        missPlural: 'misses',
+        chokeOneMiss: '1 miss choke',
+        chokeHighAcc: 'Choke de alta acc',
+        chokeComboDrop: 'Combo drop',
         downloadReplay: 'Descargar Replay',
         replayUnavailable: 'Replay no disponible',
         clickToExpand: 'CLICK PARA EXPANDIR',
@@ -229,8 +242,14 @@ const LANGS = {
             mostUsedMod: 'Most used mod',
             noMod: 'No mod',
             backToProfile: '← Back to profile',
+            refreshPlays: 'Refresh plays',
             recentTitle: 'Recent Plays',
-            recentCopy: 'Room prepared for recent activity and new plays.',
+            recentCopy: "{player}'s recent plays, with date, rank, accuracy, mods, and game client.",
+            loadingRecentPlays: 'Loading recent plays...',
+            recentPlaysError: 'Could not load recent plays',
+            recentPlaysLoaded: 'Recent plays loaded',
+            latestPlay: 'Latest play',
+            noRecentPlays: 'No recent plays',
             openCompare: 'Go compare'
         },
         loginOsu: 'Sign in with osu!',
@@ -264,6 +283,11 @@ const LANGS = {
         ppGained: 'PP GAINED',
         noTopPlay: 'No top play',
         misses: 'Misses',
+        missSingular: 'miss',
+        missPlural: 'misses',
+        chokeOneMiss: '1 miss choke',
+        chokeHighAcc: 'High acc choke',
+        chokeComboDrop: 'Combo drop',
         downloadReplay: 'Download Replay',
         replayUnavailable: 'Replay unavailable',
         clickToExpand: 'CLICK TO EXPAND',
@@ -348,7 +372,7 @@ const LANGS = {
             noPlayerSelected: 'Wähle einen Spieler aus, um sein erweitertes Profil zu öffnen.',
             viewFullProfile: 'Vollständiges Profil',
             viewTopPlays: 'Top Plays ansehen',
-            viewRecent: 'Recent Plays ansehen',
+            viewRecent: 'Letzte Plays ansehen',
             openOsuProfile: 'osu!-Profil öffnen',
             topPlaysTitle: 'Top Plays',
             topPlaysCopy: 'Die besten Plays von {player}, mit Zusammenfassung von PP, Accuracy, Mods und Spielclient.',
@@ -360,8 +384,14 @@ const LANGS = {
             mostUsedMod: 'Häufigster Mod',
             noMod: 'Kein Mod',
             backToProfile: '← Zurück zum Profil',
-            recentTitle: 'Recent Plays',
-            recentCopy: 'Raum vorbereitet für letzte Aktivität und neue Plays.',
+            refreshPlays: 'Plays aktualisieren',
+            recentTitle: 'Letzte Plays',
+            recentCopy: 'Letzte Plays von {player}, mit Datum, Rang, Accuracy, Mods und Spielclient.',
+            loadingRecentPlays: 'Letzte Plays werden geladen...',
+            recentPlaysError: 'Letzte Plays konnten nicht geladen werden',
+            recentPlaysLoaded: 'Geladene letzte Plays',
+            latestPlay: 'Letztes Play',
+            noRecentPlays: 'Keine letzten Plays',
             openCompare: 'Zum Vergleich'
         },
         loginOsu: 'Mit osu! anmelden',
@@ -395,6 +425,11 @@ const LANGS = {
         ppGained: 'PP ERHALTEN',
         noTopPlay: 'Kein Top-Play',
         misses: 'Misses',
+        missSingular: 'Miss',
+        missPlural: 'Misses',
+        chokeOneMiss: '1-Miss-Choke',
+        chokeHighAcc: 'High-Acc-Choke',
+        chokeComboDrop: 'Combo-Drop',
         downloadReplay: 'Replay herunterladen',
         replayUnavailable: 'Replay nicht verfügbar',
         clickToExpand: 'KLICKEN ZUM ERWEITERN',
@@ -520,6 +555,40 @@ function setActiveRoomLink(name) {
     });
 }
 
+function clearRoomScoresRefreshTimer() {
+    if (!roomScoresRefreshTimer) return;
+    clearInterval(roomScoresRefreshTimer);
+    roomScoresRefreshTimer = null;
+}
+
+function startRoomScoresRefreshTimer(route) {
+    clearRoomScoresRefreshTimer();
+    if (!route?.param || !['top-plays', 'recent'].includes(route.name)) return;
+
+    roomScoresRefreshTimer = setInterval(() => {
+        const activeRoute = currentRoomRoute;
+        if (!activeRoute?.param || activeRoute.name !== route.name || normalizeUsername(activeRoute.param) !== normalizeUsername(route.param)) {
+            clearRoomScoresRefreshTimer();
+            return;
+        }
+
+        refreshScoreRoom(activeRoute.name, activeRoute.param);
+    }, ROOM_SCORES_REFRESH_INTERVAL_MS);
+}
+
+function refreshScoreRoom(name = currentRoomRoute?.name, username = currentRoomRoute?.param) {
+    if (!username || !['top-plays', 'recent'].includes(name)) return;
+
+    if (name === 'top-plays') {
+        topPlaysCache.clear();
+        renderTopPlaysRoom({ name, param: username });
+        return;
+    }
+
+    recentPlaysCache.clear();
+    renderRecentPlaysRoom({ name, param: username });
+}
+
 function setRoomTitle(text, extraClass = '') {
     const title = document.getElementById('room-title');
     if (!title) return;
@@ -538,7 +607,7 @@ function shouldReturnToResultsFromRoom() {
 
 function getRoomBackLabel() {
     const rooms = LANGS[currentLang].rooms;
-    if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+    if ((currentRoomRoute?.name === 'top-plays' || currentRoomRoute?.name === 'recent') && currentRoomRoute.param) {
         return rooms.backToProfile;
     }
     return shouldReturnToResultsFromRoom() ? rooms.backToComparison : rooms.back;
@@ -550,7 +619,7 @@ function updateRoomBackLabel() {
 }
 
 function roomBack() {
-    if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+    if ((currentRoomRoute?.name === 'top-plays' || currentRoomRoute?.name === 'recent') && currentRoomRoute.param) {
         navigateToRoom('player', currentRoomRoute.param);
         return;
     }
@@ -559,6 +628,7 @@ function roomBack() {
 }
 
 function showCompareRoom() {
+    clearRoomScoresRefreshTimer();
     if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
@@ -572,9 +642,11 @@ function showCompareRoom() {
     currentRoomRoute = { name: 'compare', param: '' };
     topPlayCache = {};
     topPlaysCache.clear();
+    recentPlaysCache.clear();
 }
 
 function showResultsRoom() {
+    clearRoomScoresRefreshTimer();
     if (!currentPlayers.length) {
         history.replaceState(null, '', buildRoomHash('compare'));
         showCompareRoom();
@@ -595,6 +667,7 @@ function showResultsRoom() {
 }
 
 function showFutureRoom(route) {
+    clearRoomScoresRefreshTimer();
     if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
@@ -608,6 +681,7 @@ function showFutureRoom(route) {
     currentRoomRoute = route;
     updateRoomBackLabel();
     renderRoomView(route);
+    startRoomScoresRefreshTimer(route);
     window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -632,20 +706,15 @@ function renderRoomView(route = currentRoomRoute) {
         renderTopPlaysRoom(route);
         return;
     }
+    if (route.name === 'recent') {
+        renderRecentPlaysRoom(route);
+        return;
+    }
 
-    const player = route.param || '—';
-    const configs = {
-        recent: {
-            title: t.recentTitle,
-            copy: t.recentCopy
-        }
-    };
-    const config = configs[route.name] || configs.friends;
-
-    setRoomTitle(config.title);
-    document.getElementById('room-copy').textContent = config.copy;
+    setRoomTitle(t.compare);
+    document.getElementById('room-copy').textContent = t.openCompare;
     document.getElementById('room-actions').innerHTML = `
-        <a class="room-action-link" href="#/compare">${t.openCompare}</a>
+        <a class="room-action-link" href="#/compare">${escapeHtml(t.openCompare)}</a>
     `;
 }
 
@@ -875,7 +944,10 @@ function renderTopPlaysContent(user, scores, mode, limit) {
                         <span>${fmtNum(pp)}pp</span>
                     </div>
                 </div>
-                <a class="room-action-link top-plays-profile-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+                <div class="top-plays-player-actions">
+                    <button class="room-action-link top-plays-refresh-link" type="button" onclick="refreshScoreRoom()">${escapeHtml(rooms.refreshPlays)}</button>
+                    <a class="room-action-link top-plays-profile-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+                </div>
             </div>
 
             <div class="top-plays-summary">
@@ -900,6 +972,110 @@ function renderTopPlaysContent(user, scores, mode, limit) {
             ${safeScores.length
                 ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index)).join('')}</div>`
                 : `<div class="top-plays-state">${escapeHtml(t.noTopPlay)}</div>`}
+        </div>
+    `;
+}
+
+async function renderRecentPlaysRoom(route) {
+    const rooms = LANGS[currentLang].rooms;
+    const username = String(route.param || '').trim();
+    const mode = getActiveMode();
+
+    setRoomTitle(rooms.recentTitle);
+
+    if (!username) {
+        document.getElementById('room-copy').textContent = rooms.noPlayerSelected;
+        document.getElementById('room-actions').innerHTML = `
+            <div class="top-plays-state">${escapeHtml(rooms.noPlayerSelected)}</div>
+            <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
+        `;
+        return;
+    }
+
+    document.getElementById('room-copy').textContent = rooms.recentCopy.replace('{player}', username);
+    document.getElementById('room-actions').innerHTML = `
+        <div class="top-plays-state">
+            <div class="spinner"></div>
+            <span>${escapeHtml(rooms.loadingRecentPlays)}</span>
+        </div>
+    `;
+
+    try {
+        const [user, scores] = await Promise.all([
+            fetchPlayer(username, mode),
+            fetchRecentPlays(username, mode)
+        ]);
+
+        if (currentRoomRoute?.name === 'recent' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            renderRecentPlaysContent(user, scores, mode);
+        }
+    } catch (error) {
+        if (currentRoomRoute?.name !== 'recent') return;
+
+        document.getElementById('room-actions').innerHTML = `
+            <div class="top-plays-state top-plays-state--error">
+                ${escapeHtml(error?.message || rooms.recentPlaysError)}
+            </div>
+            <a class="room-action-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+        `;
+    }
+}
+
+function renderRecentPlaysContent(user, scores, mode) {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const username = user.username || 'osu!';
+    const pp = Math.round(user.statistics?.pp || 0);
+    const isCreator = isCreatorUsername(username);
+    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const safeScores = Array.isArray(scores) ? scores : [];
+    const summary = getTopPlaysSummary(safeScores);
+    const latestDate = safeScores[0]
+        ? fmtDate(safeScores[0].ended_at || safeScores[0].created_at).replace('\n', ' ')
+        : '—';
+
+    setRoomTitle(rooms.recentTitle);
+    document.getElementById('room-copy').textContent = rooms.recentCopy.replace('{player}', username);
+
+    document.getElementById('room-actions').innerHTML = `
+        <div class="top-plays-room recent-plays-room">
+            <div class="top-plays-player">
+                <img class="top-plays-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+                <div class="top-plays-player-info">
+                    <div class="top-plays-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+                    <div class="top-plays-meta">
+                        <span>${escapeHtml(t.modes[mode] || mode)}</span>
+                        <span>${fmtNum(pp)}pp</span>
+                    </div>
+                </div>
+                <div class="top-plays-player-actions">
+                    <button class="room-action-link top-plays-refresh-link" type="button" onclick="refreshScoreRoom()">${escapeHtml(rooms.refreshPlays)}</button>
+                    <a class="room-action-link top-plays-profile-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
+                </div>
+            </div>
+
+            <div class="top-plays-summary">
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.recentPlaysLoaded)}</span>
+                    <strong>${fmtNum(safeScores.length)}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.latestPlay)}</span>
+                    <strong>${escapeHtml(latestDate)}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.averageAccuracy)}</span>
+                    <strong>${summary.avgAcc ? `${summary.avgAcc.toFixed(2)}%` : '—'}</strong>
+                </div>
+                <div class="top-plays-stat">
+                    <span>${escapeHtml(rooms.mostUsedMod)}</span>
+                    <strong>${escapeHtml(summary.topMod || rooms.noMod)}</strong>
+                </div>
+            </div>
+
+            ${safeScores.length
+                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index)).join('')}</div>`
+                : `<div class="top-plays-state">${escapeHtml(rooms.noRecentPlays)}</div>`}
         </div>
     `;
 }
@@ -931,6 +1107,53 @@ function getTopPlaysSummary(scores) {
     };
 }
 
+function getChokeInfo(score) {
+    if (!score) return null;
+
+    const t = LANGS[currentLang];
+    const accuracy = typeof score.accuracy === 'number' ? score.accuracy : 0;
+    const misses = Number(score.statistics?.miss ?? score.statistics?.count_miss ?? 0) || 0;
+    const scoreCombo = Number(score.max_combo || 0) || 0;
+    const beatmapCombo = Number(score.beatmap?.max_combo || 0) || 0;
+    const comboRatio = scoreCombo && beatmapCombo ? scoreCombo / beatmapCombo : 0;
+    const rank = String(score.rank || '').toUpperCase();
+    const accText = accuracy ? `${(accuracy * 100).toFixed(2)}%` : '—';
+    const missText = `${misses} ${misses === 1 ? t.missSingular : t.missPlural}`;
+    const comboText = beatmapCombo ? `${fmtNum(scoreCombo)}x / ${fmtNum(beatmapCombo)}x` : `${fmtNum(scoreCombo)}x`;
+
+    if (misses === 1 && accuracy >= 0.965) {
+        return {
+            type: 'miss',
+            label: t.chokeOneMiss,
+            detail: `${accText} · ${missText} · ${comboText}`
+        };
+    }
+
+    if (misses > 0 && misses <= 3 && accuracy >= 0.975) {
+        return {
+            type: 'high-acc',
+            label: t.chokeHighAcc,
+            detail: `${accText} · ${missText} · ${comboText}`
+        };
+    }
+
+    if (beatmapCombo && scoreCombo && comboRatio < 0.65 && accuracy >= 0.94 && (misses <= 3 || ['S', 'SH', 'A'].includes(rank))) {
+        return {
+            type: 'combo',
+            label: t.chokeComboDrop,
+            detail: `${accText} · ${missText} · ${comboText}`
+        };
+    }
+
+    return null;
+}
+
+function renderChokeChip(choke) {
+    if (!choke) return '';
+
+    return `<span class="choke-chip choke-chip--${escapeHtml(choke.type)}" data-choke-detail="${escapeHtml(choke.detail)}" aria-label="${escapeHtml(choke.detail)}">${escapeHtml(choke.label)}</span>`;
+}
+
 function renderTopPlayListItem(score, index) {
     const t = LANGS[currentLang];
     const cover = getCoverUrl(score);
@@ -939,13 +1162,14 @@ function renderTopPlayListItem(score, index) {
     const diff = score.beatmap?.version || '';
     const stars = score.beatmap?.difficulty_rating?.toFixed(2);
     const mods = getMods(score);
-    const pp = Math.round(score.pp || 0);
+    const pp = typeof score.pp === 'number' ? Math.round(score.pp) : null;
     const acc = typeof score.accuracy === 'number' ? (score.accuracy * 100).toFixed(2) : '—';
     const rank = score.rank || 'D';
     const misses = score.statistics?.miss ?? score.statistics?.count_miss ?? 0;
     const dateStr = fmtDate(score.ended_at || score.created_at);
     const mapUrl = getBeatmapUrl(score);
     const hasReplay = score.replay === true || score.has_replay === true;
+    const choke = getChokeInfo(score);
     const replayUrl = hasReplay && score.id
         ? `https://osu.ppy.sh/scores/${score.id}/download`
         : null;
@@ -966,6 +1190,7 @@ function renderTopPlayListItem(score, index) {
                 <div class="top-play-artist">by ${escapeHtml(artist)}</div>
                 <div class="top-play-tags">
                     ${renderModChips(mods)}
+                    ${renderChokeChip(choke)}
                     ${stars ? `<span class="tp-full-stars">✦ ${stars}</span>` : ''}
                     ${diff ? `<span class="top-play-diff">[${escapeHtml(diff)}]</span>` : ''}
                 </div>
@@ -977,7 +1202,7 @@ function renderTopPlayListItem(score, index) {
                 </div>
             </div>
             <div class="top-play-side">
-                <div class="top-play-pp">${fmtNum(pp)}<span>pp</span></div>
+                <div class="top-play-pp">${pp == null ? '—' : fmtNum(pp)}<span>pp</span></div>
                 <a class="top-play-action" href="${mapUrl}" target="_blank" rel="noopener">↗</a>
                 ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${replayUrl}" target="_blank" rel="noopener">⬇</a>` : ''}
             </div>
@@ -1202,6 +1427,7 @@ function handleRouteChange() {
 let currentPlayers = [];
 let currentMode = 'osu';
 let refreshTimer = null;
+let roomScoresRefreshTimer = null;
 // Cache de top plays para el Focus Mode: { 'username': scoreData | null }
 let topPlayCache = {};
 let loggedInUser = null;
@@ -1357,6 +1583,23 @@ async function fetchBestPlays(username, mode, limit = DEFAULT_TOP_PLAYS_LIMIT) {
     const data = await res.json();
     const scores = Array.isArray(data) ? data : [];
     topPlaysCache.set(cacheKey, scores);
+    return scores;
+}
+
+async function fetchRecentPlays(username, mode, limit = null) {
+    const hasLimit = limit != null;
+    const safeLimit = hasLimit ? Math.max(1, Math.min(MAX_TOP_PLAYS_LIMIT, Number(limit) || DEFAULT_TOP_PLAYS_LIMIT)) : null;
+    const cacheKey = `${mode}:${normalizeUsername(username)}:${safeLimit || 'all'}`;
+
+    if (recentPlaysCache.has(cacheKey)) return recentPlaysCache.get(cacheKey);
+
+    const query = safeLimit ? `?limit=${safeLimit}` : '';
+    const res = await fetch(`/api/osu/${mode}/${encodeURIComponent(username)}/recent${query}`);
+    if (!res.ok) throw new Error(LANGS[currentLang].rooms.recentPlaysError);
+
+    const data = await res.json();
+    const scores = Array.isArray(data) ? data : [];
+    recentPlaysCache.set(cacheKey, scores);
     return scores;
 }
 
@@ -2809,6 +3052,11 @@ document.addEventListener('keydown', e => {
             navigateToRoom('player', currentRoomRoute.param);
             return;
         }
+
+        if (currentRoomRoute?.name === 'recent' && currentRoomRoute.param) {
+            navigateToRoom('player', currentRoomRoute.param);
+            return;
+        }
     }
 
     if (e.key === 'Enter' && document.getElementById('landing').style.display !== 'none') {
@@ -2830,6 +3078,7 @@ async function doSearch() {
     // Limpiar cache al hacer nueva búsqueda
     topPlayCache = {};
     topPlaysCache.clear();
+    recentPlaysCache.clear();
 
     currentPlayers = names;
     currentMode = document.getElementById('gamemode').value;
@@ -2955,6 +3204,7 @@ async function refreshData() {
     // Limpiar cache para obtener datos frescos
     topPlayCache = {};
     topPlaysCache.clear();
+    recentPlaysCache.clear();
     const btn = document.getElementById('btn-refresh');
     btn.textContent = LANGS[currentLang].refreshing;
     btn.style.opacity = '0.5';
