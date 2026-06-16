@@ -5717,6 +5717,191 @@ body.share-mode .rank-divider {
     height: 28px;
 }
 
+body.share-room-mode #results {
+    display: none !important;
+}
+
+body.share-room-mode #room-view {
+    display: block !important;
+    min-height: 720px;
+    padding: 26px 34px 24px;
+}
+
+body.share-room-mode .room-header {
+    position: relative;
+    max-width: 1212px;
+    margin: 0 auto 0.75rem;
+    padding-right: 0;
+}
+
+body.share-room-mode .room-header::after {
+    content: 'osu! for fellas';
+    margin-left: auto;
+    color: var(--muted);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+body.share-room-mode .room-logo {
+    font-size: 2.25rem;
+}
+
+body.share-room-mode .room-panel {
+    max-width: 1212px;
+    max-height: 640px;
+    margin: 0 auto;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+body.share-room-mode .room-panel::before {
+    content: none;
+}
+
+body.share-room-mode .room-title {
+    margin-bottom: 0.45rem;
+    font-size: 1.45rem;
+}
+
+body.share-room-mode .room-copy {
+    display: none;
+}
+
+body.share-room-mode .room-actions {
+    width: 100%;
+}
+
+body.share-room-mode .player-profile-room,
+body.share-room-mode .top-plays-room {
+    gap: 0.58rem;
+}
+
+body.share-room-mode .player-profile-hero,
+body.share-room-mode .top-plays-player {
+    padding: 0.62rem 0.75rem;
+}
+
+body.share-room-mode .player-profile-avatar,
+body.share-room-mode .top-plays-avatar {
+    width: 52px;
+    height: 52px;
+}
+
+body.share-room-mode .player-profile-name,
+body.share-room-mode .top-plays-name {
+    font-size: 1.02rem;
+}
+
+body.share-room-mode .player-profile-title,
+body.share-room-mode .top-plays-meta,
+body.share-room-mode .activity-indicator {
+    font-size: 0.5rem;
+}
+
+body.share-room-mode .player-profile-pp strong {
+    font-size: 1.55rem;
+}
+
+body.share-room-mode .player-profile-rank strong {
+    font-size: 1rem;
+}
+
+body.share-room-mode .player-profile-stats,
+body.share-room-mode .top-plays-summary {
+    gap: 0.45rem;
+}
+
+body.share-room-mode .player-profile-stat,
+body.share-room-mode .top-plays-stat {
+    padding: 0.48rem 0.62rem;
+}
+
+body.share-room-mode .top-plays-stat span,
+body.share-room-mode .player-profile-stat span {
+    font-size: 0.46rem;
+}
+
+body.share-room-mode .top-plays-stat strong,
+body.share-room-mode .player-profile-stat strong {
+    font-size: 0.8rem;
+}
+
+body.share-room-mode .player-profile-topplay {
+    max-height: 250px;
+    overflow: hidden;
+}
+
+body.share-room-mode .player-profile-actions,
+body.share-room-mode .top-plays-player-actions {
+    display: none;
+}
+
+body.share-room-mode .top-plays-list {
+    gap: 0.42rem;
+}
+
+body.share-room-mode .top-play-row {
+    grid-template-columns: auto 78px minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    padding: 0.43rem 0.55rem;
+}
+
+body.share-room-mode .top-play-position {
+    min-width: 34px;
+    font-size: 1rem;
+}
+
+body.share-room-mode .top-play-cover-wrap {
+    width: 78px;
+}
+
+body.share-room-mode .top-play-map {
+    font-size: 0.72rem;
+}
+
+body.share-room-mode .top-play-artist {
+    font-size: 0.52rem;
+}
+
+body.share-room-mode .top-play-tags {
+    gap: 0.22rem;
+    max-height: 20px;
+    overflow: hidden;
+}
+
+body.share-room-mode .top-play-metrics {
+    margin-top: 0.28rem;
+}
+
+body.share-room-mode .top-play-metrics div {
+    padding: 0.22rem 0.34rem;
+}
+
+body.share-room-mode .top-play-metrics span {
+    font-size: 0.42rem;
+}
+
+body.share-room-mode .top-play-metrics strong {
+    font-size: 0.56rem;
+}
+
+body.share-room-mode .score-client {
+    font-size: 0.42rem;
+}
+
+body.share-room-mode .top-play-pp {
+    font-size: 1rem;
+}
+
+body.share-room-mode .top-play-action {
+    display: none;
+}
+
 /* ── Friends panel ── */
 [data-theme="heaven"] .friends-panel {
     background: rgba(255,255,255,0.78);

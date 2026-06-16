@@ -5,13 +5,16 @@
 // ══ IDIOMAS ══
 const INITIAL_URL_PARAMS = new URLSearchParams(window.location.search);
 const SUPPORTED_LANGS = ['es', 'en', 'de'];
-const IS_SHARE_COMPARE_MODE = INITIAL_URL_PARAMS.get('share') === 'compare';
+const SHARE_MODE = INITIAL_URL_PARAMS.get('share');
+const IS_SHARE_COMPARE_MODE = SHARE_MODE === 'compare';
+const IS_SHARE_ROOM_MODE = SHARE_MODE === 'room';
+const IS_SHARE_MODE = IS_SHARE_COMPARE_MODE || IS_SHARE_ROOM_MODE;
 const HAS_LINKED_COMPARE_PARAMS = INITIAL_URL_PARAMS.has('player') || INITIAL_URL_PARAMS.has('players');
 const requestedLang = INITIAL_URL_PARAMS.get('lang');
 let currentLang = SUPPORTED_LANGS.includes(requestedLang)
     ? requestedLang
     : (localStorage.getItem('lang') || 'es');
-if (IS_SHARE_COMPARE_MODE) {
+if (IS_SHARE_MODE) {
     window.__osuShareReady = false;
     window.__osuShareError = '';
 }
@@ -21,6 +24,7 @@ const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
 const DEFAULT_TOP_PLAYS_LIMIT = 10;
 const MAX_TOP_PLAYS_LIMIT = 20;
+const DISCORD_RECENT_PAGE_SIZE = 10;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
@@ -121,6 +125,7 @@ const LANGS = {
             recentPlaysLoaded: 'Jugadas recientes cargadas',
             latestPlay: 'Última jugada',
             noRecentPlays: 'Sin jugadas recientes',
+            page: 'Página',
             openCompare: 'Ir a comparar'
         },
         loginOsu: 'Iniciar sesión con osu!',
@@ -265,6 +270,7 @@ const LANGS = {
             recentPlaysLoaded: 'Recent plays loaded',
             latestPlay: 'Latest play',
             noRecentPlays: 'No recent plays',
+            page: 'Page',
             openCompare: 'Go compare'
         },
         loginOsu: 'Sign in with osu!',
@@ -409,6 +415,7 @@ const LANGS = {
             recentPlaysLoaded: 'Geladene letzte Plays',
             latestPlay: 'Letztes Play',
             noRecentPlays: 'Keine letzten Plays',
+            page: 'Seite',
             openCompare: 'Zum Vergleich'
         },
         loginOsu: 'Mit osu! anmelden',
@@ -568,7 +575,7 @@ function hasCompareUrlParams() {
 }
 
 function cleanCompareUrlIfNeeded() {
-    if (IS_SHARE_COMPARE_MODE || !hasCompareUrlParams()) return;
+    if (IS_SHARE_MODE || !hasCompareUrlParams()) return;
     history.replaceState(null, '', `${window.location.pathname}${buildRoomHash('compare')}`);
 }
 
@@ -693,7 +700,7 @@ function showResultsRoom() {
     currentRoomRoute = { name: 'results', param: '' };
     updateRoomBackLabel();
 
-    if (!IS_SHARE_COMPARE_MODE && !refreshTimer) {
+    if (!IS_SHARE_MODE && !refreshTimer) {
         refreshTimer = setInterval(refreshData, 60000);
     }
 }
@@ -1060,10 +1067,12 @@ function renderRecentPlaysContent(user, scores, mode) {
     const pp = Math.round(user.statistics?.pp || 0);
     const isCreator = isCreatorUsername(username);
     const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
-    const safeScores = Array.isArray(scores) ? scores : [];
+    const allScores = Array.isArray(scores) ? scores : [];
+    const paging = getRecentSharePaging(allScores);
+    const safeScores = paging.scores;
     const summary = getTopPlaysSummary(safeScores);
-    const latestDate = safeScores[0]
-        ? fmtDate(safeScores[0].ended_at || safeScores[0].created_at).replace('\n', ' ')
+    const latestDate = allScores[0]
+        ? fmtDate(allScores[0].ended_at || allScores[0].created_at).replace('\n', ' ')
         : '—';
 
     setRoomTitle(rooms.recentTitle);
@@ -1089,7 +1098,7 @@ function renderRecentPlaysContent(user, scores, mode) {
             <div class="top-plays-summary">
                 <div class="top-plays-stat">
                     <span>${escapeHtml(rooms.recentPlaysLoaded)}</span>
-                    <strong>${fmtNum(safeScores.length)}</strong>
+                    <strong>${escapeHtml(paging.label)}</strong>
                 </div>
                 <div class="top-plays-stat">
                     <span>${escapeHtml(rooms.latestPlay)}</span>
@@ -1106,10 +1115,37 @@ function renderRecentPlaysContent(user, scores, mode) {
             </div>
 
             ${safeScores.length
-                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index)).join('')}</div>`
+                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index + paging.offset)).join('')}</div>`
                 : `<div class="top-plays-state">${escapeHtml(rooms.noRecentPlays)}</div>`}
         </div>
     `;
+}
+
+function getRecentSharePaging(scores) {
+    if (!IS_SHARE_ROOM_MODE || getSharedRoomName() !== 'recent') {
+        return {
+            scores,
+            page: 1,
+            totalPages: 1,
+            offset: 0,
+            label: fmtNum(scores.length)
+        };
+    }
+
+    const pageSize = getSharedRecentPageSize();
+    const totalPages = Math.max(1, Math.ceil(scores.length / pageSize));
+    const page = Math.min(getSharedRecentPage(), totalPages);
+    const start = (page - 1) * pageSize;
+    const pageScores = scores.slice(start, start + pageSize);
+    const rooms = LANGS[currentLang].rooms;
+
+    return {
+        scores: pageScores,
+        page,
+        totalPages,
+        offset: start,
+        label: `${rooms.page} ${page}/${totalPages} · ${fmtNum(scores.length)}`
+    };
 }
 
 function getTopPlaysSummary(scores) {
@@ -3174,18 +3210,18 @@ function getSharedCompareTheme() {
 }
 
 function markSharedCompareReady() {
-    if (!IS_SHARE_COMPARE_MODE) return;
+    if (!IS_SHARE_MODE) return;
     window.__osuShareReady = true;
 }
 
 function markSharedCompareError(error) {
-    if (!IS_SHARE_COMPARE_MODE) return;
+    if (!IS_SHARE_MODE) return;
     window.__osuShareError = error?.message || String(error || 'share_error');
     window.__osuShareReady = true;
 }
 
 async function waitForSharedCompareImages(timeoutMs = 2600) {
-    if (!IS_SHARE_COMPARE_MODE) return;
+    if (!IS_SHARE_MODE) return;
 
     const pendingImages = [...document.images].filter(img => !img.complete);
     if (!pendingImages.length) return;
@@ -3202,7 +3238,7 @@ async function waitForSharedCompareImages(timeoutMs = 2600) {
 function initSharedCompareMode() {
     if (!IS_SHARE_COMPARE_MODE) return;
 
-    document.body.classList.add('share-mode');
+    document.body.classList.add('share-mode', 'share-compare-mode');
     hydrateCompareFromUrlParams();
 
     const players = getSharedComparePlayers();
@@ -3214,13 +3250,95 @@ function initSharedCompareMode() {
     doSearch().catch(markSharedCompareError);
 }
 
-function hydrateCompareFromUrlParams() {
-    const theme = getSharedCompareTheme();
-    if (typeof applyTheme === 'function') {
-        applyTheme(theme);
-    } else {
-        document.documentElement.dataset.theme = theme;
+function getSharedRoomName() {
+    const room = String(INITIAL_URL_PARAMS.get('room') || 'player').trim().toLowerCase();
+    if (room === 'profile' || room === 'player') return 'player';
+    if (room === 'top' || room === 'top-plays') return 'top-plays';
+    if (room === 'recent' || room === 'recent-plays') return 'recent';
+    return 'player';
+}
+
+function getSharedRoomPlayer() {
+    return String(INITIAL_URL_PARAMS.get('user') || INITIAL_URL_PARAMS.get('player') || '').trim();
+}
+
+function getSharedRecentPage() {
+    const page = Number(INITIAL_URL_PARAMS.get('page') || 1);
+    return Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+}
+
+function getSharedRecentPageSize() {
+    const pageSize = Number(INITIAL_URL_PARAMS.get('pageSize') || DISCORD_RECENT_PAGE_SIZE);
+    return Number.isFinite(pageSize) ? Math.max(5, Math.min(10, Math.floor(pageSize))) : DISCORD_RECENT_PAGE_SIZE;
+}
+
+function hydrateShareBaseFromUrlParams(forceDefaults = true) {
+    if (forceDefaults || INITIAL_URL_PARAMS.has('theme')) {
+        const theme = getSharedCompareTheme();
+        if (typeof applyTheme === 'function') {
+            applyTheme(theme);
+        } else {
+            document.documentElement.dataset.theme = theme;
+        }
     }
+
+    if (forceDefaults || INITIAL_URL_PARAMS.has('mode')) {
+        const modeSelect = document.getElementById('gamemode');
+        if (modeSelect) modeSelect.value = getSharedCompareMode();
+    }
+}
+
+function hydrateLinkedContextFromUrlParams() {
+    if (!INITIAL_URL_PARAMS.has('theme') && !INITIAL_URL_PARAMS.has('mode')) return;
+    hydrateShareBaseFromUrlParams(false);
+}
+
+async function initSharedRoomMode() {
+    if (!IS_SHARE_ROOM_MODE) return;
+
+    document.body.classList.add('share-mode', 'share-room-mode', `share-room-${getSharedRoomName()}`);
+    hydrateShareBaseFromUrlParams();
+
+    const username = getSharedRoomPlayer();
+    if (!username) {
+        markSharedCompareReady();
+        return;
+    }
+
+    const route = { name: getSharedRoomName(), param: username };
+    try {
+        clearRoomScoresRefreshTimer();
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+
+        closeFocusBtn();
+        document.getElementById('landing').style.display = 'none';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('room-view').style.display = 'block';
+        setChromeMode('room');
+        setActiveRoomLink('');
+        currentRoomRoute = route;
+        updateRoomBackLabel();
+
+        if (route.name === 'player') {
+            await renderPlayerRoom(route);
+        } else if (route.name === 'top-plays') {
+            await renderTopPlaysRoom(route);
+        } else {
+            await renderRecentPlaysRoom(route);
+        }
+
+        await waitForSharedCompareImages(3200);
+        markSharedCompareReady();
+    } catch (error) {
+        markSharedCompareError(error);
+    }
+}
+
+function hydrateCompareFromUrlParams() {
+    hydrateShareBaseFromUrlParams();
 
     const players = getSharedComparePlayers();
     const inputs = getPlayerInputs();
@@ -3228,9 +3346,6 @@ function hydrateCompareFromUrlParams() {
         input.value = players[index] || '';
         delete input.dataset.friendUsername;
     });
-
-    const modeSelect = document.getElementById('gamemode');
-    if (modeSelect) modeSelect.value = getSharedCompareMode();
 }
 
 function initLinkedCompareMode() {
@@ -3433,10 +3548,13 @@ applyLang();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {
     initSharedCompareMode();
+} else if (IS_SHARE_ROOM_MODE) {
+    initSharedRoomMode();
 } else if (HAS_LINKED_COMPARE_PARAMS) {
     initLinkedCompareMode();
     initAuth();
 } else {
+    hydrateLinkedContextFromUrlParams();
     handleRouteChange();
     initAuth();
 }

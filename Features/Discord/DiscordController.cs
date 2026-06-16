@@ -7,6 +7,7 @@ public class DiscordController : ControllerBase
 {
     private const int InteractionPing = 1;
     private const int InteractionApplicationCommand = 2;
+    private const int InteractionMessageComponent = 3;
     private const int ResponsePong = 1;
     private const int ResponseChannelMessage = 4;
     private const int ResponseDeferredChannelMessage = 5;
@@ -66,11 +67,14 @@ public class DiscordController : ControllerBase
         if (type == InteractionPing)
             return Ok(new Dictionary<string, object?> { ["type"] = ResponsePong });
 
-        if (type != InteractionApplicationCommand)
+        if (type != InteractionApplicationCommand && type != InteractionMessageComponent)
             return Ok(CreateMessageResponse("That interaction is not supported yet.", ephemeral: true));
 
         if (!interaction.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
             return BadRequest();
+
+        if (type == InteractionMessageComponent)
+            return Ok(HandleMessageComponent(interaction, data));
 
         if (!data.TryGetProperty("name", out var commandNameElement))
             return BadRequest();
@@ -83,6 +87,67 @@ public class DiscordController : ControllerBase
             "osu-compare" => Ok(HandleOsuCompare(interaction, data)),
             _ => Ok(CreateMessageResponse("Unknown command.", ephemeral: true))
         };
+    }
+
+    private Dictionary<string, object?> HandleMessageComponent(JsonElement interaction, JsonElement data)
+    {
+        var applicationId = GetString(interaction, "application_id") ?? _config["Discord:ApplicationId"];
+        var interactionToken = GetString(interaction, "token");
+        var customId = GetString(data, "custom_id");
+
+        if (string.IsNullOrWhiteSpace(applicationId) || string.IsNullOrWhiteSpace(interactionToken))
+            return CreateMessageResponse("Discord interaction metadata was missing.", ephemeral: true);
+
+        if (string.IsNullOrWhiteSpace(customId))
+            return CreateMessageResponse("That button is missing its action.", ephemeral: true);
+
+        if (customId.StartsWith("ofc:refresh:", StringComparison.Ordinal))
+        {
+            var stateId = customId["ofc:refresh:".Length..];
+            if (!DiscordCompareImageService.HasInteractionState(stateId))
+                return CreateMessageResponse("This visual menu expired. Run `/osu-compare` again.", ephemeral: true);
+
+            StartDiscordImageTask(
+                applicationId,
+                service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId)
+            );
+            return CreateDeferredResponse();
+        }
+
+        if (customId.StartsWith("ofc:select:", StringComparison.Ordinal))
+        {
+            var stateId = customId["ofc:select:".Length..];
+            var selectedValue = GetSelectedValue(data);
+            if (!DiscordCompareImageService.HasInteractionState(stateId))
+                return CreateMessageResponse("This visual menu expired. Run `/osu-compare` again.", ephemeral: true);
+
+            if (!TryParseViewAction(selectedValue, out var view, out var playerIndex, out var page))
+                return CreateMessageResponse("That menu option is not valid anymore.", ephemeral: true);
+
+            StartDiscordImageTask(
+                applicationId,
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
+            );
+            return CreateDeferredResponse();
+        }
+
+        if (customId.StartsWith("ofc:view:", StringComparison.Ordinal))
+        {
+            var action = customId["ofc:view:".Length..];
+            if (!TryParseStateViewAction(action, out var stateId, out var view, out var playerIndex, out var page))
+                return CreateMessageResponse("That button is not valid anymore.", ephemeral: true);
+
+            if (!DiscordCompareImageService.HasInteractionState(stateId))
+                return CreateMessageResponse("This visual menu expired. Run `/osu-compare` again.", ephemeral: true);
+
+            StartDiscordImageTask(
+                applicationId,
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
+            );
+            return CreateDeferredResponse();
+        }
+
+        return CreateMessageResponse("That action is not supported yet.", ephemeral: true);
     }
 
     private static JsonDocument? ParseInteractionBody(string body)
@@ -120,24 +185,12 @@ public class DiscordController : ControllerBase
         if (string.IsNullOrWhiteSpace(applicationId) || string.IsNullOrWhiteSpace(interactionToken))
             return CreateMessageResponse("Discord interaction metadata was missing.", ephemeral: true);
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var compareImages = scope.ServiceProvider.GetRequiredService<DiscordCompareImageService>();
-                await compareImages.SendCompareImageAsync(applicationId, interactionToken, players, mode, theme, lang);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled osu-compare background task failure.");
-            }
-        });
+        StartDiscordImageTask(
+            applicationId,
+            service => service.SendCompareImageAsync(applicationId, interactionToken, players, mode, theme, lang)
+        );
 
-        return new Dictionary<string, object?>
-        {
-            ["type"] = ResponseDeferredChannelMessage
-        };
+        return CreateDeferredResponse();
     }
 
     private async Task<Dictionary<string, object?>> HandleOsuProfile(JsonElement data)
@@ -269,6 +322,37 @@ public class DiscordController : ControllerBase
         return null;
     }
 
+    private void StartDiscordImageTask(
+        string applicationId,
+        Func<DiscordCompareImageService, Task> sendAsync)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var compareImages = scope.ServiceProvider.GetRequiredService<DiscordCompareImageService>();
+                await sendAsync(compareImages);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Unhandled Discord image background task failure for application {ApplicationId}.",
+                    applicationId
+                );
+            }
+        });
+    }
+
+    private static Dictionary<string, object?> CreateDeferredResponse()
+    {
+        return new Dictionary<string, object?>
+        {
+            ["type"] = ResponseDeferredChannelMessage
+        };
+    }
+
     private static Dictionary<string, object?> CreateEmbedResponse(Dictionary<string, object?> embed)
     {
         return new Dictionary<string, object?>
@@ -343,6 +427,60 @@ public class DiscordController : ControllerBase
             && value.TryGetInt64(out var number)
             ? number
             : 0;
+    }
+
+    private static string? GetSelectedValue(JsonElement data)
+    {
+        if (!data.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var first = values.EnumerateArray().FirstOrDefault();
+        return first.ValueKind == JsonValueKind.String ? first.GetString() : null;
+    }
+
+    private static bool TryParseViewAction(string? value, out string view, out int playerIndex, out int page)
+    {
+        view = string.Empty;
+        playerIndex = 0;
+        page = 1;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var parts = value.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 3)
+            return false;
+
+        view = DiscordCompareImageService.NormalizeView(parts[0]);
+        return int.TryParse(parts[1], out playerIndex)
+            && int.TryParse(parts[2], out page)
+            && playerIndex >= 0
+            && page >= 1;
+    }
+
+    private static bool TryParseStateViewAction(
+        string value,
+        out string stateId,
+        out string view,
+        out int playerIndex,
+        out int page)
+    {
+        stateId = string.Empty;
+        view = string.Empty;
+        playerIndex = 0;
+        page = 1;
+
+        var parts = value.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 4)
+            return false;
+
+        stateId = parts[0];
+        view = DiscordCompareImageService.NormalizeView(parts[1]);
+        return int.TryParse(parts[2], out playerIndex)
+            && int.TryParse(parts[3], out page)
+            && !string.IsNullOrWhiteSpace(stateId)
+            && playerIndex >= 0
+            && page >= 1;
     }
 
     private static List<string> GetMods(JsonElement score)

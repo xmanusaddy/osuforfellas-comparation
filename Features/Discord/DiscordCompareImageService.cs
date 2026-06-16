@@ -1,9 +1,21 @@
 using System.Net.Http.Headers;
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
 public sealed class DiscordCompareImageService
 {
+    private const int DiscordActionRow = 1;
+    private const int DiscordButton = 2;
+    private const int DiscordStringSelect = 3;
+    private const int DiscordButtonPrimary = 1;
+    private const int DiscordButtonSecondary = 2;
+    private const int DiscordButtonLink = 5;
+    private const int RecentPageSize = 10;
+    private static readonly TimeSpan StateLifetime = TimeSpan.FromHours(6);
+    private static readonly ConcurrentDictionary<string, DiscordCompareState> InteractionStates = new();
+
     private static readonly HashSet<string> SupportedModes = new(StringComparer.OrdinalIgnoreCase)
     {
         "osu",
@@ -18,10 +30,26 @@ public sealed class DiscordCompareImageService
         "heaven"
     };
 
+    private static readonly HashSet<string> SupportedViews = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "profile",
+        "top",
+        "recent"
+    };
+
     private readonly ChromiumScreenshotService _screenshots;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<DiscordCompareImageService> _logger;
+
+    private sealed record DiscordCompareState(
+        string Id,
+        string[] Players,
+        string Mode,
+        string Theme,
+        string Lang,
+        DateTimeOffset CreatedAt
+    );
 
     public DiscordCompareImageService(
         ChromiumScreenshotService screenshots,
@@ -50,6 +78,7 @@ public sealed class DiscordCompareImageService
             var normalizedMode = NormalizeMode(mode);
             var normalizedTheme = NormalizeTheme(theme);
             var normalizedLang = NormalizeLang(lang);
+            var stateId = StoreInteractionState(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang);
             var renderUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: true, shareMode: true);
             var publicUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: false, shareMode: false);
 
@@ -69,6 +98,7 @@ public sealed class DiscordCompareImageService
                 normalizedPlayers,
                 normalizedMode,
                 publicUrl,
+                stateId,
                 cancellationToken
             );
         }
@@ -79,6 +109,107 @@ public sealed class DiscordCompareImageService
         }
     }
 
+    public async Task SendCompareImageFromStateAsync(
+        string applicationId,
+        string interactionToken,
+        string stateId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetInteractionState(stateId, out var state))
+        {
+            await PatchOriginalResponseWithExpiredAsync(applicationId, interactionToken, cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var renderUrl = BuildCompareUrl(state.Players, state.Mode, state.Theme, state.Lang, local: true, shareMode: true);
+            var publicUrl = BuildCompareUrl(state.Players, state.Mode, state.Theme, state.Lang, local: false, shareMode: false);
+
+            var image = await _screenshots.CapturePngAsync(
+                renderUrl,
+                width: 1280,
+                height: 720,
+                readyExpression: "window.__osuShareReady === true",
+                readyTimeout: TimeSpan.FromSeconds(24),
+                cancellationToken
+            );
+
+            await PatchOriginalResponseWithImageAsync(
+                applicationId,
+                interactionToken,
+                image,
+                state.Players,
+                state.Mode,
+                publicUrl,
+                state.Id,
+                cancellationToken
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Discord compare image refresh failed.");
+            await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
+        }
+    }
+
+    public async Task SendRoomImageAsync(
+        string applicationId,
+        string interactionToken,
+        string stateId,
+        string view,
+        int playerIndex,
+        int page,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetInteractionState(stateId, out var state))
+        {
+            await PatchOriginalResponseWithExpiredAsync(applicationId, interactionToken, cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var normalizedView = NormalizeView(view);
+            var safeIndex = Math.Clamp(playerIndex, 0, state.Players.Length - 1);
+            var safePage = Math.Max(1, page);
+            var username = state.Players[safeIndex];
+            var renderUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: true, shareMode: true);
+            var publicUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: false, shareMode: false);
+
+            var image = await _screenshots.CapturePngAsync(
+                renderUrl,
+                width: 1280,
+                height: 720,
+                readyExpression: "window.__osuShareReady === true",
+                readyTimeout: TimeSpan.FromSeconds(24),
+                cancellationToken
+            );
+
+            await PatchOriginalResponseWithRoomImageAsync(
+                applicationId,
+                interactionToken,
+                image,
+                state,
+                normalizedView,
+                safeIndex,
+                safePage,
+                publicUrl,
+                cancellationToken
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Discord room image generation failed for view {View}.", view);
+            await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
+        }
+    }
+
+    public static bool HasInteractionState(string stateId)
+    {
+        return TryGetInteractionState(stateId, out _);
+    }
+
     private async Task PatchOriginalResponseWithImageAsync(
         string applicationId,
         string interactionToken,
@@ -86,6 +217,7 @@ public sealed class DiscordCompareImageService
         IReadOnlyList<string> players,
         string mode,
         string publicUrl,
+        string stateId,
         CancellationToken cancellationToken)
     {
         var playerText = string.Join(" vs ", players);
@@ -102,23 +234,49 @@ public sealed class DiscordCompareImageService
                     description = "osu! for fellas comparison"
                 }
             },
-            components = new object[]
+            components = BuildCompareComponents(stateId, players, publicUrl),
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(payload, Encoding.UTF8, "application/json"), "payload_json");
+
+        using var imageContent = new ByteArrayContent(image);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        form.Add(imageContent, "files[0]", filename);
+
+        await PatchOriginalResponseAsync(applicationId, interactionToken, form, cancellationToken);
+    }
+
+    private async Task PatchOriginalResponseWithRoomImageAsync(
+        string applicationId,
+        string interactionToken,
+        byte[] image,
+        DiscordCompareState state,
+        string view,
+        int playerIndex,
+        int page,
+        string publicUrl,
+        CancellationToken cancellationToken)
+    {
+        var username = state.Players[playerIndex];
+        var filename = $"osu-for-fellas-{view}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.png";
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = $"**{EscapeDiscordText(username)}** - {GetViewLabel(view)}",
+            attachments = new object[]
             {
                 new
                 {
-                    type = 1,
-                    components = new object[]
-                    {
-                        new
-                        {
-                            type = 2,
-                            style = 5,
-                            label = "Open full compare",
-                            url = publicUrl
-                        }
-                    }
+                    id = 0,
+                    filename,
+                    description = $"osu! for fellas {view}"
                 }
             },
+            components = BuildRoomComponents(state.Id, view, playerIndex, page, publicUrl),
             allowed_mentions = new
             {
                 parse = Array.Empty<string>()
@@ -143,6 +301,25 @@ public sealed class DiscordCompareImageService
         var payload = JsonSerializer.Serialize(new
         {
             content = "Could not generate the visual compare right now. Try again in a bit.",
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+        await PatchOriginalResponseAsync(applicationId, interactionToken, content, cancellationToken);
+    }
+
+    private async Task PatchOriginalResponseWithExpiredAsync(
+        string applicationId,
+        string interactionToken,
+        CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = "This visual menu expired. Run `/osu-compare` again to generate fresh buttons.",
+            components = Array.Empty<object>(),
             allowed_mentions = new
             {
                 parse = Array.Empty<string>()
@@ -202,6 +379,43 @@ public sealed class DiscordCompareImageService
         return $"{baseUrl}/?{string.Join("&", query)}{hash}";
     }
 
+    private string BuildRoomUrl(
+        string username,
+        string view,
+        string mode,
+        string theme,
+        string lang,
+        int page,
+        bool local,
+        bool shareMode)
+    {
+        var baseUrl = local ? GetLocalBaseUrl() : GetPublicBaseUrl();
+        var room = GetRoomName(view);
+        var query = new List<string>
+        {
+            $"mode={Uri.EscapeDataString(mode)}",
+            $"theme={Uri.EscapeDataString(theme)}",
+            $"lang={Uri.EscapeDataString(lang)}"
+        };
+
+        if (shareMode)
+        {
+            query.Insert(0, "share=room");
+            query.Add($"room={Uri.EscapeDataString(room)}");
+            query.Add($"player={Uri.EscapeDataString(username)}");
+            if (view == "recent")
+            {
+                query.Add($"page={Math.Max(1, page)}");
+                query.Add($"pageSize={RecentPageSize}");
+            }
+
+            return $"{baseUrl}/?{string.Join("&", query)}";
+        }
+
+        var hash = $"#/{room}/{Uri.EscapeDataString(username)}";
+        return $"{baseUrl}/?{string.Join("&", query)}{hash}";
+    }
+
     private string GetLocalBaseUrl()
     {
         var port = Environment.GetEnvironmentVariable("PORT");
@@ -257,6 +471,230 @@ public sealed class DiscordCompareImageService
             "en" => "en",
             "de" => "de",
             _ => "es"
+        };
+    }
+
+    public static string NormalizeView(string? view)
+    {
+        var clean = string.IsNullOrWhiteSpace(view) ? "profile" : view.Trim();
+        return SupportedViews.Contains(clean) ? clean.ToLowerInvariant() : "profile";
+    }
+
+    private static string StoreInteractionState(
+        IReadOnlyList<string> players,
+        string mode,
+        string theme,
+        string lang)
+    {
+        CleanupExpiredStates();
+
+        var stateId = CreateStateId();
+        var state = new DiscordCompareState(
+            stateId,
+            players.ToArray(),
+            mode,
+            theme,
+            lang,
+            DateTimeOffset.UtcNow
+        );
+
+        InteractionStates[stateId] = state;
+        return stateId;
+    }
+
+    private static bool TryGetInteractionState(string stateId, out DiscordCompareState state)
+    {
+        state = default!;
+        if (string.IsNullOrWhiteSpace(stateId))
+            return false;
+
+        CleanupExpiredStates();
+
+        if (!InteractionStates.TryGetValue(stateId, out var found))
+            return false;
+
+        if (DateTimeOffset.UtcNow - found.CreatedAt > StateLifetime)
+        {
+            InteractionStates.TryRemove(stateId, out _);
+            return false;
+        }
+
+        state = found;
+        return true;
+    }
+
+    private static void CleanupExpiredStates()
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var pair in InteractionStates)
+        {
+            if (now - pair.Value.CreatedAt > StateLifetime)
+                InteractionStates.TryRemove(pair.Key, out _);
+        }
+    }
+
+    private static string CreateStateId()
+    {
+        Span<byte> bytes = stackalloc byte[12];
+        RandomNumberGenerator.Fill(bytes);
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static object[] BuildCompareComponents(
+        string stateId,
+        IReadOnlyList<string> players,
+        string publicUrl)
+    {
+        var options = new List<object>();
+        for (var i = 0; i < players.Count; i++)
+        {
+            var player = players[i];
+            options.Add(CreateSelectOption($"{player} - Profile", $"profile:{i}:1", "Open the full profile image."));
+            options.Add(CreateSelectOption($"{player} - Top Plays", $"top:{i}:1", "Open the top plays image."));
+            options.Add(CreateSelectOption($"{player} - Recent Plays", $"recent:{i}:1", "Open recent plays with pages."));
+        }
+
+        return new object[]
+        {
+            new
+            {
+                type = DiscordActionRow,
+                components = new object[]
+                {
+                    new
+                    {
+                        type = DiscordButton,
+                        style = DiscordButtonLink,
+                        label = "Open visual compare",
+                        url = publicUrl
+                    },
+                    new
+                    {
+                        type = DiscordButton,
+                        style = DiscordButtonSecondary,
+                        label = "Refresh image",
+                        custom_id = $"ofc:refresh:{stateId}"
+                    }
+                }
+            },
+            new
+            {
+                type = DiscordActionRow,
+                components = new object[]
+                {
+                    new
+                    {
+                        type = DiscordStringSelect,
+                        custom_id = $"ofc:select:{stateId}",
+                        placeholder = "Choose player/action",
+                        min_values = 1,
+                        max_values = 1,
+                        options = options.ToArray()
+                    }
+                }
+            }
+        };
+    }
+
+    private static object[] BuildRoomComponents(
+        string stateId,
+        string view,
+        int playerIndex,
+        int page,
+        string publicUrl)
+    {
+        var firstRow = new object[]
+        {
+            new
+            {
+                type = DiscordButton,
+                style = DiscordButtonLink,
+                label = "Open in website",
+                url = publicUrl
+            },
+            CreateButton("Compare", DiscordButtonSecondary, $"ofc:refresh:{stateId}"),
+            CreateButton("Profile", view == "profile" ? DiscordButtonPrimary : DiscordButtonSecondary, $"ofc:view:{stateId}:profile:{playerIndex}:1"),
+            CreateButton("Top Plays", view == "top" ? DiscordButtonPrimary : DiscordButtonSecondary, $"ofc:view:{stateId}:top:{playerIndex}:1"),
+            CreateButton("Recent", view == "recent" ? DiscordButtonPrimary : DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:1")
+        };
+
+        var secondRowComponents = view == "recent"
+            ? new object[]
+            {
+                CreateButton("Prev", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{Math.Max(1, page - 1)}", page <= 1),
+                CreateButton("Next", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{page + 1}"),
+                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{page}")
+            }
+            : new object[]
+            {
+                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:view:{stateId}:{view}:{playerIndex}:{page}")
+            };
+
+        return new object[]
+        {
+            new
+            {
+                type = DiscordActionRow,
+                components = firstRow
+            },
+            new
+            {
+                type = DiscordActionRow,
+                components = secondRowComponents
+            }
+        };
+    }
+
+    private static object CreateButton(string label, int style, string customId, bool disabled = false)
+    {
+        return new
+        {
+            type = DiscordButton,
+            style,
+            label,
+            custom_id = customId,
+            disabled
+        };
+    }
+
+    private static object CreateSelectOption(string label, string value, string description)
+    {
+        return new
+        {
+            label = Truncate(label, 80),
+            value,
+            description = Truncate(description, 100)
+        };
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        if (value.Length <= maxLength)
+            return value;
+
+        return value[..Math.Max(0, maxLength - 3)] + "...";
+    }
+
+    private static string GetRoomName(string view)
+    {
+        return view switch
+        {
+            "top" => "top-plays",
+            "recent" => "recent",
+            _ => "player"
+        };
+    }
+
+    private static string GetViewLabel(string view)
+    {
+        return view switch
+        {
+            "top" => "Top Plays",
+            "recent" => "Recent Plays",
+            _ => "Profile"
         };
     }
 
