@@ -112,11 +112,12 @@ public sealed class DiscordCompareImageService
         string applicationId,
         string interactionToken,
         string stateId,
+        bool useFollowup = false,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetInteractionState(stateId, out var state))
         {
-            await PatchOriginalResponseWithExpiredAsync(applicationId, interactionToken, cancellationToken);
+            await SendExpiredResponseAsync(applicationId, interactionToken, useFollowup, cancellationToken);
             return;
         }
 
@@ -132,7 +133,7 @@ public sealed class DiscordCompareImageService
                 cancellationToken
             );
 
-            await PatchOriginalResponseWithImageAsync(
+            await SendCompareImageResponseAsync(
                 applicationId,
                 interactionToken,
                 image,
@@ -140,13 +141,14 @@ public sealed class DiscordCompareImageService
                 state.Mode,
                 publicUrl,
                 state.Id,
+                useFollowup,
                 cancellationToken
             );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Discord compare image refresh failed.");
-            await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
+            await SendErrorResponseAsync(applicationId, interactionToken, useFollowup, cancellationToken);
         }
     }
 
@@ -157,11 +159,12 @@ public sealed class DiscordCompareImageService
         string view,
         int playerIndex,
         int page,
+        bool useFollowup = false,
         CancellationToken cancellationToken = default)
     {
         if (!TryGetInteractionState(stateId, out var state))
         {
-            await PatchOriginalResponseWithExpiredAsync(applicationId, interactionToken, cancellationToken);
+            await SendExpiredResponseAsync(applicationId, interactionToken, useFollowup, cancellationToken);
             return;
         }
 
@@ -181,7 +184,7 @@ public sealed class DiscordCompareImageService
                 cancellationToken
             );
 
-            await PatchOriginalResponseWithRoomImageAsync(
+            await SendRoomImageResponseAsync(
                 applicationId,
                 interactionToken,
                 image,
@@ -190,13 +193,14 @@ public sealed class DiscordCompareImageService
                 safeIndex,
                 safePage,
                 publicUrl,
+                useFollowup,
                 cancellationToken
             );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Discord room image generation failed for view {View}.", view);
-            await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
+            await SendErrorResponseAsync(applicationId, interactionToken, useFollowup, cancellationToken);
         }
     }
 
@@ -274,6 +278,57 @@ public sealed class DiscordCompareImageService
         await PatchOriginalResponseAsync(applicationId, interactionToken, form, cancellationToken);
     }
 
+    private async Task SendCompareImageResponseAsync(
+        string applicationId,
+        string interactionToken,
+        byte[] image,
+        IReadOnlyList<string> players,
+        string mode,
+        string publicUrl,
+        string stateId,
+        bool useFollowup,
+        CancellationToken cancellationToken)
+    {
+        if (!useFollowup)
+        {
+            await PatchOriginalResponseWithImageAsync(
+                applicationId,
+                interactionToken,
+                image,
+                players,
+                mode,
+                publicUrl,
+                stateId,
+                cancellationToken
+            );
+            return;
+        }
+
+        var playerText = string.Join(" vs ", players);
+        var filename = $"osu-for-fellas-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.png";
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = $"**{EscapeDiscordText(playerText)}** - {GetModeLabel(mode)}",
+            attachments = new object[]
+            {
+                new
+                {
+                    id = 0,
+                    filename,
+                    description = "osu! for fellas comparison"
+                }
+            },
+            components = BuildCompareComponents(stateId, players, publicUrl),
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var form = CreateImageForm(payload, image, filename);
+        await CreateFollowupResponseAsync(applicationId, interactionToken, form, cancellationToken);
+    }
+
     private async Task PatchOriginalResponseWithRoomImageAsync(
         string applicationId,
         string interactionToken,
@@ -316,6 +371,59 @@ public sealed class DiscordCompareImageService
         await PatchOriginalResponseAsync(applicationId, interactionToken, form, cancellationToken);
     }
 
+    private async Task SendRoomImageResponseAsync(
+        string applicationId,
+        string interactionToken,
+        byte[] image,
+        DiscordCompareState state,
+        string view,
+        int playerIndex,
+        int page,
+        string publicUrl,
+        bool useFollowup,
+        CancellationToken cancellationToken)
+    {
+        if (!useFollowup)
+        {
+            await PatchOriginalResponseWithRoomImageAsync(
+                applicationId,
+                interactionToken,
+                image,
+                state,
+                view,
+                playerIndex,
+                page,
+                publicUrl,
+                cancellationToken
+            );
+            return;
+        }
+
+        var username = state.Players[playerIndex];
+        var filename = $"osu-for-fellas-{view}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.png";
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = $"**{EscapeDiscordText(username)}** - {GetViewLabel(view)}",
+            attachments = new object[]
+            {
+                new
+                {
+                    id = 0,
+                    filename,
+                    description = $"osu! for fellas {view}"
+                }
+            },
+            components = BuildRoomComponents(state.Id, view, playerIndex, page, publicUrl),
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var form = CreateImageForm(payload, image, filename);
+        await CreateFollowupResponseAsync(applicationId, interactionToken, form, cancellationToken);
+    }
+
     private async Task PatchOriginalResponseWithErrorAsync(
         string applicationId,
         string interactionToken,
@@ -332,6 +440,31 @@ public sealed class DiscordCompareImageService
 
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         await PatchOriginalResponseAsync(applicationId, interactionToken, content, cancellationToken);
+    }
+
+    private async Task SendErrorResponseAsync(
+        string applicationId,
+        string interactionToken,
+        bool useFollowup,
+        CancellationToken cancellationToken)
+    {
+        if (!useFollowup)
+        {
+            await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = "Could not generate that visual view right now. Try again in a bit.",
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+        await CreateFollowupResponseAsync(applicationId, interactionToken, content, cancellationToken);
     }
 
     private async Task PatchOriginalResponseWithExpiredAsync(
@@ -351,6 +484,31 @@ public sealed class DiscordCompareImageService
 
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         await PatchOriginalResponseAsync(applicationId, interactionToken, content, cancellationToken);
+    }
+
+    private async Task SendExpiredResponseAsync(
+        string applicationId,
+        string interactionToken,
+        bool useFollowup,
+        CancellationToken cancellationToken)
+    {
+        if (!useFollowup)
+        {
+            await PatchOriginalResponseWithExpiredAsync(applicationId, interactionToken, cancellationToken);
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            content = "This visual menu expired. Run `/osu-compare` again to generate fresh buttons.",
+            allowed_mentions = new
+            {
+                parse = Array.Empty<string>()
+            }
+        });
+
+        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+        await CreateFollowupResponseAsync(applicationId, interactionToken, content, cancellationToken);
     }
 
     private async Task PatchOriginalResponseAsync(
@@ -376,6 +534,43 @@ public sealed class DiscordCompareImageService
             (int)response.StatusCode,
             responseBody
         );
+    }
+
+    private async Task CreateFollowupResponseAsync(
+        string applicationId,
+        string interactionToken,
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = $"https://discord.com/api/v10/webhooks/{Uri.EscapeDataString(applicationId)}/{Uri.EscapeDataString(interactionToken)}";
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = content
+        };
+
+        var http = _httpClientFactory.CreateClient();
+        using var response = await http.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        _logger.LogWarning(
+            "Discord follow-up response failed with status {StatusCode}: {ResponseBody}",
+            (int)response.StatusCode,
+            responseBody
+        );
+    }
+
+    private static MultipartFormDataContent CreateImageForm(string payload, byte[] image, string filename)
+    {
+        var form = new MultipartFormDataContent();
+        form.Add(new StringContent(payload, Encoding.UTF8, "application/json"), "payload_json");
+
+        var imageContent = new ByteArrayContent(image);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        form.Add(imageContent, "files[0]", filename);
+
+        return form;
     }
 
     private string BuildCompareUrl(

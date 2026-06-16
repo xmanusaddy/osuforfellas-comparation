@@ -109,7 +109,7 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId)
+                service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId, useFollowup: true)
             );
             return CreateDeferredResponse();
         }
@@ -126,7 +126,7 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
             return CreateDeferredResponse();
         }
@@ -142,7 +142,7 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
             return CreateDeferredResponse();
         }
