@@ -13,6 +13,7 @@ public sealed class DiscordCompareImageService
     private const int DiscordButtonSecondary = 2;
     private const int DiscordButtonLink = 5;
     private const int RecentPageSize = 10;
+    private static readonly TimeSpan ScreenshotReadyTimeout = TimeSpan.FromSeconds(42);
     private static readonly TimeSpan StateLifetime = TimeSpan.FromHours(6);
     private static readonly ConcurrentDictionary<string, DiscordCompareState> InteractionStates = new();
 
@@ -80,14 +81,12 @@ public sealed class DiscordCompareImageService
             var normalizedLang = NormalizeLang(lang);
             var stateId = StoreInteractionState(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang);
             var renderUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: true, shareMode: true);
+            var fallbackRenderUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: false, shareMode: true);
             var publicUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: false, shareMode: false);
 
-            var image = await _screenshots.CapturePngAsync(
+            var image = await CaptureSharePngAsync(
                 renderUrl,
-                width: 1280,
-                height: 720,
-                readyExpression: "window.__osuShareReady === true",
-                readyTimeout: TimeSpan.FromSeconds(24),
+                fallbackRenderUrl,
                 cancellationToken
             );
 
@@ -124,14 +123,12 @@ public sealed class DiscordCompareImageService
         try
         {
             var renderUrl = BuildCompareUrl(state.Players, state.Mode, state.Theme, state.Lang, local: true, shareMode: true);
+            var fallbackRenderUrl = BuildCompareUrl(state.Players, state.Mode, state.Theme, state.Lang, local: false, shareMode: true);
             var publicUrl = BuildCompareUrl(state.Players, state.Mode, state.Theme, state.Lang, local: false, shareMode: false);
 
-            var image = await _screenshots.CapturePngAsync(
+            var image = await CaptureSharePngAsync(
                 renderUrl,
-                width: 1280,
-                height: 720,
-                readyExpression: "window.__osuShareReady === true",
-                readyTimeout: TimeSpan.FromSeconds(24),
+                fallbackRenderUrl,
                 cancellationToken
             );
 
@@ -175,14 +172,12 @@ public sealed class DiscordCompareImageService
             var safePage = Math.Max(1, page);
             var username = state.Players[safeIndex];
             var renderUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: true, shareMode: true);
+            var fallbackRenderUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: false, shareMode: true);
             var publicUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: false, shareMode: false);
 
-            var image = await _screenshots.CapturePngAsync(
+            var image = await CaptureSharePngAsync(
                 renderUrl,
-                width: 1280,
-                height: 720,
-                readyExpression: "window.__osuShareReady === true",
-                readyTimeout: TimeSpan.FromSeconds(24),
+                fallbackRenderUrl,
                 cancellationToken
             );
 
@@ -203,6 +198,34 @@ public sealed class DiscordCompareImageService
             _logger.LogError(ex, "Discord room image generation failed for view {View}.", view);
             await PatchOriginalResponseWithErrorAsync(applicationId, interactionToken, cancellationToken);
         }
+    }
+
+    private async Task<byte[]> CaptureSharePngAsync(
+        string renderUrl,
+        string fallbackRenderUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await CaptureSharePngFromUrlAsync(renderUrl, cancellationToken);
+        }
+        catch (Exception ex) when (!string.Equals(renderUrl, fallbackRenderUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(ex, "Loopback screenshot capture failed. Retrying with the configured public URL.");
+            return await CaptureSharePngFromUrlAsync(fallbackRenderUrl, cancellationToken);
+        }
+    }
+
+    private Task<byte[]> CaptureSharePngFromUrlAsync(string renderUrl, CancellationToken cancellationToken)
+    {
+        return _screenshots.CapturePngAsync(
+            renderUrl,
+            width: 1280,
+            height: 720,
+            readyExpression: "window.__osuShareReady === true",
+            readyTimeout: ScreenshotReadyTimeout,
+            cancellationToken
+        );
     }
 
     public static bool HasInteractionState(string stateId)

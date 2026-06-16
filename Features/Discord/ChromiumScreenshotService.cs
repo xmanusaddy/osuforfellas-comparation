@@ -31,7 +31,7 @@ public sealed class ChromiumScreenshotService
         TimeSpan readyTimeout,
         CancellationToken cancellationToken)
     {
-        EnsureLocalCaptureUrl(url);
+        EnsureTrustedCaptureUrl(url);
 
         var executable = FindChromiumExecutable();
         if (string.IsNullOrWhiteSpace(executable))
@@ -98,13 +98,13 @@ public sealed class ChromiumScreenshotService
         }
     }
 
-    private static void EnsureLocalCaptureUrl(string url)
+    private void EnsureTrustedCaptureUrl(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-            || !IsLoopbackHost(uri.Host))
+            || !IsLoopbackHost(uri.Host) && !IsConfiguredPublicHost(uri))
         {
-            throw new InvalidOperationException("Screenshot capture is restricted to loopback URLs.");
+            throw new InvalidOperationException("Screenshot capture is restricted to loopback or the configured public app URL.");
         }
     }
 
@@ -112,6 +112,18 @@ public sealed class ChromiumScreenshotService
     {
         return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
             || IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address);
+    }
+
+    private bool IsConfiguredPublicHost(Uri uri)
+    {
+        var publicBaseUrl = _config["App:PublicBaseUrl"]?.TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(publicBaseUrl))
+            publicBaseUrl = "https://osu-comparison-api.onrender.com";
+
+        return Uri.TryCreate(publicBaseUrl, UriKind.Absolute, out var publicUri)
+            && string.Equals(uri.Host, publicUri.Host, StringComparison.OrdinalIgnoreCase)
+            && uri.Port == publicUri.Port
+            && string.Equals(uri.Scheme, publicUri.Scheme, StringComparison.OrdinalIgnoreCase);
     }
 
     private Process StartChromium(string executable, int port, string userDataDir)
