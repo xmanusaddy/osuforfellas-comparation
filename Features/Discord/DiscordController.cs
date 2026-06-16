@@ -88,7 +88,9 @@ public class DiscordController : ControllerBase
         });
         var mode = DiscordCompareImageService.NormalizeMode(GetOptionString(data, "mode"));
         var theme = DiscordCompareImageService.NormalizeTheme(GetOptionString(data, "theme"));
-        var lang = DiscordCompareImageService.NormalizeLang(GetOptionString(data, "lang"));
+        var lang = DiscordCompareImageService.NormalizeLang(
+            GetOptionString(data, "language") ?? GetOptionString(data, "lang")
+        );
 
         if (players.Count < 2)
             return CreateMessageResponse("Add at least two different players to compare.", ephemeral: true);

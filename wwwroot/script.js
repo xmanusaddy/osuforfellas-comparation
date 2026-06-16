@@ -6,6 +6,7 @@
 const INITIAL_URL_PARAMS = new URLSearchParams(window.location.search);
 const SUPPORTED_LANGS = ['es', 'en', 'de'];
 const IS_SHARE_COMPARE_MODE = INITIAL_URL_PARAMS.get('share') === 'compare';
+const HAS_LINKED_COMPARE_PARAMS = INITIAL_URL_PARAMS.has('player') || INITIAL_URL_PARAMS.has('players');
 const requestedLang = INITIAL_URL_PARAMS.get('lang');
 let currentLang = SUPPORTED_LANGS.includes(requestedLang)
     ? requestedLang
@@ -159,11 +160,11 @@ const LANGS = {
         downloadReplay: 'Descargar Replay',
         replayUnavailable: 'Replay no disponible',
         clickToExpand: 'CLICK PARA EXPANDIR',
-        activityNow: '🟢 Activo ahora',
-        activityMin: '⏱ Activo hace {n} min',
-        activityHour: '⏱ Activo hace {n} h',
-        activityDay: '⏱ Activo hace {n} días',
-        activityMonth: '⏱ Activo hace {n} meses',
+        activityNow: 'Activo ahora',
+        activityMin: 'Activo hace {n} min',
+        activityHour: 'Activo hace {n} h',
+        activityDay: 'Activo hace {n} días',
+        activityMonth: 'Activo hace {n} meses',
         peakRank: 'PEAK RANK',
         trend90: 'Últimos 90 días',
         trendStable: '→ Sin cambios',
@@ -301,11 +302,11 @@ const LANGS = {
         downloadReplay: 'Download Replay',
         replayUnavailable: 'Replay unavailable',
         clickToExpand: 'CLICK TO EXPAND',
-        activityNow: '🟢 Active now',
-        activityMin: '⏱ Active {n} min ago',
-        activityHour: '⏱ Active {n} h ago',
-        activityDay: '⏱ Active {n} days ago',
-        activityMonth: '⏱ Active {n} months ago',
+        activityNow: 'Active now',
+        activityMin: 'Active {n} min ago',
+        activityHour: 'Active {n} h ago',
+        activityDay: 'Active {n} days ago',
+        activityMonth: 'Active {n} months ago',
         peakRank: 'PEAK RANK',
         trend90: 'Last 90 days',
         trendStable: '→ No change',
@@ -443,11 +444,11 @@ const LANGS = {
         downloadReplay: 'Replay herunterladen',
         replayUnavailable: 'Replay nicht verfügbar',
         clickToExpand: 'KLICKEN ZUM ERWEITERN',
-        activityNow: '🟢 Jetzt aktiv',
-        activityMin: '⏱ Vor {n} Min. aktiv',
-        activityHour: '⏱ Vor {n} Std. aktiv',
-        activityDay: '⏱ Vor {n} Tagen aktiv',
-        activityMonth: '⏱ Vor {n} Monaten aktiv',
+        activityNow: 'Jetzt aktiv',
+        activityMin: 'Vor {n} Min. aktiv',
+        activityHour: 'Vor {n} Std. aktiv',
+        activityDay: 'Vor {n} Tagen aktiv',
+        activityMonth: 'Vor {n} Monaten aktiv',
         peakRank: 'PEAK RANK',
         trend90: 'Letzte 90 Tage',
         trendStable: '→ Keine Änderung',
@@ -1639,6 +1640,29 @@ function getCountryFlag(code) {
     ).join('');
 }
 
+function getCountryCode(code) {
+    const clean = String(code ?? '').trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(clean) ? clean : '';
+}
+
+function getCountryFlagImageUrl(code) {
+    const clean = getCountryCode(code);
+    return clean ? `https://flagcdn.com/w40/${clean.toLowerCase()}.png` : '';
+}
+
+function renderCountryFlag(code, className = 'country-flag') {
+    const clean = getCountryCode(code);
+    if (!clean) return `<span class="${className}"></span>`;
+
+    if (!IS_SHARE_COMPARE_MODE) {
+        return `<span class="${className}">${escapeHtml(getCountryFlag(clean))}</span>`;
+    }
+
+    return `<span class="${className} country-flag--image" aria-label="${escapeHtml(clean)}">
+        <img class="country-flag-img" src="${escapeHtml(getCountryFlagImageUrl(clean))}" alt="${escapeHtml(clean)}" loading="eager" decoding="sync">
+    </span>`;
+}
+
 function getUserTitle(pp) {
     if (!pp) return 'UNRANKED';
     if (pp >= 10000) return 'THE BEST';
@@ -2722,7 +2746,6 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
     const delay = idx * 0.15;
     const isCreator = user.username.toLowerCase() === 'manu is washed';
     const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
-    const flag = getCountryFlag(user.country_code);
     const title = getUserTitle(pp);
     const activity = getActivityLabel(user.last_visit);
 
@@ -2742,7 +2765,7 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
                  onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
         </div>
         <div class="card-identity">
-            <span class="country-flag">${flag}</span>
+            ${renderCountryFlag(user.country_code)}
             <div class="player-name${isCreator ? ' creator-name' : ''}">${user.username}</div>
             <div class="player-title${isCreator ? ' creator-title' : ''}">${isCreator ? 'PAGE CREATOR' : title}</div>
             ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${activity.text}</div>` : ''}
@@ -3133,6 +3156,18 @@ function initSharedCompareMode() {
     if (!IS_SHARE_COMPARE_MODE) return;
 
     document.body.classList.add('share-mode');
+    hydrateCompareFromUrlParams();
+
+    const players = getSharedComparePlayers();
+    if (players.length < 2) {
+        markSharedCompareReady();
+        return;
+    }
+
+    doSearch().catch(markSharedCompareError);
+}
+
+function hydrateCompareFromUrlParams() {
     const theme = getSharedCompareTheme();
     if (typeof applyTheme === 'function') {
         applyTheme(theme);
@@ -3149,13 +3184,18 @@ function initSharedCompareMode() {
 
     const modeSelect = document.getElementById('gamemode');
     if (modeSelect) modeSelect.value = getSharedCompareMode();
+}
 
+function initLinkedCompareMode() {
+    hydrateCompareFromUrlParams();
+
+    const players = getSharedComparePlayers();
     if (players.length < 2) {
-        markSharedCompareReady();
+        handleRouteChange();
         return;
     }
 
-    doSearch().catch(markSharedCompareError);
+    doSearch().catch(() => handleRouteChange());
 }
 
 // ══ BÚSQUEDA ══
@@ -3346,6 +3386,9 @@ applyLang();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {
     initSharedCompareMode();
+} else if (HAS_LINKED_COMPARE_PARAMS) {
+    initLinkedCompareMode();
+    initAuth();
 } else {
     handleRouteChange();
     initAuth();

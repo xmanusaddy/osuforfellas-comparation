@@ -10,7 +10,7 @@ RUN dotnet publish -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends chromium fonts-liberation \
+    && apt-get install -y --no-install-recommends chromium fonts-liberation fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 ENV CHROMIUM_PATH=/usr/bin/chromium
 COPY --from=build /app/publish .

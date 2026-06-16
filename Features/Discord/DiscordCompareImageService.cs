@@ -50,8 +50,8 @@ public sealed class DiscordCompareImageService
             var normalizedMode = NormalizeMode(mode);
             var normalizedTheme = NormalizeTheme(theme);
             var normalizedLang = NormalizeLang(lang);
-            var renderUrl = BuildRenderUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: true);
-            var publicUrl = BuildRenderUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: false);
+            var renderUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: true, shareMode: true);
+            var publicUrl = BuildCompareUrl(normalizedPlayers, normalizedMode, normalizedTheme, normalizedLang, local: false, shareMode: false);
 
             var image = await _screenshots.CapturePngAsync(
                 renderUrl,
@@ -113,7 +113,7 @@ public sealed class DiscordCompareImageService
                         {
                             type = 2,
                             style = 5,
-                            label = "Open visual compare",
+                            label = "Open full compare",
                             url = publicUrl
                         }
                     }
@@ -178,24 +178,28 @@ public sealed class DiscordCompareImageService
         );
     }
 
-    private string BuildRenderUrl(
+    private string BuildCompareUrl(
         IReadOnlyList<string> players,
         string mode,
         string theme,
         string lang,
-        bool local)
+        bool local,
+        bool shareMode)
     {
         var baseUrl = local ? GetLocalBaseUrl() : GetPublicBaseUrl();
         var query = new List<string>
         {
-            "share=compare",
             $"mode={Uri.EscapeDataString(mode)}",
             $"theme={Uri.EscapeDataString(theme)}",
             $"lang={Uri.EscapeDataString(lang)}"
         };
 
+        if (shareMode)
+            query.Insert(0, "share=compare");
+
         query.AddRange(players.Select(player => $"player={Uri.EscapeDataString(player)}"));
-        return $"{baseUrl}/?{string.Join("&", query)}";
+        var hash = shareMode ? string.Empty : "#/results";
+        return $"{baseUrl}/?{string.Join("&", query)}{hash}";
     }
 
     private string GetLocalBaseUrl()

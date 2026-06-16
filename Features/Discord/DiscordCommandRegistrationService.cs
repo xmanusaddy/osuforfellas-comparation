@@ -124,6 +124,19 @@ public sealed class DiscordCommandRegistrationService : IHostedService
                             new { name = "Cyberpunk", value = "cyberpunk" },
                             new { name = "Heaven", value = "heaven" }
                         }
+                    },
+                    new
+                    {
+                        name = "language",
+                        description = "Image and page language",
+                        type = 3,
+                        required = false,
+                        choices = new object[]
+                        {
+                            new { name = "Español", value = "es" },
+                            new { name = "English", value = "en" },
+                            new { name = "Deutsch", value = "de" }
+                        }
                     }
                 }
             }
