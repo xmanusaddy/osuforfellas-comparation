@@ -552,6 +552,16 @@ function navigateToRoom(name, param = '') {
     window.location.hash = nextHash;
 }
 
+function hasCompareUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('player') || params.has('players') || params.has('mode') || params.has('theme') || params.has('lang');
+}
+
+function cleanCompareUrlIfNeeded() {
+    if (IS_SHARE_COMPARE_MODE || !hasCompareUrlParams()) return;
+    history.replaceState(null, '', `${window.location.pathname}${buildRoomHash('compare')}`);
+}
+
 function setChromeMode(mode) {
     const active = mode !== 'compare';
     document.getElementById('lang-switch').classList.toggle('results-mode', active);
@@ -654,6 +664,7 @@ function showCompareRoom() {
     topPlayCache = {};
     topPlaysCache.clear();
     recentPlaysCache.clear();
+    cleanCompareUrlIfNeeded();
 }
 
 function showResultsRoom() {
