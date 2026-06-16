@@ -14,6 +14,7 @@ public sealed class DiscordCompareImageService
     private const int DiscordButtonLink = 5;
     private const int RecentPageSize = 10;
     private static readonly TimeSpan ScreenshotReadyTimeout = TimeSpan.FromSeconds(42);
+    private static readonly TimeSpan ScreenshotAttemptTimeout = TimeSpan.FromSeconds(70);
     private static readonly TimeSpan StateLifetime = TimeSpan.FromHours(6);
     private static readonly ConcurrentDictionary<string, DiscordCompareState> InteractionStates = new();
 
@@ -178,6 +179,12 @@ public sealed class DiscordCompareImageService
             var fallbackRenderUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: false, shareMode: true);
             var publicUrl = BuildRoomUrl(username, normalizedView, state.Mode, state.Theme, state.Lang, safePage, local: false, shareMode: false);
 
+            _logger.LogInformation(
+                "Generating Discord {View} image for player {Player}.",
+                normalizedView,
+                username
+            );
+
             var image = await CaptureSharePngAsync(
                 renderUrl,
                 fallbackRenderUrl,
@@ -209,27 +216,41 @@ public sealed class DiscordCompareImageService
         string fallbackRenderUrl,
         CancellationToken cancellationToken)
     {
+        var preferPublic = ShouldPreferPublicCapture(renderUrl, fallbackRenderUrl);
+        var primaryUrl = preferPublic ? fallbackRenderUrl : renderUrl;
+        var secondaryUrl = preferPublic ? renderUrl : fallbackRenderUrl;
+
         try
         {
-            return await CaptureSharePngFromUrlAsync(renderUrl, cancellationToken);
+            return await CaptureSharePngFromUrlAsync(primaryUrl, cancellationToken);
         }
-        catch (Exception ex) when (!string.Equals(renderUrl, fallbackRenderUrl, StringComparison.OrdinalIgnoreCase))
+        catch (Exception ex) when (!string.Equals(primaryUrl, secondaryUrl, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning(ex, "Loopback screenshot capture failed. Retrying with the configured public URL.");
-            return await CaptureSharePngFromUrlAsync(fallbackRenderUrl, cancellationToken);
+            _logger.LogWarning(ex, "Primary screenshot capture failed. Retrying with the alternate app URL.");
+            return await CaptureSharePngFromUrlAsync(secondaryUrl, cancellationToken);
         }
     }
 
-    private Task<byte[]> CaptureSharePngFromUrlAsync(string renderUrl, CancellationToken cancellationToken)
+    private async Task<byte[]> CaptureSharePngFromUrlAsync(string renderUrl, CancellationToken cancellationToken)
     {
-        return _screenshots.CapturePngAsync(
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(ScreenshotAttemptTimeout);
+
+        return await _screenshots.CapturePngAsync(
             renderUrl,
             width: 1280,
             height: 720,
             readyExpression: "window.__osuShareReady === true",
             readyTimeout: ScreenshotReadyTimeout,
-            cancellationToken
+            timeoutCts.Token
         );
+    }
+
+    private static bool ShouldPreferPublicCapture(string renderUrl, string fallbackRenderUrl)
+    {
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        return !string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(renderUrl, fallbackRenderUrl, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool HasInteractionState(string stateId)

@@ -11,6 +11,7 @@ public class DiscordController : ControllerBase
     private const int ResponsePong = 1;
     private const int ResponseChannelMessage = 4;
     private const int ResponseDeferredChannelMessage = 5;
+    private const int ResponseDeferredUpdateMessage = 6;
 
     private readonly DiscordSignatureVerifier _signatureVerifier;
     private readonly OsuApiService _osuApi;
@@ -111,7 +112,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId, useFollowup: true)
             );
-            return CreateDeferredResponse();
+            return CreateDeferredComponentResponse();
         }
 
         if (customId.StartsWith("ofc:select:", StringComparison.Ordinal))
@@ -128,7 +129,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
-            return CreateDeferredResponse();
+            return CreateDeferredComponentResponse();
         }
 
         if (customId.StartsWith("ofc:view:", StringComparison.Ordinal))
@@ -144,7 +145,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
-            return CreateDeferredResponse();
+            return CreateDeferredComponentResponse();
         }
 
         return CreateMessageResponse("That action is not supported yet.", ephemeral: true);
@@ -350,6 +351,14 @@ public class DiscordController : ControllerBase
         return new Dictionary<string, object?>
         {
             ["type"] = ResponseDeferredChannelMessage
+        };
+    }
+
+    private static Dictionary<string, object?> CreateDeferredComponentResponse()
+    {
+        return new Dictionary<string, object?>
+        {
+            ["type"] = ResponseDeferredUpdateMessage
         };
     }
 
