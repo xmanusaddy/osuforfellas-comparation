@@ -31,6 +31,8 @@ public sealed class ChromiumScreenshotService
         TimeSpan readyTimeout,
         CancellationToken cancellationToken)
     {
+        EnsureLocalCaptureUrl(url);
+
         var executable = FindChromiumExecutable();
         if (string.IsNullOrWhiteSpace(executable))
             throw new InvalidOperationException("Chromium was not found. Set Screenshot:ChromiumPath or CHROMIUM_PATH.");
@@ -94,6 +96,22 @@ public sealed class ChromiumScreenshotService
             TryStopChromium(process);
             TryDeleteDirectory(userDataDir);
         }
+    }
+
+    private static void EnsureLocalCaptureUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || !IsLoopbackHost(uri.Host))
+        {
+            throw new InvalidOperationException("Screenshot capture is restricted to loopback URLs.");
+        }
+    }
+
+    private static bool IsLoopbackHost(string host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address);
     }
 
     private Process StartChromium(string executable, int port, string userDataDir)

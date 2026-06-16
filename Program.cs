@@ -21,6 +21,20 @@ builder.Services.AddSession(options =>
 
 var app = builder.Build();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    context.Response.Headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -28,6 +42,8 @@ app.UseRouting();
 app.UseSession();
 
 app.MapControllers();
+app.MapGet("/terms", () => Results.File(Path.Combine(app.Environment.WebRootPath, "terms.html"), "text/html"));
+app.MapGet("/privacy", () => Results.File(Path.Combine(app.Environment.WebRootPath, "privacy.html"), "text/html"));
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Run($"http://0.0.0.0:{port}");

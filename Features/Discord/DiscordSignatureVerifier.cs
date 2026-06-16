@@ -4,6 +4,8 @@ using Org.BouncyCastle.Crypto.Signers;
 
 public sealed class DiscordSignatureVerifier
 {
+    private static readonly TimeSpan TimestampTolerance = TimeSpan.FromMinutes(5);
+
     private readonly IConfiguration _config;
 
     public DiscordSignatureVerifier(IConfiguration config)
@@ -22,6 +24,9 @@ public sealed class DiscordSignatureVerifier
             return false;
         }
 
+        if (!IsFreshTimestamp(timestamp))
+            return false;
+
         try
         {
             var publicKey = Convert.FromHexString(publicKeyHex.Trim());
@@ -33,6 +38,22 @@ public sealed class DiscordSignatureVerifier
             verifier.BlockUpdate(message, 0, message.Length);
 
             return verifier.VerifySignature(signatureBytes);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsFreshTimestamp(string timestamp)
+    {
+        if (!long.TryParse(timestamp, out var seconds))
+            return false;
+
+        try
+        {
+            var signedAt = DateTimeOffset.FromUnixTimeSeconds(seconds);
+            return (DateTimeOffset.UtcNow - signedAt).Duration() <= TimestampTolerance;
         }
         catch
         {

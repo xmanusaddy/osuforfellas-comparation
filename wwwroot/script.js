@@ -69,6 +69,8 @@ const LANGS = {
         back: '← Volver',
         theme: 'Tema',
         createdBy: 'creado por',
+        terms: 'términos',
+        privacy: 'privacidad',
         rooms: {
             compare: 'Comparar',
             friends: 'Amigos',
@@ -211,6 +213,8 @@ const LANGS = {
         back: '← Back',
         theme: 'Theme',
         createdBy: 'created by',
+        terms: 'terms',
+        privacy: 'privacy',
         rooms: {
             compare: 'Compare',
             friends: 'Friends',
@@ -353,6 +357,8 @@ const LANGS = {
         back: '← Zurück',
         theme: 'Thema',
         createdBy: 'erstellt von',
+        terms: 'nutzungsbedingungen',
+        privacy: 'datenschutz',
         rooms: {
             compare: 'Vergleichen',
             friends: 'Freunde',
@@ -494,6 +500,10 @@ function applyLang() {
     document.getElementById('theme-label').textContent = t.theme;
     document.getElementById('theme-select').setAttribute('aria-label', t.theme);
     document.getElementById('footer-created-by').textContent = t.createdBy;
+    document.getElementById('footer-terms-link').textContent = t.terms;
+    document.getElementById('footer-terms-link').href = `/terms#${currentLang}`;
+    document.getElementById('footer-privacy-link').textContent = t.privacy;
+    document.getElementById('footer-privacy-link').href = `/privacy#${currentLang}`;
     document.getElementById('room-nav-compare').textContent = t.rooms.compare;
     document.getElementById('room-nav-friends').textContent = t.rooms.friends;
     document.getElementById('room-nav-history').textContent = t.rooms.history;
@@ -802,12 +812,12 @@ function renderPlayerProfileContent(user, topPlay, mode) {
     const pp = Math.round(user.statistics?.pp || 0);
     const isCreator = isCreatorUsername(username);
     const title = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
-    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const flag = getCountryFlag(user.country_code);
     const activity = getActivityLabel(user.last_visit);
     const peakRank = user.rank_highest?.rank;
     const trend = getRankTrend(user.rank_history);
-    const osuProfileUrl = `https://osu.ppy.sh/users/${user.id}/${mode}`;
+    const osuProfileUrl = `https://osu.ppy.sh/users/${encodeURIComponent(String(user.id || username))}/${encodeURIComponent(mode)}`;
 
     setRoomTitle(rooms.playerTitle, ' room-title--profile');
     document.getElementById('room-copy').textContent = rooms.playerCopy.replace('{player}', username);
@@ -948,7 +958,7 @@ function renderTopPlaysContent(user, scores, mode, limit) {
     const username = user.username || 'osu!';
     const pp = Math.round(user.statistics?.pp || 0);
     const isCreator = isCreatorUsername(username);
-    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const safeScores = Array.isArray(scores) ? scores.slice(0, limit) : [];
     const summary = getTopPlaysSummary(safeScores);
 
@@ -1049,7 +1059,7 @@ function renderRecentPlaysContent(user, scores, mode) {
     const username = user.username || 'osu!';
     const pp = Math.round(user.statistics?.pp || 0);
     const isCreator = isCreatorUsername(username);
-    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const safeScores = Array.isArray(scores) ? scores : [];
     const summary = getTopPlaysSummary(safeScores);
     const latestDate = safeScores[0]
@@ -1201,7 +1211,7 @@ function renderTopPlayListItem(score, index) {
             <div class="top-play-position">#${index + 1}</div>
             <div class="top-play-cover-wrap">
                 ${cover
-                    ? `<img class="top-play-cover" src="${cover}" alt="${escapeHtml(mapName)}" onerror="this.style.display='none'">`
+                    ? `<img class="top-play-cover" src="${escapeHtml(cover)}" alt="${escapeHtml(mapName)}" onerror="this.style.display='none'">`
                     : `<div class="top-play-cover top-play-cover--empty">♫</div>`}
             </div>
             <div class="top-play-main">
@@ -1225,8 +1235,8 @@ function renderTopPlayListItem(score, index) {
             </div>
             <div class="top-play-side">
                 <div class="top-play-pp">${pp == null ? '—' : fmtNum(pp)}<span>pp</span></div>
-                <a class="top-play-action" href="${mapUrl}" target="_blank" rel="noopener">↗</a>
-                ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${replayUrl}" target="_blank" rel="noopener">⬇</a>` : ''}
+                <a class="top-play-action" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener">↗</a>
+                ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${escapeHtml(replayUrl)}" target="_blank" rel="noopener">⬇</a>` : ''}
             </div>
         </article>
     `;
@@ -1645,8 +1655,9 @@ function fmtTime(secs) {
 }
 
 function getCountryFlag(code) {
-    if (!code) return '';
-    return code.toUpperCase().split('').map(c =>
+    const clean = getCountryCode(code);
+    if (!clean) return '';
+    return clean.split('').map(c =>
         String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
     ).join('');
 }
@@ -1759,10 +1770,10 @@ function renderModChips(mods) {
 }
 
 function getCoverUrl(score) {
-    return score?.beatmapset?.covers?.['list@2x']
+    return safeHttpUrl(score?.beatmapset?.covers?.['list@2x']
         || score?.beatmapset?.covers?.list
         || score?.beatmapset?.covers?.card
-        || '';
+        || '');
 }
 
 function getBeatmapUrl(score) {
@@ -1772,13 +1783,19 @@ function getBeatmapUrl(score) {
 }
 
 function getRankDisplay(rank) {
+    const clean = normalizeRank(rank);
     // XH = SS silver, X = SS gold, SH = S silver
     const map = { XH: 'SS', X: 'SS', SH: 'S', S: 'S', A: 'A', B: 'B', C: 'C', D: 'D' };
-    return map[rank] || rank || '—';
+    return map[clean] || '—';
 }
 
 function getRankClass(rank) {
-    return `rank-letter rank-${rank || 'D'}`;
+    return `rank-letter rank-${normalizeRank(rank) || 'D'}`;
+}
+
+function normalizeRank(rank) {
+    const clean = String(rank ?? '').trim().toUpperCase();
+    return ['XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D'].includes(clean) ? clean : '';
 }
 
 function renderScoreClient(score) {
@@ -1790,7 +1807,7 @@ function renderScoreClient(score) {
 
     return `<div class="score-client score-client--${clientClass}">
         <span class="score-client-icon">${icon}</span>
-        <span>${label}</span>
+        <span>${escapeHtml(label)}</span>
     </div>`;
 }
 
@@ -1806,6 +1823,22 @@ function escapeHtml(value) {
 
 function escapeJsArg(value) {
     return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function escapeCssUrl(value) {
+    return String(value ?? '').replace(/["'\\\n\r\f]/g, '\\$&');
+}
+
+function safeHttpUrl(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+
+    try {
+        const url = new URL(raw);
+        return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+    } catch {
+        return '';
+    }
 }
 
 function isCreatorUsername(username) {
@@ -1952,7 +1985,7 @@ function renderAuthWidget() {
     const isCreator = isCreatorUsername(username);
     const pp = Math.round(loggedInUser.statistics?.pp || 0);
     const title = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
-    const avatar = loggedInUser.avatar_url || '';
+    const avatar = safeHttpUrl(loggedInUser.avatar_url);
 
     widget.innerHTML = `
         <div class="auth-card">
@@ -2161,7 +2194,7 @@ function getFriendsForActiveFilter() {
 
 function renderFriendItem(friend) {
     const username = friend?.username || 'osu!';
-    const avatar = friend?.avatar_url || '';
+    const avatar = safeHttpUrl(friend?.avatar_url);
     const country = getFriendCountry(friend);
     const selected = selectedFriendUsernames.has(normalizeUsername(username));
     const friendId = getFriendId(friend);
@@ -2652,8 +2685,8 @@ function renderTopPlayCompact(score) {
     if (!score) {
         return `<div class="tp-compact">
             <div class="tp-compact-info">
-                <div class="tp-compact-label">${t.topPlay}</div>
-                <div class="tp-compact-title" style="color:var(--muted)">${t.noTopPlay}</div>
+                <div class="tp-compact-label">${escapeHtml(t.topPlay)}</div>
+                <div class="tp-compact-title" style="color:var(--muted)">${escapeHtml(t.noTopPlay)}</div>
             </div>
         </div>`;
     }
@@ -2666,15 +2699,15 @@ function renderTopPlayCompact(score) {
 
     return `
     <div class="tp-compact">
-        ${cover ? `<img class="tp-compact-cover" src="${cover}" alt="cover" onerror="this.style.display='none'">` : ''}
+        ${cover ? `<img class="tp-compact-cover" src="${escapeHtml(cover)}" alt="cover" onerror="this.style.display='none'">` : ''}
         <div class="tp-compact-info">
-            <div class="tp-compact-label">♛ ${t.topPlay}</div>
-            <div class="tp-compact-title">${mapName}</div>
+            <div class="tp-compact-label">♛ ${escapeHtml(t.topPlay)}</div>
+            <div class="tp-compact-title">${escapeHtml(mapName)}</div>
             <div class="tp-compact-mods">${renderModChips(mods)}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.3rem;flex-shrink:0">
             <div class="tp-compact-pp">${fmtNum(pp)}<span>pp</span></div>
-            <a class="tp-compact-link" href="${mapUrl}" target="_blank" rel="noopener" title="Ver en osu!">↗</a>
+            <a class="tp-compact-link" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener" title="Ver en osu!">↗</a>
         </div>
     </div>`;
 }
@@ -2684,7 +2717,7 @@ function renderTopPlayFull(score) {
     const t = LANGS[currentLang];
     if (!score) {
         return `<div class="tp-full" style="justify-content:center;align-items:center;">
-            <div style="color:var(--muted);font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.2em">${t.noTopPlay.toUpperCase()}</div>
+            <div style="color:var(--muted);font-family:'Oswald',sans-serif;font-size:0.8rem;letter-spacing:0.2em">${escapeHtml(t.noTopPlay.toUpperCase())}</div>
         </div>`;
     }
 
@@ -2705,47 +2738,47 @@ function renderTopPlayFull(score) {
     <div class="tp-full">
         <div class="tp-full-header">
             <span class="tp-full-crown">♛</span>
-            <span class="tp-full-label">${t.topPlay}</span>
+            <span class="tp-full-label">${escapeHtml(t.topPlay)}</span>
         </div>
         <div class="tp-full-body">
             <div class="tp-full-cover-wrap">
                 ${cover
-            ? `<img class="tp-full-cover" src="${cover}" alt="cover" onerror="this.style.display='none'">`
+            ? `<img class="tp-full-cover" src="${escapeHtml(cover)}" alt="cover" onerror="this.style.display='none'">`
             : `<div class="tp-full-cover" style="background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:2rem;opacity:0.3">♫</div>`}
             </div>
             <div class="tp-full-info">
-                <div class="tp-full-map-name">${mapName}</div>
-                <div class="tp-full-artist">by ${artist}</div>
+                <div class="tp-full-map-name">${escapeHtml(mapName)}</div>
+                <div class="tp-full-artist">by ${escapeHtml(artist)}</div>
                 <div class="tp-full-tags">
                     ${renderModChips(mods)}
                     ${stars ? `<span class="tp-full-stars">✦ ${stars}</span>` : ''}
-                    ${diff ? `<span style="font-family:'Oswald',sans-serif;font-size:0.65rem;color:var(--muted);letter-spacing:0.1em">[${diff}]</span>` : ''}
+                    ${diff ? `<span style="font-family:'Oswald',sans-serif;font-size:0.65rem;color:var(--muted);letter-spacing:0.1em">[${escapeHtml(diff)}]</span>` : ''}
                 </div>
                 <div class="tp-full-pp-row">
-                    <span class="tp-full-pp-label">${t.ppGained}</span>
+                    <span class="tp-full-pp-label">${escapeHtml(t.ppGained)}</span>
                     <div class="tp-full-pp-value">${fmtNum(pp)}<span>pp</span></div>
                 </div>
             </div>
         </div>
         <div class="tp-full-mini-stats">
             <div class="tp-mini-stat">
-                <div class="tp-mini-label">${t.stats.accuracy}</div>
+                <div class="tp-mini-label">${escapeHtml(t.stats.accuracy)}</div>
                 <div class="tp-mini-val acc">${acc}%</div>
             </div>
             <div class="tp-mini-stat">
-                <div class="tp-mini-label">${t.stats.maxCombo}</div>
+                <div class="tp-mini-label">${escapeHtml(t.stats.maxCombo)}</div>
                 <div class="tp-mini-val">${fmtNum(maxCombo)}x</div>
             </div>
             <div class="tp-mini-stat">
-                <div class="tp-mini-label">${t.stats.rank}</div>
+                <div class="tp-mini-label">${escapeHtml(t.stats.rank)}</div>
                 <div class="${getRankClass(rank)}">${getRankDisplay(rank)}</div>
             </div>
             <div class="tp-mini-stat">
-                <div class="tp-mini-label">${t.stats.date}</div>
-                <div class="tp-mini-val date-val" style="white-space:pre-line;font-size:0.7rem">${dateStr}</div>
+                <div class="tp-mini-label">${escapeHtml(t.stats.date)}</div>
+                <div class="tp-mini-val date-val" style="white-space:pre-line;font-size:0.7rem">${escapeHtml(dateStr)}</div>
             </div>
         </div>
-        <a class="tp-full-openmap" href="${mapUrl}" target="_blank" rel="noopener">↗ ${t.openMap.replace('↗ ', '')}</a>
+        <a class="tp-full-openmap" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener">↗ ${escapeHtml(t.openMap.replace('↗ ', ''))}</a>
     </div>`;
 }
 
@@ -2755,8 +2788,9 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
     const pp = Math.round(user.statistics?.pp || 0);
     const barPct = maxPP > 0 ? (pp / maxPP * 100) : 0;
     const delay = idx * 0.15;
-    const isCreator = user.username.toLowerCase() === 'manu is washed';
-    const avatarUrl = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const username = user.username || 'osu!';
+    const isCreator = isCreatorUsername(username);
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const title = getUserTitle(pp);
     const activity = getActivityLabel(user.last_visit);
 
@@ -2767,24 +2801,24 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
     // ── Layout VERTICAL (single y multi usan el mismo layout) ──
     card.innerHTML = `
     <div class="card-rank-badge">#${rank}</div>
-    <div class="focus-hint">${t.clickToExpand}</div>
+    <div class="focus-hint">${escapeHtml(t.clickToExpand)}</div>
 
     <div class="card-avatar-section">
         <div class="avatar-frame${isCreator ? ' creator-frame' : ''}">
             <div class="avatar-glow"></div>
-            <img class="avatar-img" src="${avatarUrl}" alt="${user.username}"
+            <img class="avatar-img" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}"
                  onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
         </div>
         <div class="card-identity">
             ${renderCountryFlag(user.country_code)}
-            <div class="player-name${isCreator ? ' creator-name' : ''}">${user.username}</div>
-            <div class="player-title${isCreator ? ' creator-title' : ''}">${isCreator ? 'PAGE CREATOR' : title}</div>
-            ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${activity.text}</div>` : ''}
+            <div class="player-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+            <div class="player-title${isCreator ? ' creator-title' : ''}">${escapeHtml(isCreator ? 'PAGE CREATOR' : title)}</div>
+            ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${escapeHtml(activity.text)}</div>` : ''}
         </div>
     </div>
 
     <div class="pp-section">
-        <div class="pp-label">${t.stats.pp}</div>
+        <div class="pp-label">${escapeHtml(t.stats.pp)}</div>
         <div class="pp-value">${fmtNum(pp)}<span class="pp-unit">pp</span></div>
         <div class="pp-bar-wrap">
             <div class="pp-bar-bg">
@@ -2797,19 +2831,19 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
 
     <div class="stats-grid">
         <div class="stat-cell">
-            <div class="stat-label">${t.stats.acc}</div>
+            <div class="stat-label">${escapeHtml(t.stats.acc)}</div>
             <div class="stat-value accent">${fmtAcc(user.statistics?.hit_accuracy)}</div>
         </div>
         <div class="stat-cell">
-            <div class="stat-label">${t.stats.playcount}</div>
+            <div class="stat-label">${escapeHtml(t.stats.playcount)}</div>
             <div class="stat-value">${fmtNum(user.statistics?.play_count)}</div>
         </div>
         <div class="stat-cell">
-            <div class="stat-label">${t.stats.playtime}</div>
+            <div class="stat-label">${escapeHtml(t.stats.playtime)}</div>
             <div class="stat-value">${fmtTime(user.statistics?.play_time)}</div>
         </div>
         <div class="stat-cell">
-            <div class="stat-label">${t.stats.score}</div>
+            <div class="stat-label">${escapeHtml(t.stats.score)}</div>
             <div class="stat-value gold">${fmtNum(user.statistics?.total_score)}</div>
         </div>
     </div>
@@ -2817,17 +2851,17 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
     <div class="rank-section">
         <div class="rank-global">
             <div class="rank-num">#${fmtNum(user.statistics?.global_rank) || '—'}</div>
-            <div class="rank-type">${t.stats.global}</div>
+            <div class="rank-type">${escapeHtml(t.stats.global)}</div>
         </div>
         <div class="rank-divider"></div>
         <div class="rank-global">
             <div class="rank-num">#${fmtNum(user.statistics?.country_rank) || '—'}</div>
-            <div class="rank-type">${user.country_code || t.stats.country}</div>
+            <div class="rank-type">${escapeHtml(user.country_code || t.stats.country)}</div>
         </div>
         <div class="rank-divider"></div>
         <div class="rank-global">
-            <div class="rank-num" style="font-size:1rem;">${user.statistics?.level?.current || '—'}</div>
-            <div class="rank-type">${t.stats.level}</div>
+            <div class="rank-num" style="font-size:1rem;">${escapeHtml(user.statistics?.level?.current || '—')}</div>
+            <div class="rank-type">${escapeHtml(t.stats.level)}</div>
         </div>
     </div>
 
@@ -2854,12 +2888,14 @@ function openFocus(e, btn) {
 
 function openFocusWithData(user, topPlay) {
     const t = LANGS[currentLang];
-    const isCreator = user.username.toLowerCase() === 'manu is washed';
+    const username = user.username || 'osu!';
+    const isCreator = isCreatorUsername(username);
     const pp = Math.round(user.statistics?.pp || 0);
 
     // Avatar
     const avatarEl = document.getElementById('focus-avatar');
-    avatarEl.src = user.avatar_url || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    avatarEl.src = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    avatarEl.alt = username;
 
     const avatarWrap = document.getElementById('focus-avatar-wrap');
     avatarWrap.className = 'focus-avatar-wrap' + (isCreator ? ' creator-frame' : '');
@@ -2868,7 +2904,7 @@ function openFocusWithData(user, topPlay) {
     document.getElementById('focus-flag').textContent = getCountryFlag(user.country_code);
 
     const nameEl = document.getElementById('focus-name');
-    nameEl.textContent = user.username;
+    nameEl.textContent = username;
     nameEl.className = 'focus-player-name' + (isCreator ? ' creator-name' : '');
 
     const titleEl = document.getElementById('focus-title');
@@ -2889,7 +2925,7 @@ function openFocusWithData(user, topPlay) {
     profileLink.textContent = t.rooms.viewFullProfile;
     profileLink.onclick = () => {
         closeFocusBtn();
-        navigateToRoom('player', user.username);
+        navigateToRoom('player', username);
     };
 
     document.getElementById('focus-pp').innerHTML =
@@ -2903,16 +2939,16 @@ function openFocusWithData(user, topPlay) {
         let trendHtml = '';
         if (trend) {
             if (trend.state === 'stable') {
-                trendHtml = `<div class="focus-trend focus-trend--stable">${t.trendStable} <span class="focus-trend-label">${t.trend90}</span></div>`;
+                trendHtml = `<div class="focus-trend focus-trend--stable">${escapeHtml(t.trendStable)} <span class="focus-trend-label">${escapeHtml(t.trend90)}</span></div>`;
             } else {
                 const arrow = trend.state === 'up' ? '↗' : '↘';
                 const sign = trend.state === 'up' ? '+' : '−';
                 const cls = trend.state === 'up' ? 'focus-trend--up' : 'focus-trend--down';
-                trendHtml = `<div class="focus-trend ${cls}">${arrow} ${sign}${fmtNum(Math.abs(trend.diff))} <span class="focus-trend-label">${t.trend90}</span></div>`;
+                trendHtml = `<div class="focus-trend ${cls}">${arrow} ${sign}${fmtNum(Math.abs(trend.diff))} <span class="focus-trend-label">${escapeHtml(t.trend90)}</span></div>`;
             }
         }
         metricsEl.innerHTML = `
-            ${peakRank ? `<div class="focus-peak"><span class="focus-peak-icon">★</span><span class="focus-peak-label">${t.peakRank}</span><span class="focus-peak-value">#${fmtNum(peakRank)}</span></div>` : ''}
+            ${peakRank ? `<div class="focus-peak"><span class="focus-peak-icon">★</span><span class="focus-peak-label">${escapeHtml(t.peakRank)}</span><span class="focus-peak-value">#${fmtNum(peakRank)}</span></div>` : ''}
             ${trendHtml}`;
     } else {
         metricsEl.innerHTML = '';
@@ -2922,33 +2958,33 @@ function openFocusWithData(user, topPlay) {
     document.getElementById('focus-ranks').innerHTML = `
         <div class="focus-rank-item">
             <div class="focus-rank-num">#${fmtNum(user.statistics?.global_rank) || '—'}</div>
-            <div class="focus-rank-type">${t.stats.global}</div>
+            <div class="focus-rank-type">${escapeHtml(t.stats.global)}</div>
         </div>
         <div class="focus-rank-item">
             <div class="focus-rank-num">#${fmtNum(user.statistics?.country_rank) || '—'}</div>
-            <div class="focus-rank-type">${user.country_code || t.stats.country}</div>
+            <div class="focus-rank-type">${escapeHtml(user.country_code || t.stats.country)}</div>
         </div>
         <div class="focus-rank-item">
-            <div class="focus-rank-num">${user.statistics?.level?.current || '—'}</div>
-            <div class="focus-rank-type">${t.stats.level}</div>
+            <div class="focus-rank-num">${escapeHtml(user.statistics?.level?.current || '—')}</div>
+            <div class="focus-rank-type">${escapeHtml(t.stats.level)}</div>
         </div>`;
 
     // Stats extendidos
     document.getElementById('focus-stats').innerHTML = `
         <div class="focus-stat-cell">
-            <div class="focus-stat-label">${t.stats.acc}</div>
+            <div class="focus-stat-label">${escapeHtml(t.stats.acc)}</div>
             <div class="focus-stat-val accent">${fmtAcc(user.statistics?.hit_accuracy)}</div>
         </div>
         <div class="focus-stat-cell">
-            <div class="focus-stat-label">${t.stats.playcount}</div>
+            <div class="focus-stat-label">${escapeHtml(t.stats.playcount)}</div>
             <div class="focus-stat-val">${fmtNum(user.statistics?.play_count)}</div>
         </div>
         <div class="focus-stat-cell">
-            <div class="focus-stat-label">${t.stats.playtime}</div>
+            <div class="focus-stat-label">${escapeHtml(t.stats.playtime)}</div>
             <div class="focus-stat-val">${fmtTime(user.statistics?.play_time)}</div>
         </div>
         <div class="focus-stat-cell">
-            <div class="focus-stat-label">${t.stats.score}</div>
+            <div class="focus-stat-label">${escapeHtml(t.stats.score)}</div>
             <div class="focus-stat-val gold">${fmtNum(user.statistics?.total_score)}</div>
         </div>`;
 
@@ -2960,13 +2996,13 @@ function openFocusWithData(user, topPlay) {
     const bgEl = document.getElementById('focus-bg');
     bgEl.className = 'focus-bg';
     bgEl.style.backgroundImage = '';
-    const bgCover = topPlay?.beatmapset?.covers?.cover
+    const bgCover = safeHttpUrl(topPlay?.beatmapset?.covers?.cover
         || topPlay?.beatmapset?.covers?.['cover@2x']
-        || getCoverUrl(topPlay);
+        || getCoverUrl(topPlay));
     if (bgCover) {
         const img = new Image();
         img.onload = () => {
-            bgEl.style.backgroundImage = `url('${bgCover}')`;
+            bgEl.style.backgroundImage = `url("${escapeCssUrl(bgCover)}")`;
             bgEl.classList.add('loaded');
         };
         img.src = bgCover;
@@ -2986,7 +3022,7 @@ function renderFocusTopPlay(score) {
     const body = document.getElementById('focus-topplay-body');
 
     if (!score) {
-        body.innerHTML = `<div style="color:var(--muted);font-family:'Oswald',sans-serif;font-size:0.85rem;letter-spacing:0.2em;padding:1rem">${t.noTopPlay.toUpperCase()}</div>`;
+        body.innerHTML = `<div style="color:var(--muted);font-family:'Oswald',sans-serif;font-size:0.85rem;letter-spacing:0.2em;padding:1rem">${escapeHtml(t.noTopPlay.toUpperCase())}</div>`;
         return;
     }
 
@@ -3013,48 +3049,48 @@ function renderFocusTopPlay(score) {
     body.innerHTML = `
     <div class="focus-tp-cover-wrap">
         ${cover
-            ? `<img class="focus-tp-cover" src="${cover}" alt="cover" onerror="this.style.display='none'">`
+            ? `<img class="focus-tp-cover" src="${escapeHtml(cover)}" alt="cover" onerror="this.style.display='none'">`
             : `<div class="focus-tp-cover" style="background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.3">♫</div>`}
     </div>
     <div class="focus-tp-info">
-        <div class="focus-tp-map">${mapName}</div>
-        <div class="focus-tp-artist">by ${artist}</div>
+        <div class="focus-tp-map">${escapeHtml(mapName)}</div>
+        <div class="focus-tp-artist">by ${escapeHtml(artist)}</div>
         <div class="focus-tp-tags">
             ${renderModChips(mods)}
             ${stars ? `<span class="tp-full-stars">✦ ${stars}</span>` : ''}
-            ${diff ? `<span style="font-family:'Oswald',sans-serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.1em">[${diff}]</span>` : ''}
+            ${diff ? `<span style="font-family:'Oswald',sans-serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.1em">[${escapeHtml(diff)}]</span>` : ''}
         </div>
         <div class="focus-tp-pp-row">
-            <span class="focus-tp-pp-label">${t.ppGained}</span>
+            <span class="focus-tp-pp-label">${escapeHtml(t.ppGained)}</span>
             <div class="focus-tp-pp-value">${fmtNum(pp)}<span>pp</span></div>
         </div>
         <div class="focus-tp-mini-grid">
             <div class="focus-tp-mini-cell">
-                <div class="focus-tp-mini-label">${t.stats.accuracy}</div>
+                <div class="focus-tp-mini-label">${escapeHtml(t.stats.accuracy)}</div>
                 <div class="focus-tp-mini-val acc">${acc}%</div>
             </div>
             <div class="focus-tp-mini-cell">
-                <div class="focus-tp-mini-label">${t.stats.maxCombo}</div>
+                <div class="focus-tp-mini-label">${escapeHtml(t.stats.maxCombo)}</div>
                 <div class="focus-tp-mini-val">${fmtNum(maxCombo)}x</div>
             </div>
             <div class="focus-tp-mini-cell">
-                <div class="focus-tp-mini-label">${t.stats.rank}</div>
+                <div class="focus-tp-mini-label">${escapeHtml(t.stats.rank)}</div>
                 <div class="${getRankClass(rank)}">${getRankDisplay(rank)}</div>
             </div>
             <div class="focus-tp-mini-cell">
-                <div class="focus-tp-mini-label">${t.stats.misses}</div>
+                <div class="focus-tp-mini-label">${escapeHtml(t.stats.misses)}</div>
                 <div class="focus-tp-mini-val${misses > 0 ? ' miss-val' : ''}">${misses > 0 ? `${misses} ✗` : '0 ✓'}</div>
             </div>
             <div class="focus-tp-mini-cell date-cell">
-                <div class="focus-tp-mini-label">${t.stats.date}</div>
-                <div class="focus-tp-mini-val date-sm" style="white-space:pre-line">${dateStr}</div>
+                <div class="focus-tp-mini-label">${escapeHtml(t.stats.date)}</div>
+                <div class="focus-tp-mini-val date-sm" style="white-space:pre-line">${escapeHtml(dateStr)}</div>
             </div>
         </div>
         <div class="focus-tp-actions">
-            <a class="focus-tp-openmap" href="${mapUrl}" target="_blank" rel="noopener">↗ ${t.openMap.replace('↗ ', '')}</a>
+            <a class="focus-tp-openmap" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener">↗ ${escapeHtml(t.openMap.replace('↗ ', ''))}</a>
             ${replayUrl
-            ? `<a class="focus-tp-replay" href="${replayUrl}" target="_blank" rel="noopener">⬇ ${t.downloadReplay}</a>`
-            : `<span class="focus-tp-replay focus-tp-replay--disabled">⬇ ${t.replayUnavailable}</span>`
+            ? `<a class="focus-tp-replay" href="${escapeHtml(replayUrl)}" target="_blank" rel="noopener">⬇ ${escapeHtml(t.downloadReplay)}</a>`
+            : `<span class="focus-tp-replay focus-tp-replay--disabled">⬇ ${escapeHtml(t.replayUnavailable)}</span>`
         }
         </div>
     </div>`;
@@ -3240,8 +3276,8 @@ async function doSearch() {
 
     const t = LANGS[currentLang];
     document.getElementById('mode-display').innerHTML =
-        `<div class="mode-chip">${t.modes[currentMode] || currentMode}</div>
-         <div class="mode-chip">${names.length} ${names.length === 1 ? t.players.one : t.players.many}</div>`;
+        `<div class="mode-chip">${escapeHtml(t.modes[currentMode] || currentMode)}</div>
+         <div class="mode-chip">${names.length} ${escapeHtml(names.length === 1 ? t.players.one : t.players.many)}</div>`;
 
     await loadCards();
     await waitForSharedCompareImages();
@@ -3275,7 +3311,7 @@ async function loadCards() {
         const loadDiv = document.createElement('div');
         loadDiv.className = 'card-loading';
         loadDiv.innerHTML = `<div class="spinner"></div>
-                             <div class="loading-text">${LANGS[currentLang].loading}</div>`;
+                             <div class="loading-text">${escapeHtml(LANGS[currentLang].loading)}</div>`;
         container.appendChild(loadDiv);
     });
 
@@ -3341,8 +3377,8 @@ async function loadCards() {
             errDiv.style.animationDelay = (idx * 0.15) + 's';
             errDiv.innerHTML = `
                 <div class="error-icon">!</div>
-                <div class="error-text">${u.error}</div>
-                <div style="margin-top:0.5rem;font-size:0.7rem;color:#88446688;font-family:'Oswald',sans-serif;letter-spacing:0.1em;">${u.name}</div>`;
+                <div class="error-text">${escapeHtml(u.error)}</div>
+                <div style="margin-top:0.5rem;font-size:0.7rem;color:#88446688;font-family:'Oswald',sans-serif;letter-spacing:0.1em;">${escapeHtml(u.name)}</div>`;
             container.appendChild(errDiv);
         }
     });

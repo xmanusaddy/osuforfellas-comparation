@@ -43,6 +43,7 @@ public class DiscordController : ControllerBase
     }
 
     [HttpPost("interactions")]
+    [RequestSizeLimit(64 * 1024)]
     public async Task<IActionResult> Interactions()
     {
         var timestamp = Request.Headers["X-Signature-Timestamp"].ToString();
@@ -54,9 +55,13 @@ public class DiscordController : ControllerBase
         if (!_signatureVerifier.Verify(timestamp, body, signature))
             return Unauthorized();
 
-        using var document = JsonDocument.Parse(body);
+        using var document = ParseInteractionBody(body);
+        if (document is null)
+            return BadRequest();
+
         var interaction = document.RootElement;
-        var type = interaction.GetProperty("type").GetInt32();
+        if (!interaction.TryGetProperty("type", out var typeElement) || !typeElement.TryGetInt32(out var type))
+            return BadRequest();
 
         if (type == InteractionPing)
             return Ok(new Dictionary<string, object?> { ["type"] = ResponsePong });
@@ -64,8 +69,13 @@ public class DiscordController : ControllerBase
         if (type != InteractionApplicationCommand)
             return Ok(CreateMessageResponse("That interaction is not supported yet.", ephemeral: true));
 
-        var data = interaction.GetProperty("data");
-        var commandName = data.GetProperty("name").GetString();
+        if (!interaction.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Object)
+            return BadRequest();
+
+        if (!data.TryGetProperty("name", out var commandNameElement))
+            return BadRequest();
+
+        var commandName = commandNameElement.GetString();
 
         return commandName switch
         {
@@ -73,6 +83,18 @@ public class DiscordController : ControllerBase
             "osu-compare" => Ok(HandleOsuCompare(interaction, data)),
             _ => Ok(CreateMessageResponse("Unknown command.", ephemeral: true))
         };
+    }
+
+    private static JsonDocument? ParseInteractionBody(string body)
+    {
+        try
+        {
+            return JsonDocument.Parse(body);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private Dictionary<string, object?> HandleOsuCompare(JsonElement interaction, JsonElement data)

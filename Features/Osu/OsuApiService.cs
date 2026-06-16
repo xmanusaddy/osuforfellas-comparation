@@ -24,7 +24,7 @@ public sealed class OsuApiService
         var token = await GetTokenAsync();
         var request = CreateAuthorizedRequest(
             token,
-            $"https://osu.ppy.sh/api/v2/users/{Uri.EscapeDataString(username)}/{mode}"
+            $"https://osu.ppy.sh/api/v2/users/{Uri.EscapeDataString(username)}/{Uri.EscapeDataString(mode)}"
         );
 
         var response = await _http.SendAsync(request);
@@ -142,7 +142,7 @@ public sealed class OsuApiService
     {
         var request = CreateAuthorizedRequest(
             token,
-            $"https://osu.ppy.sh/api/v2/users/{Uri.EscapeDataString(username)}/{mode}"
+            $"https://osu.ppy.sh/api/v2/users/{Uri.EscapeDataString(username)}/{Uri.EscapeDataString(mode)}"
         );
 
         var response = await _http.SendAsync(request);
@@ -164,7 +164,7 @@ public sealed class OsuApiService
     {
         var request = CreateAuthorizedRequest(
             token,
-            $"https://osu.ppy.sh/api/v2/users/{userId}/scores/{type}?mode={mode}&limit={limit}&offset={offset}&include_fails={(includeFails ? 1 : 0)}"
+            $"https://osu.ppy.sh/api/v2/users/{userId}/scores/{Uri.EscapeDataString(type)}?mode={Uri.EscapeDataString(mode)}&limit={limit}&offset={offset}&include_fails={(includeFails ? 1 : 0)}"
         );
         request.Headers.Add("x-api-version", "20220705");
         return request;

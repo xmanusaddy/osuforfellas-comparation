@@ -1,0 +1,177 @@
+/* Legal pages for Discord verification links */
+
+:root {
+    --pink: #FF66AA;
+    --pink-bright: #FF3388;
+    --pink-glow: #FF66AA55;
+    --yellow: #FFD700;
+    --cyan: #00FFFF;
+    --dark: #0A0A12;
+    --dark2: #0F0F1E;
+    --card-bg: #0D0D22;
+    --text: #F0E8FF;
+    --muted: #8888AA;
+    --border: #2A2A55;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background:
+        linear-gradient(90deg, rgba(255,102,170,0.07) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(0,255,255,0.04) 1px, transparent 1px),
+        radial-gradient(circle at 70% 12%, rgba(255,102,170,0.16), transparent 34rem),
+        linear-gradient(180deg, #12071F 0%, var(--dark) 52%, #070711 100%);
+    background-size: 48px 48px, 48px 48px, auto, auto;
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+}
+
+a {
+    color: var(--cyan);
+}
+
+.legal-shell {
+    width: min(980px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 3rem 0 4rem;
+}
+
+.legal-header {
+    border-left: 4px solid var(--pink);
+    padding: 1.2rem 0 1.2rem 1.2rem;
+    margin-bottom: 1.4rem;
+}
+
+.legal-kicker,
+.legal-updated,
+.legal-section-kicker {
+    color: var(--muted);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.legal-title {
+    margin: 0.35rem 0;
+    color: var(--pink);
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: clamp(2.7rem, 7vw, 5rem);
+    letter-spacing: 0;
+    line-height: 0.95;
+    text-shadow: 0 0 28px var(--pink-glow);
+}
+
+.legal-subtitle {
+    max-width: 720px;
+    margin: 0.85rem 0 0;
+    color: rgba(240,232,255,0.78);
+    font-size: 1.05rem;
+    line-height: 1.55;
+}
+
+.legal-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin: 1.5rem 0;
+}
+
+.legal-nav a,
+.legal-home {
+    border: 1px solid rgba(255,102,170,0.35);
+    background: rgba(13,13,34,0.78);
+    color: var(--text);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    padding: 0.55rem 0.8rem;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.legal-nav a:hover,
+.legal-home:hover,
+.legal-nav a:focus-visible,
+.legal-home:focus-visible {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    outline: none;
+    box-shadow: 0 0 16px rgba(0,255,255,0.14);
+}
+
+.legal-card {
+    border: 1px solid rgba(255,102,170,0.28);
+    border-top: 2px solid var(--pink);
+    background: linear-gradient(135deg, rgba(13,13,34,0.90), rgba(20,20,42,0.74));
+    box-shadow: 0 0 34px rgba(255,102,170,0.10);
+    padding: clamp(1.1rem, 3vw, 1.8rem);
+    margin-top: 1rem;
+}
+
+.legal-card h2 {
+    margin: 0.2rem 0 1rem;
+    color: var(--yellow);
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.25rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.legal-card h3 {
+    margin: 1.35rem 0 0.45rem;
+    color: var(--pink);
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.legal-card p,
+.legal-card li {
+    color: rgba(240,232,255,0.82);
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.legal-card ul {
+    margin: 0.45rem 0 0;
+    padding-left: 1.2rem;
+}
+
+.legal-note {
+    border-left: 3px solid var(--cyan);
+    background: rgba(0,255,255,0.06);
+    margin-top: 1.4rem;
+    padding: 0.8rem 1rem;
+}
+
+.legal-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1.4rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    .legal-shell {
+        width: min(100% - 1rem, 980px);
+        padding-top: 1.6rem;
+    }
+
+    .legal-header {
+        padding-left: 0.85rem;
+    }
+}
