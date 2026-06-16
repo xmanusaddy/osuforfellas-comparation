@@ -4,6 +4,8 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<OsuApiService>();
 builder.Services.AddSingleton<DiscordSignatureVerifier>();
+builder.Services.AddSingleton<ChromiumScreenshotService>();
+builder.Services.AddScoped<DiscordCompareImageService>();
 builder.Services.AddHostedService<DiscordCommandRegistrationService>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

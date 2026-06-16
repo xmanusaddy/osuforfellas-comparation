@@ -61,6 +61,71 @@ public sealed class DiscordCommandRegistrationService : IHostedService
                         }
                     }
                 }
+            },
+            new
+            {
+                name = "osu-compare",
+                description = "Generate a visual osu! for fellas comparison image.",
+                type = 1,
+                integration_types = new[] { 0, 1 },
+                contexts = new[] { 0, 1, 2 },
+                options = new object[]
+                {
+                    new
+                    {
+                        name = "player1",
+                        description = "First osu! username",
+                        type = 3,
+                        required = true
+                    },
+                    new
+                    {
+                        name = "player2",
+                        description = "Second osu! username",
+                        type = 3,
+                        required = true
+                    },
+                    new
+                    {
+                        name = "player3",
+                        description = "Optional third osu! username",
+                        type = 3,
+                        required = false
+                    },
+                    new
+                    {
+                        name = "player4",
+                        description = "Optional fourth osu! username",
+                        type = 3,
+                        required = false
+                    },
+                    new
+                    {
+                        name = "mode",
+                        description = "Game mode",
+                        type = 3,
+                        required = false,
+                        choices = new object[]
+                        {
+                            new { name = "osu!", value = "osu" },
+                            new { name = "Taiko", value = "taiko" },
+                            new { name = "Catch", value = "fruits" },
+                            new { name = "Mania", value = "mania" }
+                        }
+                    },
+                    new
+                    {
+                        name = "theme",
+                        description = "Visual theme",
+                        type = 3,
+                        required = false,
+                        choices = new object[]
+                        {
+                            new { name = "Cyberpunk", value = "cyberpunk" },
+                            new { name = "Heaven", value = "heaven" }
+                        }
+                    }
+                }
             }
         };
 

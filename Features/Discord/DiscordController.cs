@@ -9,19 +9,26 @@ public class DiscordController : ControllerBase
     private const int InteractionApplicationCommand = 2;
     private const int ResponsePong = 1;
     private const int ResponseChannelMessage = 4;
+    private const int ResponseDeferredChannelMessage = 5;
 
     private readonly DiscordSignatureVerifier _signatureVerifier;
     private readonly OsuApiService _osuApi;
     private readonly IConfiguration _config;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<DiscordController> _logger;
 
     public DiscordController(
         DiscordSignatureVerifier signatureVerifier,
         OsuApiService osuApi,
-        IConfiguration config)
+        IConfiguration config,
+        IServiceScopeFactory scopeFactory,
+        ILogger<DiscordController> logger)
     {
         _signatureVerifier = signatureVerifier;
         _osuApi = osuApi;
         _config = config;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
     [HttpGet("health")]
@@ -63,7 +70,49 @@ public class DiscordController : ControllerBase
         return commandName switch
         {
             "osu-profile" => Ok(await HandleOsuProfile(data)),
+            "osu-compare" => Ok(HandleOsuCompare(interaction, data)),
             _ => Ok(CreateMessageResponse("Unknown command.", ephemeral: true))
+        };
+    }
+
+    private Dictionary<string, object?> HandleOsuCompare(JsonElement interaction, JsonElement data)
+    {
+        var applicationId = GetString(interaction, "application_id") ?? _config["Discord:ApplicationId"];
+        var interactionToken = GetString(interaction, "token");
+        var players = DiscordCompareImageService.NormalizePlayers(new[]
+        {
+            GetOptionString(data, "player1"),
+            GetOptionString(data, "player2"),
+            GetOptionString(data, "player3"),
+            GetOptionString(data, "player4")
+        });
+        var mode = DiscordCompareImageService.NormalizeMode(GetOptionString(data, "mode"));
+        var theme = DiscordCompareImageService.NormalizeTheme(GetOptionString(data, "theme"));
+        var lang = DiscordCompareImageService.NormalizeLang(GetOptionString(data, "lang"));
+
+        if (players.Count < 2)
+            return CreateMessageResponse("Add at least two different players to compare.", ephemeral: true);
+
+        if (string.IsNullOrWhiteSpace(applicationId) || string.IsNullOrWhiteSpace(interactionToken))
+            return CreateMessageResponse("Discord interaction metadata was missing.", ephemeral: true);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var compareImages = scope.ServiceProvider.GetRequiredService<DiscordCompareImageService>();
+                await compareImages.SendCompareImageAsync(applicationId, interactionToken, players, mode, theme, lang);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unhandled osu-compare background task failure.");
+            }
+        });
+
+        return new Dictionary<string, object?>
+        {
+            ["type"] = ResponseDeferredChannelMessage
         };
     }
 

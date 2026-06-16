@@ -3,7 +3,17 @@
    ══════════════════════════════════════ */
 
 // ══ IDIOMAS ══
-let currentLang = localStorage.getItem('lang') || 'es';
+const INITIAL_URL_PARAMS = new URLSearchParams(window.location.search);
+const SUPPORTED_LANGS = ['es', 'en', 'de'];
+const IS_SHARE_COMPARE_MODE = INITIAL_URL_PARAMS.get('share') === 'compare';
+const requestedLang = INITIAL_URL_PARAMS.get('lang');
+let currentLang = SUPPORTED_LANGS.includes(requestedLang)
+    ? requestedLang
+    : (localStorage.getItem('lang') || 'es');
+if (IS_SHARE_COMPARE_MODE) {
+    window.__osuShareReady = false;
+    window.__osuShareError = '';
+}
 const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
 const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
 const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
@@ -661,7 +671,7 @@ function showResultsRoom() {
     currentRoomRoute = { name: 'results', param: '' };
     updateRoomBackLabel();
 
-    if (!refreshTimer) {
+    if (!IS_SHARE_COMPARE_MODE && !refreshTimer) {
         refreshTimer = setInterval(refreshData, 60000);
     }
 }
@@ -3064,6 +3074,90 @@ document.addEventListener('keydown', e => {
     }
 });
 
+function getSharedComparePlayers() {
+    const repeated = INITIAL_URL_PARAMS.getAll('player');
+    const combined = (INITIAL_URL_PARAMS.get('players') || '')
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+    const seen = new Set();
+
+    return [...repeated, ...combined]
+        .map(value => String(value ?? '').trim())
+        .filter(value => {
+            const key = normalizeUsername(value);
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .slice(0, 4);
+}
+
+function getSharedCompareMode() {
+    const mode = String(INITIAL_URL_PARAMS.get('mode') || 'osu').trim();
+    return ['osu', 'taiko', 'fruits', 'mania'].includes(mode) ? mode : 'osu';
+}
+
+function getSharedCompareTheme() {
+    const theme = String(INITIAL_URL_PARAMS.get('theme') || 'cyberpunk').trim();
+    return ['cyberpunk', 'heaven'].includes(theme) ? theme : 'cyberpunk';
+}
+
+function markSharedCompareReady() {
+    if (!IS_SHARE_COMPARE_MODE) return;
+    window.__osuShareReady = true;
+}
+
+function markSharedCompareError(error) {
+    if (!IS_SHARE_COMPARE_MODE) return;
+    window.__osuShareError = error?.message || String(error || 'share_error');
+    window.__osuShareReady = true;
+}
+
+async function waitForSharedCompareImages(timeoutMs = 2600) {
+    if (!IS_SHARE_COMPARE_MODE) return;
+
+    const pendingImages = [...document.images].filter(img => !img.complete);
+    if (!pendingImages.length) return;
+
+    await Promise.race([
+        Promise.all(pendingImages.map(img => new Promise(resolve => {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+        }))),
+        new Promise(resolve => setTimeout(resolve, timeoutMs))
+    ]);
+}
+
+function initSharedCompareMode() {
+    if (!IS_SHARE_COMPARE_MODE) return;
+
+    document.body.classList.add('share-mode');
+    const theme = getSharedCompareTheme();
+    if (typeof applyTheme === 'function') {
+        applyTheme(theme);
+    } else {
+        document.documentElement.dataset.theme = theme;
+    }
+
+    const players = getSharedComparePlayers();
+    const inputs = getPlayerInputs();
+    inputs.forEach((input, index) => {
+        input.value = players[index] || '';
+        delete input.dataset.friendUsername;
+    });
+
+    const modeSelect = document.getElementById('gamemode');
+    if (modeSelect) modeSelect.value = getSharedCompareMode();
+
+    if (players.length < 2) {
+        markSharedCompareReady();
+        return;
+    }
+
+    doSearch().catch(markSharedCompareError);
+}
+
 // ══ BÚSQUEDA ══
 async function doSearch() {
     const names = [
@@ -3082,9 +3176,14 @@ async function doSearch() {
 
     currentPlayers = names;
     currentMode = document.getElementById('gamemode').value;
-    saveComparisonToHistory(currentPlayers, currentMode);
+    if (!IS_SHARE_COMPARE_MODE) {
+        saveComparisonToHistory(currentPlayers, currentMode);
+    }
 
-    history.replaceState(null, '', buildRoomHash('results'));
+    const nextUrl = IS_SHARE_COMPARE_MODE
+        ? `${window.location.pathname}${window.location.search}${buildRoomHash('results')}`
+        : buildRoomHash('results');
+    history.replaceState(null, '', nextUrl);
     showResultsRoom();
 
 
@@ -3094,9 +3193,13 @@ async function doSearch() {
          <div class="mode-chip">${names.length} ${names.length === 1 ? t.players.one : t.players.many}</div>`;
 
     await loadCards();
+    await waitForSharedCompareImages();
+    markSharedCompareReady();
 
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(refreshData, 60000);
+    if (!IS_SHARE_COMPARE_MODE) {
+        if (refreshTimer) clearInterval(refreshTimer);
+        refreshTimer = setInterval(refreshData, 60000);
+    }
 }
 
 async function loadCards() {
@@ -3104,6 +3207,7 @@ async function loadCards() {
     const container = document.getElementById('cards');
 
     container.className = 'cards-container';
+    container.classList.add(`players-${Math.min(Math.max(currentPlayers.length, 1), 4)}`);
     if (isSingle) container.classList.add('single-player');
     else if (currentPlayers.length === 4) container.classList.add('four-cards');
 
@@ -3240,8 +3344,12 @@ window.addEventListener('scroll', () => {
 // Init
 applyLang();
 window.addEventListener('hashchange', handleRouteChange);
-handleRouteChange();
-initAuth();
+if (IS_SHARE_COMPARE_MODE) {
+    initSharedCompareMode();
+} else {
+    handleRouteChange();
+    initAuth();
+}
 getPlayerInputs().forEach(input => {
     input.addEventListener('input', syncFriendSelectionsFromInputs);
 });

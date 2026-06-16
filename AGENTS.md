@@ -87,12 +87,24 @@ La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna 
   * Endpoint principal para Discord Interactions: `POST /discord/interactions`.
   * Verifica firmas Ed25519 de Discord mediante `Discord__PublicKey`.
   * Responde `PING` con `PONG`.
-  * MVP actual: comando `/osu-profile`.
+  * Comandos actuales: `/osu-profile` y `/osu-compare`.
 
 * `Features/Discord/DiscordCommandRegistrationService.cs`
 
   * Registra slash commands al iniciar la app si existen `Discord__ApplicationId` y `Discord__BotToken`.
-  * Primer comando registrado: `/osu-profile username mode`.
+  * Registra `/osu-profile username mode`.
+  * Registra `/osu-compare player1 player2 player3 player4 mode theme`.
+
+* `Features/Discord/DiscordCompareImageService.cs`
+
+  * Genera la URL interna `share=compare`, pide la captura PNG y actualiza la respuesta original de Discord.
+  * Usa deferred response para no pasar el limite de tiempo de Discord.
+
+* `Features/Discord/ChromiumScreenshotService.cs`
+
+  * Abre Chromium headless con Chrome DevTools Protocol.
+  * Espera `window.__osuShareReady === true`.
+  * Captura PNG 1280x720 para Discord.
 
 * `Features/Discord/DiscordSignatureVerifier.cs`
 
@@ -358,6 +370,7 @@ Configuracion usada por OAuth:
 * `Discord:PublicKey`
 * `Discord:BotToken`
 * `App:PublicBaseUrl`
+* `Screenshot:ChromiumPath`
 
 En Render usar formato de variables:
 
@@ -368,6 +381,7 @@ En Render usar formato de variables:
 * `Discord__PublicKey`
 * `Discord__BotToken`
 * `App__PublicBaseUrl`
+* `Screenshot__ChromiumPath` si se necesita sobreescribir la ruta de Chromium
 
 Local User Secrets:
 
@@ -394,6 +408,54 @@ UI login:
 * Debe verse coherente en Cyberpunk y Heaven.
 * Si el usuario logueado es `manu is washed`, usar `creator-name` y tag `PAGE CREATOR`.
 * Para otros usuarios, usar tag normal via `getUserTitle(pp)`.
+
+### Discord Bot
+
+Implementado MVP del bot de Discord dentro del mismo proyecto ASP.NET.
+
+Backend:
+
+* Endpoint de health:
+
+  * `GET /discord/health`
+
+* Endpoint de Interactions:
+
+  * `POST /discord/interactions`
+
+* Verifica firmas de Discord con Ed25519 usando `Discord:PublicKey`.
+* Registra slash commands globales al iniciar la app cuando existen `Discord:ApplicationId` y `Discord:BotToken`.
+* El bot usa Interactions HTTP, no Gateway; por eso puede verse offline en Discord aunque los comandos funcionen.
+
+Comandos actuales:
+
+* `/osu-profile`
+
+  * Muestra snapshot del perfil osu! como embed.
+  * Incluye avatar, PP, ranks, accuracy, play count, top play resumida y links.
+
+* `/osu-compare`
+
+  * Genera una imagen PNG de comparacion visual al estilo de la pagina.
+  * Acepta `player1`, `player2`, `player3`, `player4`, `mode` y `theme`.
+  * Responde primero con deferred response para no pasar el limite de tiempo de Discord.
+  * Despues edita la respuesta original con la imagen adjunta y un boton para abrir la comparacion visual.
+
+Captura visual:
+
+* La pagina normal soporta modo oculto de render:
+
+  * `/?share=compare&mode=osu&theme=cyberpunk&lang=es&player=user1&player=user2`
+
+* Este modo reutiliza `wwwroot/script.js` y `wwwroot/styles.css`, carga la comparacion y marca `window.__osuShareReady = true`.
+* `ChromiumScreenshotService` abre esa URL localmente con Chromium headless y captura una imagen 1280x720.
+* Render/Docker instala Chromium en la imagen final y usa `CHROMIUM_PATH=/usr/bin/chromium`.
+
+Reglas:
+
+* No guardar token, public key ni application secret en archivos versionados.
+* `appsettings.json` debe conservar placeholders vacios.
+* Si se cambia el diseno de cards principales, revisar el modo `share=compare` porque Discord depende de esa captura.
 
 ### Amigos osu!
 
