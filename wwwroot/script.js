@@ -190,7 +190,19 @@ const LANGS = {
             ppLeadVs: 'contra {player}',
             bestAcc: 'Mejor precisión',
             playCount: 'Partidas jugadas',
-            bestTopPlay: 'Mejor Top Play'
+            bestTopPlay: 'Mejor Top Play',
+            breakdownKicker: 'Análisis',
+            breakdownTitle: 'Desglose de comparación',
+            leaderBadge: 'Líder',
+            closeGap: 'Muy parejo',
+            clearLead: 'Ventaja clara',
+            bigGap: 'Gap grande',
+            metricPp: 'PP total',
+            metricAccuracy: 'Precisión',
+            metricPlayCount: 'Partidas',
+            metricPlayTime: 'Tiempo jugado',
+            metricGlobalRank: 'Rank global',
+            metricTopPlay: 'Top Play'
         },
         stats: {
             pp: 'Performance Points',
@@ -335,7 +347,19 @@ const LANGS = {
             ppLeadVs: 'vs {player}',
             bestAcc: 'Best Accuracy',
             playCount: 'Play Count',
-            bestTopPlay: 'Best Top Play'
+            bestTopPlay: 'Best Top Play',
+            breakdownKicker: 'Breakdown',
+            breakdownTitle: 'Comparison Breakdown',
+            leaderBadge: 'Leader',
+            closeGap: 'Very close',
+            clearLead: 'Clear lead',
+            bigGap: 'Big gap',
+            metricPp: 'Total PP',
+            metricAccuracy: 'Accuracy',
+            metricPlayCount: 'Play Count',
+            metricPlayTime: 'Play Time',
+            metricGlobalRank: 'Global Rank',
+            metricTopPlay: 'Top Play'
         },
         stats: {
             pp: 'Performance Points',
@@ -480,7 +504,19 @@ const LANGS = {
             ppLeadVs: 'gegen {player}',
             bestAcc: 'Beste Genauigkeit',
             playCount: 'Spielanzahl',
-            bestTopPlay: 'Bestes Top Play'
+            bestTopPlay: 'Bestes Top Play',
+            breakdownKicker: 'Analyse',
+            breakdownTitle: 'Vergleichsdetails',
+            leaderBadge: 'Anführer',
+            closeGap: 'Sehr knapp',
+            clearLead: 'Klarer Vorsprung',
+            bigGap: 'Großer Abstand',
+            metricPp: 'Gesamt-PP',
+            metricAccuracy: 'Genauigkeit',
+            metricPlayCount: 'Spielanzahl',
+            metricPlayTime: 'Spielzeit',
+            metricGlobalRank: 'Globaler Rang',
+            metricTopPlay: 'Top Play'
         },
         stats: {
             pp: 'Leistungspunkte',
@@ -2745,6 +2781,235 @@ function renderCompareSummary(users, topPlays, isSingle) {
     summary.style.display = items.length ? 'grid' : 'none';
 }
 
+function getFiniteMetricValue(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function getCompareBreakdownMetrics(valid) {
+    const t = LANGS[currentLang].compare;
+    return [
+        {
+            key: 'pp',
+            label: t.metricPp,
+            tone: 'gold',
+            value: item => getFiniteMetricValue(item.data.statistics?.pp),
+            format: value => `${fmtNum(Math.round(value))}pp`,
+            formatDiff: value => `${fmtNum(Math.round(value))}pp`
+        },
+        {
+            key: 'accuracy',
+            label: t.metricAccuracy,
+            tone: 'cyan',
+            value: item => getFiniteMetricValue(item.data.statistics?.hit_accuracy),
+            format: value => fmtAcc(value),
+            formatDiff: value => `${value.toFixed(2)}%`
+        },
+        {
+            key: 'play-count',
+            label: t.metricPlayCount,
+            tone: 'pink',
+            value: item => getFiniteMetricValue(item.data.statistics?.play_count),
+            format: value => fmtNum(value),
+            formatDiff: value => fmtNum(value)
+        },
+        {
+            key: 'play-time',
+            label: t.metricPlayTime,
+            tone: 'cyan',
+            value: item => getFiniteMetricValue(item.data.statistics?.play_time),
+            format: value => fmtTime(value),
+            formatDiff: value => fmtTime(value)
+        },
+        {
+            key: 'global-rank',
+            label: t.metricGlobalRank,
+            tone: 'pink',
+            lowerBetter: true,
+            value: item => getFiniteMetricValue(item.data.statistics?.global_rank),
+            format: value => `#${fmtNum(value)}`,
+            formatDiff: value => fmtNum(value)
+        },
+        {
+            key: 'top-play',
+            label: t.metricTopPlay,
+            tone: 'gold',
+            value: item => getFiniteMetricValue(item.topPlay?.pp),
+            format: value => `${fmtNum(Math.round(value))}pp`,
+            formatDiff: value => `${fmtNum(Math.round(value))}pp`
+        }
+    ].map(metric => {
+        const entries = valid
+            .map(item => ({
+                item,
+                value: metric.value(item)
+            }))
+            .filter(entry => entry.value !== null)
+            .sort((a, b) => metric.lowerBetter ? a.value - b.value : b.value - a.value);
+
+        return { ...metric, entries };
+    }).filter(metric => metric.entries.length >= 2);
+}
+
+function getCompareBreakdownPercent(metric, value, bestValue) {
+    if (!Number.isFinite(value) || !Number.isFinite(bestValue) || value <= 0 || bestValue <= 0) return 0;
+    const raw = metric.lowerBetter ? (bestValue / value) * 100 : (value / bestValue) * 100;
+    return Math.max(4, Math.min(100, raw));
+}
+
+function formatCompareBreakdownDelta(metric, value, bestValue, isLeader) {
+    if (isLeader) return LANGS[currentLang].compare.leaderBadge;
+
+    const diff = metric.lowerBetter ? value - bestValue : bestValue - value;
+    if (!Number.isFinite(diff) || diff <= 0) return '';
+
+    const prefix = metric.lowerBetter ? '+' : '-';
+    return `${prefix}${metric.formatDiff(diff)}`;
+}
+
+function getCompareBreakdownGapRatio(metric, diff, bestValue, secondValue) {
+    if (!Number.isFinite(diff) || diff <= 0) return 0;
+
+    if (metric.key === 'accuracy') {
+        return diff / 100;
+    }
+
+    const baseline = metric.lowerBetter ? secondValue : bestValue;
+    return Number.isFinite(baseline) && baseline > 0 ? diff / baseline : 0;
+}
+
+function getCompareBreakdownGapTone(metric, diff, ratio) {
+    if (metric.key === 'accuracy') {
+        if (diff <= 0.2) return 'close';
+        if (diff >= 1) return 'dominant';
+        return 'lead';
+    }
+
+    if (metric.key === 'global-rank') {
+        if (ratio <= 0.08) return 'close';
+        if (ratio >= 0.3) return 'dominant';
+        return 'lead';
+    }
+
+    if (metric.key === 'play-count' || metric.key === 'play-time') {
+        if (ratio <= 0.07) return 'close';
+        if (ratio >= 0.35) return 'dominant';
+        return 'lead';
+    }
+
+    if (ratio <= 0.03) return 'close';
+    if (ratio >= 0.15) return 'dominant';
+    return 'lead';
+}
+
+function getCompareBreakdownInsight(metric) {
+    if (!metric.entries || metric.entries.length < 2) return null;
+
+    const [best, second] = metric.entries;
+    const diff = metric.lowerBetter ? second.value - best.value : best.value - second.value;
+    if (!Number.isFinite(diff) || diff <= 0) return null;
+
+    const ratio = getCompareBreakdownGapRatio(metric, diff, best.value, second.value);
+    const tone = getCompareBreakdownGapTone(metric, diff, ratio);
+    const compare = LANGS[currentLang].compare;
+    const labels = {
+        close: compare.closeGap,
+        lead: compare.clearLead,
+        dominant: compare.bigGap
+    };
+    const username = best.item.data.username || best.item.name || 'osu!';
+
+    return {
+        tone,
+        label: labels[tone],
+        username,
+        diff: `+${metric.formatDiff(diff)}`
+    };
+}
+
+function renderCompareBreakdownRow(metric, entry, index, bestValue) {
+    const username = entry.item.data.username || entry.item.name || 'osu!';
+    const isLeader = index === 0;
+    const creatorClass = isCreatorUsername(username) ? ' creator-name' : '';
+    const percent = getCompareBreakdownPercent(metric, entry.value, bestValue).toFixed(2);
+    const delta = formatCompareBreakdownDelta(metric, entry.value, bestValue, isLeader);
+
+    return `
+        <div class="compare-breakdown-row${isLeader ? ' compare-breakdown-row--leader' : ''}">
+            <div class="compare-breakdown-player">
+                <span class="compare-breakdown-rank">#${index + 1}</span>
+                <span class="compare-breakdown-name${creatorClass}">${escapeHtml(username)}</span>
+            </div>
+            <div class="compare-breakdown-score">
+                <strong>${escapeHtml(metric.format(entry.value))}</strong>
+                ${delta ? `<span>${escapeHtml(delta)}</span>` : ''}
+            </div>
+            <div class="compare-breakdown-track" aria-hidden="true">
+                <div class="compare-breakdown-fill" style="--pct:${percent}%;"></div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCompareBreakdown(users, topPlays, isSingle) {
+    const breakdown = document.getElementById('compare-breakdown');
+    if (!breakdown) return;
+
+    const valid = users
+        .map((user, idx) => user.ok ? { ...user, topPlay: topPlays[idx] } : null)
+        .filter(Boolean);
+
+    if (isSingle || valid.length < 2) {
+        breakdown.innerHTML = '';
+        breakdown.style.display = 'none';
+        return;
+    }
+
+    const metrics = getCompareBreakdownMetrics(valid);
+    if (!metrics.length) {
+        breakdown.innerHTML = '';
+        breakdown.style.display = 'none';
+        return;
+    }
+
+    const midpoint = Math.ceil(metrics.length / 2);
+    const groups = [
+        { side: 'left', items: metrics.slice(0, midpoint) },
+        { side: 'right', items: metrics.slice(midpoint) }
+    ];
+
+    const renderMetricCard = metric => {
+        const bestValue = metric.entries[0].value;
+        const insight = getCompareBreakdownInsight(metric);
+        const insightNameClass = insight && isCreatorUsername(insight.username) ? ' creator-name' : '';
+        return `
+            <div class="compare-breakdown-card compare-breakdown-card--${metric.tone}">
+                <div class="compare-breakdown-metric">${escapeHtml(metric.label)}</div>
+                ${insight ? `
+                    <div class="compare-breakdown-insight compare-breakdown-insight--${insight.tone}">
+                        <span>${escapeHtml(insight.label)}</span>
+                        <strong class="${insightNameClass.trim()}">${escapeHtml(insight.username)}</strong>
+                        <em>${escapeHtml(insight.diff)}</em>
+                    </div>
+                ` : ''}
+                ${metric.entries.map((entry, index) =>
+                    renderCompareBreakdownRow(metric, entry, index, bestValue)
+                ).join('')}
+            </div>
+        `;
+    };
+
+    breakdown.innerHTML = `
+        ${groups.map(group => `
+            <div class="compare-breakdown-column compare-breakdown-column--${group.side}">
+                ${group.items.map(renderMetricCard).join('')}
+            </div>
+        `).join('')}
+    `;
+    breakdown.style.display = 'grid';
+}
+
 // ══ TOP PLAY COMPACTO (cards multi-player) ══
 function renderTopPlayCompact(score) {
     const t = LANGS[currentLang];
@@ -3460,6 +3725,11 @@ async function loadCards() {
         summary.innerHTML = '';
         summary.style.display = 'none';
     }
+    const breakdown = document.getElementById('compare-breakdown');
+    if (breakdown) {
+        breakdown.innerHTML = '';
+        breakdown.style.display = 'none';
+    }
 
     // Spinners
     currentPlayers.forEach(() => {
@@ -3518,6 +3788,7 @@ async function loadCards() {
     }
 
     renderCompareSummary(users, topPlays, isSingle);
+    renderCompareBreakdown(users, topPlays, isSingle);
 
     // Render
     container.innerHTML = '';
