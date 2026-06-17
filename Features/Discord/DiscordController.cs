@@ -11,7 +11,7 @@ public class DiscordController : ControllerBase
     private const int ResponsePong = 1;
     private const int ResponseChannelMessage = 4;
     private const int ResponseDeferredChannelMessage = 5;
-    private const int ResponseDeferredUpdateMessage = 6;
+    private const int ResponseUpdateMessage = 7;
 
     private readonly DiscordSignatureVerifier _signatureVerifier;
     private readonly OsuApiService _osuApi;
@@ -110,9 +110,9 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId, useFollowup: true)
+                service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId)
             );
-            return CreateLoadingResponse("compare");
+            return CreateLoadingUpdateResponse("compare");
         }
 
         if (customId.StartsWith("ofc:select:", StringComparison.Ordinal))
@@ -127,9 +127,9 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
             );
-            return CreateLoadingResponse(view);
+            return CreateLoadingUpdateResponse(view);
         }
 
         if (customId.StartsWith("ofc:refreshview:", StringComparison.Ordinal))
@@ -143,9 +143,9 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
             );
-            return CreateLoadingResponse(view);
+            return CreateLoadingUpdateResponse(view);
         }
 
         if (customId.StartsWith("ofc:page:", StringComparison.Ordinal))
@@ -159,9 +159,9 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
             );
-            return CreateLoadingResponse(view);
+            return CreateLoadingUpdateResponse(view);
         }
 
         if (customId.StartsWith("ofc:view:", StringComparison.Ordinal))
@@ -175,9 +175,9 @@ public class DiscordController : ControllerBase
 
             StartDiscordImageTask(
                 applicationId,
-                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page)
             );
-            return CreateLoadingResponse(view);
+            return CreateLoadingUpdateResponse(view);
         }
 
         return CreateMessageResponse("That action is not supported yet.", ephemeral: true);
@@ -386,15 +386,7 @@ public class DiscordController : ControllerBase
         };
     }
 
-    private static Dictionary<string, object?> CreateDeferredComponentResponse()
-    {
-        return new Dictionary<string, object?>
-        {
-            ["type"] = ResponseDeferredUpdateMessage
-        };
-    }
-
-    private static Dictionary<string, object?> CreateLoadingResponse(string view)
+    private static Dictionary<string, object?> CreateLoadingUpdateResponse(string view)
     {
         var label = view switch
         {
@@ -404,7 +396,21 @@ public class DiscordController : ControllerBase
             _ => "profile"
         };
 
-        return CreateMessageResponse($"Generating {label} image...", ephemeral: true);
+        return new Dictionary<string, object?>
+        {
+            ["type"] = ResponseUpdateMessage,
+            ["data"] = new Dictionary<string, object?>
+            {
+                ["content"] = $"Generating {label} image...",
+                ["attachments"] = Array.Empty<object>(),
+                ["embeds"] = Array.Empty<object>(),
+                ["components"] = Array.Empty<object>(),
+                ["allowed_mentions"] = new Dictionary<string, object?>
+                {
+                    ["parse"] = Array.Empty<string>()
+                }
+            }
+        };
     }
 
     private static Dictionary<string, object?> CreateEmbedResponse(Dictionary<string, object?> embed)
