@@ -12,6 +12,7 @@ public sealed class DiscordCompareImageService
     private const int DiscordButtonPrimary = 1;
     private const int DiscordButtonSecondary = 2;
     private const int DiscordButtonLink = 5;
+    private const int TopPlaysPageSize = 4;
     private const int RecentPageSize = 10;
     private static readonly TimeSpan ScreenshotReadyTimeout = TimeSpan.FromSeconds(42);
     private static readonly TimeSpan ScreenshotAttemptTimeout = TimeSpan.FromSeconds(70);
@@ -642,6 +643,12 @@ public sealed class DiscordCompareImageService
             query.Insert(0, "share=room");
             query.Add($"room={Uri.EscapeDataString(room)}");
             query.Add($"player={Uri.EscapeDataString(username)}");
+            if (view == "top")
+            {
+                query.Add($"page={Math.Max(1, page)}");
+                query.Add($"pageSize={TopPlaysPageSize}");
+            }
+
             if (view == "recent")
             {
                 query.Add($"page={Math.Max(1, page)}");
@@ -860,12 +867,12 @@ public sealed class DiscordCompareImageService
             CreateButton("Recent", view == "recent" ? DiscordButtonPrimary : DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:1")
         };
 
-        var secondRowComponents = view == "recent"
+        var secondRowComponents = view is "top" or "recent"
             ? new object[]
             {
-                CreateButton("Prev", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{Math.Max(1, page - 1)}", page <= 1),
-                CreateButton("Next", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{page + 1}"),
-                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:refreshview:{stateId}:recent:{playerIndex}:{page}")
+                CreateButton("Prev", DiscordButtonSecondary, $"ofc:page:{stateId}:{view}:{playerIndex}:{Math.Max(1, page - 1)}", page <= 1),
+                CreateButton("Next", DiscordButtonSecondary, $"ofc:page:{stateId}:{view}:{playerIndex}:{page + 1}"),
+                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:refreshview:{stateId}:{view}:{playerIndex}:{page}")
             }
             : new object[]
             {

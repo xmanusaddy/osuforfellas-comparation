@@ -24,6 +24,7 @@ const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
 const DEFAULT_TOP_PLAYS_LIMIT = 10;
 const MAX_TOP_PLAYS_LIMIT = 20;
+const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
 const DISCORD_RECENT_PAGE_SIZE = 10;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const playerProfileCache = new Map();
@@ -966,8 +967,10 @@ function renderTopPlaysContent(user, scores, mode, limit) {
     const pp = Math.round(user.statistics?.pp || 0);
     const isCreator = isCreatorUsername(username);
     const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
-    const safeScores = Array.isArray(scores) ? scores.slice(0, limit) : [];
-    const summary = getTopPlaysSummary(safeScores);
+    const allScores = Array.isArray(scores) ? scores.slice(0, limit) : [];
+    const paging = getTopPlaysSharePaging(allScores, limit);
+    const safeScores = paging.scores;
+    const summary = getTopPlaysSummary(allScores);
 
     setRoomTitle(rooms.topPlaysTitle);
     document.getElementById('room-copy').textContent = rooms.topPlaysCopy.replace('{player}', username);
@@ -992,7 +995,7 @@ function renderTopPlaysContent(user, scores, mode, limit) {
             <div class="top-plays-summary">
                 <div class="top-plays-stat">
                     <span>${escapeHtml(rooms.topPlaysLoaded)}</span>
-                    <strong>${fmtNum(safeScores.length)} / ${fmtNum(limit)}</strong>
+                    <strong>${escapeHtml(paging.label)}</strong>
                 </div>
                 <div class="top-plays-stat">
                     <span>${escapeHtml(rooms.averagePp)}</span>
@@ -1009,10 +1012,37 @@ function renderTopPlaysContent(user, scores, mode, limit) {
             </div>
 
             ${safeScores.length
-                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index)).join('')}</div>`
+                ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index + paging.offset)).join('')}</div>`
                 : `<div class="top-plays-state">${escapeHtml(t.noTopPlay)}</div>`}
         </div>
     `;
+}
+
+function getTopPlaysSharePaging(scores, limit) {
+    if (!IS_SHARE_ROOM_MODE || getSharedRoomName() !== 'top-plays') {
+        return {
+            scores,
+            page: 1,
+            totalPages: 1,
+            offset: 0,
+            label: `${fmtNum(scores.length)} / ${fmtNum(limit)}`
+        };
+    }
+
+    const pageSize = getSharedTopPlaysPageSize();
+    const totalPages = Math.max(1, Math.ceil(scores.length / pageSize));
+    const page = Math.min(getSharedTopPlaysPage(), totalPages);
+    const start = (page - 1) * pageSize;
+    const pageScores = scores.slice(start, start + pageSize);
+    const rooms = LANGS[currentLang].rooms;
+
+    return {
+        scores: pageScores,
+        page,
+        totalPages,
+        offset: start,
+        label: `${rooms.page} ${page}/${totalPages} · ${fmtNum(scores.length)} / ${fmtNum(limit)}`
+    };
 }
 
 async function renderRecentPlaysRoom(route) {
@@ -3265,6 +3295,16 @@ function getSharedRoomPlayer() {
 function getSharedRecentPage() {
     const page = Number(INITIAL_URL_PARAMS.get('page') || 1);
     return Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+}
+
+function getSharedTopPlaysPage() {
+    const page = Number(INITIAL_URL_PARAMS.get('page') || 1);
+    return Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+}
+
+function getSharedTopPlaysPageSize() {
+    const pageSize = Number(INITIAL_URL_PARAMS.get('pageSize') || DISCORD_TOP_PLAYS_PAGE_SIZE);
+    return Number.isFinite(pageSize) ? Math.max(3, Math.min(4, Math.floor(pageSize))) : DISCORD_TOP_PLAYS_PAGE_SIZE;
 }
 
 function getSharedRecentPageSize() {

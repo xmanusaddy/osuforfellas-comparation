@@ -3792,8 +3792,14 @@ button.room-action-link {
 }
 
 .focus-peak-icon {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 0.68rem;
+    height: 0.68rem;
+    background: var(--yellow);
     color: var(--yellow);
-    font-size: 0.8rem;
+    font-size: 0;
+    clip-path: polygon(50% 0, 61% 34%, 98% 34%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 34%, 39% 34%);
     filter: drop-shadow(0 0 4px rgba(255,215,0,0.5));
 }
 
@@ -5786,10 +5792,14 @@ body.share-room-mode .top-plays-player {
     padding: 0.62rem 0.75rem;
 }
 
-body.share-room-mode .player-profile-avatar,
 body.share-room-mode .top-plays-avatar {
     width: 52px;
     height: 52px;
+}
+
+body.share-room-mode .player-profile-avatar {
+    width: 100%;
+    height: 100%;
 }
 
 body.share-room-mode .player-profile-name,
@@ -5900,6 +5910,28 @@ body.share-room-mode .top-play-pp {
 
 body.share-room-mode .top-play-action {
     display: none;
+}
+
+body.share-room-mode.share-room-top-plays .top-plays-list {
+    gap: 0.28rem;
+}
+
+body.share-room-mode.share-room-top-plays .top-play-row {
+    grid-template-columns: auto 66px minmax(0, 1fr) auto;
+    gap: 0.42rem;
+    padding: 0.3rem 0.5rem;
+}
+
+body.share-room-mode.share-room-top-plays .top-play-cover-wrap {
+    width: 66px;
+}
+
+body.share-room-mode.share-room-top-plays .top-play-tags {
+    margin: 0.22rem 0;
+}
+
+body.share-room-mode.share-room-top-plays .top-play-metrics div {
+    padding: 0.16rem 0.28rem;
 }
 
 /* ── Friends panel ── */

@@ -112,7 +112,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendCompareImageFromStateAsync(applicationId, interactionToken, stateId, useFollowup: true)
             );
-            return CreateDeferredComponentResponse();
+            return CreateLoadingResponse("compare");
         }
 
         if (customId.StartsWith("ofc:select:", StringComparison.Ordinal))
@@ -129,7 +129,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
-            return CreateDeferredComponentResponse();
+            return CreateLoadingResponse(view);
         }
 
         if (customId.StartsWith("ofc:refreshview:", StringComparison.Ordinal))
@@ -145,7 +145,23 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
-            return CreateDeferredComponentResponse();
+            return CreateLoadingResponse(view);
+        }
+
+        if (customId.StartsWith("ofc:page:", StringComparison.Ordinal))
+        {
+            var action = customId["ofc:page:".Length..];
+            if (!TryParseStateViewAction(action, out var stateId, out var view, out var playerIndex, out var page))
+                return CreateMessageResponse("That button is not valid anymore.", ephemeral: true);
+
+            if (!DiscordCompareImageService.HasInteractionState(stateId))
+                return CreateMessageResponse("This visual menu expired. Run `/osu-compare` again.", ephemeral: true);
+
+            StartDiscordImageTask(
+                applicationId,
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+            );
+            return CreateLoadingResponse(view);
         }
 
         if (customId.StartsWith("ofc:view:", StringComparison.Ordinal))
@@ -161,7 +177,7 @@ public class DiscordController : ControllerBase
                 applicationId,
                 service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
             );
-            return CreateDeferredComponentResponse();
+            return CreateLoadingResponse(view);
         }
 
         return CreateMessageResponse("That action is not supported yet.", ephemeral: true);
@@ -376,6 +392,19 @@ public class DiscordController : ControllerBase
         {
             ["type"] = ResponseDeferredUpdateMessage
         };
+    }
+
+    private static Dictionary<string, object?> CreateLoadingResponse(string view)
+    {
+        var label = view switch
+        {
+            "compare" => "compare",
+            "top" => "top plays",
+            "recent" => "recent plays",
+            _ => "profile"
+        };
+
+        return CreateMessageResponse($"Generating {label} image...", ephemeral: true);
     }
 
     private static Dictionary<string, object?> CreateEmbedResponse(Dictionary<string, object?> embed)
