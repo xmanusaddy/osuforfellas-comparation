@@ -865,11 +865,11 @@ public sealed class DiscordCompareImageService
             {
                 CreateButton("Prev", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{Math.Max(1, page - 1)}", page <= 1),
                 CreateButton("Next", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{page + 1}"),
-                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:view:{stateId}:recent:{playerIndex}:{page}")
+                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:refreshview:{stateId}:recent:{playerIndex}:{page}")
             }
             : new object[]
             {
-                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:view:{stateId}:{view}:{playerIndex}:{page}")
+                CreateButton("Refresh", DiscordButtonSecondary, $"ofc:refreshview:{stateId}:{view}:{playerIndex}:{page}")
             };
 
         return new object[]

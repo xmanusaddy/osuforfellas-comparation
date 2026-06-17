@@ -132,6 +132,22 @@ public class DiscordController : ControllerBase
             return CreateDeferredComponentResponse();
         }
 
+        if (customId.StartsWith("ofc:refreshview:", StringComparison.Ordinal))
+        {
+            var action = customId["ofc:refreshview:".Length..];
+            if (!TryParseStateViewAction(action, out var stateId, out var view, out var playerIndex, out var page))
+                return CreateMessageResponse("That button is not valid anymore.", ephemeral: true);
+
+            if (!DiscordCompareImageService.HasInteractionState(stateId))
+                return CreateMessageResponse("This visual menu expired. Run `/osu-compare` again.", ephemeral: true);
+
+            StartDiscordImageTask(
+                applicationId,
+                service => service.SendRoomImageAsync(applicationId, interactionToken, stateId, view, playerIndex, page, useFollowup: true)
+            );
+            return CreateDeferredComponentResponse();
+        }
+
         if (customId.StartsWith("ofc:view:", StringComparison.Ordinal))
         {
             var action = customId["ofc:view:".Length..];
