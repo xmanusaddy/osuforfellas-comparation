@@ -25,7 +25,7 @@ const COMPARISON_HISTORY_LIMIT = 20;
 const DEFAULT_TOP_PLAYS_LIMIT = 10;
 const MAX_TOP_PLAYS_LIMIT = 20;
 const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
-const DISCORD_RECENT_PAGE_SIZE = 10;
+const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
@@ -3309,7 +3309,7 @@ function getSharedTopPlaysPageSize() {
 
 function getSharedRecentPageSize() {
     const pageSize = Number(INITIAL_URL_PARAMS.get('pageSize') || DISCORD_RECENT_PAGE_SIZE);
-    return Number.isFinite(pageSize) ? Math.max(5, Math.min(10, Math.floor(pageSize))) : DISCORD_RECENT_PAGE_SIZE;
+    return Number.isFinite(pageSize) ? Math.max(3, Math.min(4, Math.floor(pageSize))) : DISCORD_RECENT_PAGE_SIZE;
 }
 
 function hydrateShareBaseFromUrlParams(forceDefaults = true) {

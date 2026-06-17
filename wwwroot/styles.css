@@ -5934,6 +5934,28 @@ body.share-room-mode.share-room-top-plays .top-play-metrics div {
     padding: 0.16rem 0.28rem;
 }
 
+body.share-room-mode.share-room-recent .top-plays-list {
+    gap: 0.28rem;
+}
+
+body.share-room-mode.share-room-recent .top-play-row {
+    grid-template-columns: auto 66px minmax(0, 1fr) auto;
+    gap: 0.42rem;
+    padding: 0.3rem 0.5rem;
+}
+
+body.share-room-mode.share-room-recent .top-play-cover-wrap {
+    width: 66px;
+}
+
+body.share-room-mode.share-room-recent .top-play-tags {
+    margin: 0.22rem 0;
+}
+
+body.share-room-mode.share-room-recent .top-play-metrics div {
+    padding: 0.16rem 0.28rem;
+}
+
 /* ── Friends panel ── */
 [data-theme="heaven"] .friends-panel {
     background: rgba(255,255,255,0.78);

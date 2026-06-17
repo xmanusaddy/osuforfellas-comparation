@@ -13,7 +13,7 @@ public sealed class DiscordCompareImageService
     private const int DiscordButtonSecondary = 2;
     private const int DiscordButtonLink = 5;
     private const int TopPlaysPageSize = 4;
-    private const int RecentPageSize = 10;
+    private const int RecentPageSize = 4;
     private static readonly TimeSpan ScreenshotReadyTimeout = TimeSpan.FromSeconds(42);
     private static readonly TimeSpan ScreenshotAttemptTimeout = TimeSpan.FromSeconds(70);
     private static readonly TimeSpan StateLifetime = TimeSpan.FromHours(6);
