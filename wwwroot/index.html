@@ -29,6 +29,21 @@
     </div>
 
     <div class="top-right-controls" id="top-right-controls">
+        <div class="sound-controls" id="sound-controls">
+            <button class="sound-toggle" id="sound-toggle" type="button" data-ui-sound-toggle aria-pressed="false">
+                <span class="sound-toggle-icon" aria-hidden="true">🔊</span>
+            </button>
+            <input
+                class="sound-volume"
+                id="sound-volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.28"
+                data-ui-sound-volume>
+        </div>
+
         <!-- Selector de theme — preparado para nuevos themes futuros -->
         <div class="theme-switch" id="theme-switch">
             <label class="theme-label" id="theme-label" for="theme-select"></label>
@@ -128,6 +143,8 @@
         </div>
 
         <div id="compare-summary" class="compare-summary" style="display:none;"></div>
+        <div id="compare-duel-controls" class="compare-duel-controls" style="display:none;"></div>
+        <div id="compare-duel" class="compare-duel" style="display:none;"></div>
 
         <div class="comparison-stage">
             <div id="compare-breakdown" class="compare-breakdown" style="display:none;"></div>
@@ -205,6 +222,8 @@
         </div>
     </div>
 
+    <script src="sound-system.js"></script>
+    <script src="animation-system.js"></script>
     <script src="theme-manager.js"></script>
     <script src="script.js"></script>
 </body>

@@ -1,0 +1,15 @@
+{
+  "volume": 0.28,
+  "sounds": {
+    "click": "/sounds/ui/main-click.wav",
+    "back": "/sounds/ui/back.wav",
+    "success": "",
+    "error": "/sounds/ui/api-error.wav",
+    "duel": "/sounds/ui/duel-glitch.wav",
+    "profile": "/sounds/ui/full-profile.wav",
+    "comparison-1": "/sounds/ui/comparison-1.wav",
+    "comparison-2": "/sounds/ui/comparison-2.wav",
+    "comparison-3": "/sounds/ui/comparison-3.wav",
+    "comparison-4": "/sounds/ui/comparison-4.wav"
+  }
+}

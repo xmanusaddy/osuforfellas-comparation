@@ -24,6 +24,7 @@ const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
 const DEFAULT_TOP_PLAYS_LIMIT = 10;
 const MAX_TOP_PLAYS_LIMIT = 20;
+const DUEL_TOP_PLAYS_LIMIT = 5;
 const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
 const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
@@ -73,6 +74,9 @@ const LANGS = {
         leader: '👑 Líder',
         back: '← Volver',
         theme: 'Tema',
+        soundOn: 'Activar sonidos',
+        soundOff: 'Silenciar sonidos',
+        soundVolume: 'Volumen de sonidos',
         createdBy: 'creado por',
         terms: 'términos',
         privacy: 'privacidad',
@@ -193,6 +197,37 @@ const LANGS = {
             bestTopPlay: 'Mejor Top Play',
             breakdownKicker: 'Análisis',
             breakdownTitle: 'Desglose de comparación',
+            duelKicker: '1v1',
+            duelTitle: 'Duelo directo',
+            duelPlayers: '2 jugadores',
+            duelToggleOn: 'Activar modo duelo',
+            duelToggleOff: 'Volver a tradicional',
+            duelClose: 'Volver a comparación',
+            duelRounds: 'Rounds del duelo',
+            duelVs: 'VS',
+            duelScore: 'Marcador',
+            duelTie: 'Empate técnico',
+            duelNoPoint: 'Sin punto',
+            duelPoint: '+1 punto',
+            duelRoundWinDetail: 'Punto por {diff} de ventaja.',
+            duelRoundTieDetail: 'Sin punto: los valores están demasiado cerca.',
+            duelWinnerLine: '{player} gana {score} {reason}.',
+            duelTieLine: 'Duelo empatado {score}.',
+            duelReasonPeak: 'por pico de skill',
+            duelReasonConsistency: 'por consistencia',
+            duelReasonActivity: 'por actividad general',
+            duelReasonOverall: 'por ventaja general',
+            duelRankDiff: '{value} puestos',
+            duelTopFive: 'Top 5 plays',
+            duelTopFiveTotal: 'Total Top 5',
+            duelNoTopFive: 'Sin top plays',
+            duelCategoryReadout: 'Lectura por estilo',
+            duelCategoryOverall: 'General',
+            duelCategoryPeak: 'Pico de skill',
+            duelCategoryConsistency: 'Consistencia',
+            duelCategoryActivity: 'Actividad general',
+            duelCategoryEdge: 'Ventaja de {player}',
+            duelCategoryNoEdge: 'Sin ventaja clara',
             leaderBadge: 'Líder',
             closeGap: 'Muy parejo',
             clearLead: 'Ventaja clara',
@@ -202,7 +237,29 @@ const LANGS = {
             metricPlayCount: 'Partidas',
             metricPlayTime: 'Tiempo jugado',
             metricGlobalRank: 'Rank global',
-            metricTopPlay: 'Top Play'
+            metricTopPlay: 'Top Play',
+            metricTopFivePp: 'Top 5 PP',
+            metricTotalScore: 'Score total',
+            metricTotalHits: 'Hits totales',
+            metricMaxCombo: 'Max combo',
+            metricReplaysWatched: 'Replays vistos por otros',
+            styleLabel: 'Estilo',
+            styleTags: {
+                ppLeader: 'Líder PP',
+                accuracyDemon: 'Demonio acc',
+                grinder: 'Grinder',
+                topPlayCarry: 'Top Play Carry',
+                underdog: 'Underdog',
+                balanced: 'Balanceado'
+            },
+            styleTagDescriptions: {
+                ppLeader: 'Tiene más PP que el resto en esta comparación.',
+                accuracyDemon: 'Lidera la precisión o está por encima de 98% accuracy.',
+                grinder: 'Destaca por partidas jugadas o tiempo jugado.',
+                topPlayCarry: 'Su mejor jugada pesa mucho comparada con su PP total.',
+                underdog: 'No lidera PP, pero gana una métrica importante.',
+                balanced: 'Está fuerte en varias métricas sin depender de una sola.'
+            }
         },
         stats: {
             pp: 'Performance Points',
@@ -210,6 +267,8 @@ const LANGS = {
             playcount: 'Partidas',
             playtime: 'Tiempo jugado',
             score: 'Score total',
+            totalHits: 'Hits totales',
+            replaysWatched: 'Replays vistos por otros',
             global: 'Global',
             country: 'País',
             level: 'Nivel',
@@ -230,6 +289,9 @@ const LANGS = {
         leader: '👑 Leader',
         back: '← Back',
         theme: 'Theme',
+        soundOn: 'Enable sounds',
+        soundOff: 'Mute sounds',
+        soundVolume: 'Sound volume',
         createdBy: 'created by',
         terms: 'terms',
         privacy: 'privacy',
@@ -350,6 +412,37 @@ const LANGS = {
             bestTopPlay: 'Best Top Play',
             breakdownKicker: 'Breakdown',
             breakdownTitle: 'Comparison Breakdown',
+            duelKicker: '1v1',
+            duelTitle: 'Direct Duel',
+            duelPlayers: '2 players',
+            duelToggleOn: 'Enable duel mode',
+            duelToggleOff: 'Back to traditional',
+            duelClose: 'Back to comparison',
+            duelRounds: 'Duel rounds',
+            duelVs: 'VS',
+            duelScore: 'Score',
+            duelTie: 'Technical tie',
+            duelNoPoint: 'No point',
+            duelPoint: '+1 point',
+            duelRoundWinDetail: 'Point from a {diff} edge.',
+            duelRoundTieDetail: 'No point: values are too close.',
+            duelWinnerLine: '{player} wins {score} {reason}.',
+            duelTieLine: 'Duel tied {score}.',
+            duelReasonPeak: 'through peak skill',
+            duelReasonConsistency: 'through consistency',
+            duelReasonActivity: 'through general activity',
+            duelReasonOverall: 'through overall edge',
+            duelRankDiff: '{value} spots',
+            duelTopFive: 'Top 5 plays',
+            duelTopFiveTotal: 'Top 5 total',
+            duelNoTopFive: 'No top plays',
+            duelCategoryReadout: 'Style readout',
+            duelCategoryOverall: 'Overall',
+            duelCategoryPeak: 'Peak skill',
+            duelCategoryConsistency: 'Consistency',
+            duelCategoryActivity: 'General activity',
+            duelCategoryEdge: 'Edge for {player}',
+            duelCategoryNoEdge: 'No clear edge',
             leaderBadge: 'Leader',
             closeGap: 'Very close',
             clearLead: 'Clear lead',
@@ -359,7 +452,29 @@ const LANGS = {
             metricPlayCount: 'Play Count',
             metricPlayTime: 'Play Time',
             metricGlobalRank: 'Global Rank',
-            metricTopPlay: 'Top Play'
+            metricTopPlay: 'Top Play',
+            metricTopFivePp: 'Top 5 PP',
+            metricTotalScore: 'Total Score',
+            metricTotalHits: 'Total Hits',
+            metricMaxCombo: 'Max Combo',
+            metricReplaysWatched: 'Replays watched by others',
+            styleLabel: 'Style',
+            styleTags: {
+                ppLeader: 'PP Leader',
+                accuracyDemon: 'Accuracy Demon',
+                grinder: 'Grinder',
+                topPlayCarry: 'Top Play Carry',
+                underdog: 'Underdog',
+                balanced: 'Balanced'
+            },
+            styleTagDescriptions: {
+                ppLeader: 'Has the highest PP in this comparison.',
+                accuracyDemon: 'Leads accuracy or sits above 98% accuracy.',
+                grinder: 'Stands out in play count or play time.',
+                topPlayCarry: 'Their best play is heavy compared with their total PP.',
+                underdog: 'Does not lead PP, but wins an important metric.',
+                balanced: 'Ranks strongly across several metrics without relying on one.'
+            }
         },
         stats: {
             pp: 'Performance Points',
@@ -367,6 +482,8 @@ const LANGS = {
             playcount: 'Play Count',
             playtime: 'Play Time',
             score: 'Total Score',
+            totalHits: 'Total Hits',
+            replaysWatched: 'Replays watched by others',
             global: 'Global',
             country: 'Country',
             level: 'Level',
@@ -387,6 +504,9 @@ const LANGS = {
         leader: '👑 Anführer',
         back: '← Zurück',
         theme: 'Thema',
+        soundOn: 'Sounds aktivieren',
+        soundOff: 'Sounds stummschalten',
+        soundVolume: 'Sound-Lautstärke',
         createdBy: 'erstellt von',
         terms: 'nutzungsbedingungen',
         privacy: 'datenschutz',
@@ -507,6 +627,37 @@ const LANGS = {
             bestTopPlay: 'Bestes Top Play',
             breakdownKicker: 'Analyse',
             breakdownTitle: 'Vergleichsdetails',
+            duelKicker: '1v1',
+            duelTitle: 'Direktes Duell',
+            duelPlayers: '2 Spieler',
+            duelToggleOn: 'Duellmodus aktivieren',
+            duelToggleOff: 'Zurueck zur klassischen Ansicht',
+            duelClose: 'Zurueck zum Vergleich',
+            duelRounds: 'Duell-Runden',
+            duelVs: 'VS',
+            duelScore: 'Punktestand',
+            duelTie: 'Technisches Unentschieden',
+            duelNoPoint: 'Kein Punkt',
+            duelPoint: '+1 Punkt',
+            duelRoundWinDetail: 'Punkt durch {diff} Vorsprung.',
+            duelRoundTieDetail: 'Kein Punkt: Werte liegen zu nah beieinander.',
+            duelWinnerLine: '{player} gewinnt {score} {reason}.',
+            duelTieLine: 'Duell ausgeglichen {score}.',
+            duelReasonPeak: 'durch Peak-Skill',
+            duelReasonConsistency: 'durch Konstanz',
+            duelReasonActivity: 'durch allgemeine Aktivitaet',
+            duelReasonOverall: 'durch Gesamtvorteil',
+            duelRankDiff: '{value} Plaetze',
+            duelTopFive: 'Top 5 Plays',
+            duelTopFiveTotal: 'Top-5-Summe',
+            duelNoTopFive: 'Keine Top Plays',
+            duelCategoryReadout: 'Stil-Auswertung',
+            duelCategoryOverall: 'Gesamt',
+            duelCategoryPeak: 'Peak-Skill',
+            duelCategoryConsistency: 'Konstanz',
+            duelCategoryActivity: 'Allgemeine Aktivitaet',
+            duelCategoryEdge: 'Vorteil fuer {player}',
+            duelCategoryNoEdge: 'Kein klarer Vorteil',
             leaderBadge: 'Anführer',
             closeGap: 'Sehr knapp',
             clearLead: 'Klarer Vorsprung',
@@ -516,7 +667,29 @@ const LANGS = {
             metricPlayCount: 'Spielanzahl',
             metricPlayTime: 'Spielzeit',
             metricGlobalRank: 'Globaler Rang',
-            metricTopPlay: 'Top Play'
+            metricTopPlay: 'Top Play',
+            metricTopFivePp: 'Top 5 PP',
+            metricTotalScore: 'Gesamtpunktzahl',
+            metricTotalHits: 'Gesamttreffer',
+            metricMaxCombo: 'Max Combo',
+            metricReplaysWatched: 'Replays von anderen gesehen',
+            styleLabel: 'Stil',
+            styleTags: {
+                ppLeader: 'PP-Leader',
+                accuracyDemon: 'Accuracy-Profi',
+                grinder: 'Grinder',
+                topPlayCarry: 'Top-Play-Carry',
+                underdog: 'Underdog',
+                balanced: 'Ausgeglichen'
+            },
+            styleTagDescriptions: {
+                ppLeader: 'Hat die meisten PP in diesem Vergleich.',
+                accuracyDemon: 'Fuehrt bei Genauigkeit oder liegt ueber 98% Accuracy.',
+                grinder: 'Sticht durch Spielanzahl oder Spielzeit heraus.',
+                topPlayCarry: 'Das beste Play wiegt stark im Vergleich zu den Gesamt-PP.',
+                underdog: 'Fuehrt nicht bei PP, gewinnt aber eine wichtige Metrik.',
+                balanced: 'Ist in mehreren Metriken stark, ohne nur von einer abzuhaengen.'
+            }
         },
         stats: {
             pp: 'Leistungspunkte',
@@ -524,6 +697,8 @@ const LANGS = {
             playcount: 'Spiele',
             playtime: 'Spielzeit',
             score: 'Gesamtpunktzahl',
+            totalHits: 'Gesamttreffer',
+            replaysWatched: 'Replays von anderen gesehen',
             global: 'Global',
             country: 'Land',
             level: 'Level',
@@ -543,6 +718,7 @@ function applyLang() {
     document.getElementById('btn-back').textContent = t.back;
     document.getElementById('theme-label').textContent = t.theme;
     document.getElementById('theme-select').setAttribute('aria-label', t.theme);
+    window.UISounds?.setLabels({ enable: t.soundOn, disable: t.soundOff, volume: t.soundVolume });
     document.getElementById('footer-created-by').textContent = t.createdBy;
     document.getElementById('footer-terms-link').textContent = t.terms;
     document.getElementById('footer-terms-link').href = `/terms#${currentLang}`;
@@ -702,12 +878,49 @@ function roomBack() {
     navigateToRoom(shouldReturnToResultsFromRoom() ? 'results' : 'compare');
 }
 
+function getRoomAnimationKey(route = currentRoomRoute) {
+    if (!route) return '';
+    return `${route.name}:${normalizeUsername(route.param || '')}`;
+}
+
+function prepareRoomAnimation(route) {
+    if (roomContentAnimationFrame) {
+        cancelAnimationFrame(roomContentAnimationFrame);
+        roomContentAnimationFrame = null;
+    }
+    roomAnimationKey = getRoomAnimationKey(route);
+    roomContentAnimationDone = false;
+}
+
+function animateRoomContentOnce(roomName) {
+    if (IS_SHARE_MODE || roomContentAnimationDone || currentRoomRoute?.name !== roomName) return;
+
+    const expectedKey = getRoomAnimationKey(currentRoomRoute);
+    if (!expectedKey || expectedKey !== roomAnimationKey) return;
+
+    roomContentAnimationDone = true;
+    roomContentAnimationFrame = requestAnimationFrame(() => {
+        roomContentAnimationFrame = requestAnimationFrame(() => {
+            roomContentAnimationFrame = null;
+            if (getRoomAnimationKey(currentRoomRoute) !== expectedKey) return;
+            window.AppAnimations?.enterRoomContent(document.getElementById('room-view'), roomName);
+        });
+    });
+}
+
+function playRoomResponseSound(roomName, type = 'success') {
+    if (IS_SHARE_MODE || roomContentAnimationDone || currentRoomRoute?.name !== roomName) return;
+    if (getRoomAnimationKey(currentRoomRoute) !== roomAnimationKey) return;
+    window.UISounds?.play(type);
+}
+
 function showCompareRoom() {
     clearRoomScoresRefreshTimer();
     if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
     }
+    closeCompareDuelMode(false);
     closeFocusBtn();
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
@@ -748,6 +961,7 @@ function showFutureRoom(route) {
         clearInterval(refreshTimer);
         refreshTimer = null;
     }
+    closeCompareDuelMode(false);
     closeFocusBtn();
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'none';
@@ -755,8 +969,10 @@ function showFutureRoom(route) {
     setChromeMode('room');
     setActiveRoomLink(route.name);
     currentRoomRoute = route;
+    prepareRoomAnimation(route);
     updateRoomBackLabel();
     renderRoomView(route);
+    window.AppAnimations?.enterRoom(document.getElementById('room-view'));
     startRoomScoresRefreshTimer(route);
     window.scrollTo({ top: 0, behavior: 'auto' });
 }
@@ -807,6 +1023,7 @@ async function renderPlayerRoom(route) {
             <div class="player-profile-state">${escapeHtml(rooms.noPlayerSelected)}</div>
             <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
         `;
+        animateRoomContentOnce('player');
         return;
     }
 
@@ -835,10 +1052,11 @@ async function renderPlayerRoom(route) {
         playerProfileCache.set(cacheKey, { user, topPlay });
 
         if (currentRoomRoute?.name === 'player' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            playRoomResponseSound('player', 'profile');
             renderPlayerProfileContent(user, topPlay, mode);
         }
     } catch (error) {
-        if (currentRoomRoute?.name !== 'player') return;
+        if (currentRoomRoute?.name !== 'player' || normalizeUsername(currentRoomRoute.param) !== normalizeUsername(username)) return;
 
         document.getElementById('room-actions').innerHTML = `
             <div class="player-profile-state player-profile-state--error">
@@ -846,6 +1064,8 @@ async function renderPlayerRoom(route) {
             </div>
             <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
         `;
+        playRoomResponseSound('player', 'error');
+        animateRoomContentOnce('player');
     }
 }
 
@@ -861,6 +1081,9 @@ function renderPlayerProfileContent(user, topPlay, mode) {
     const activity = getActivityLabel(user.last_visit);
     const peakRank = user.rank_highest?.rank;
     const trend = getRankTrend(user.rank_history);
+    const totalHits = formatOptionalNumber(getUserTotalHits(user.statistics));
+    const maxCombo = formatOptionalNumber(getUserMaxCombo(user.statistics), 'x');
+    const replaysWatched = formatOptionalNumber(getUserReplaysWatched(user.statistics));
     const osuProfileUrl = `https://osu.ppy.sh/users/${encodeURIComponent(String(user.id || username))}/${encodeURIComponent(mode)}`;
 
     setRoomTitle(rooms.playerTitle, ' room-title--profile');
@@ -923,6 +1146,18 @@ function renderPlayerProfileContent(user, topPlay, mode) {
                     <span>${escapeHtml(t.stats.score)}</span>
                     <strong class="gold">${fmtNum(user.statistics?.total_score)}</strong>
                 </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.maxCombo)}</span>
+                    <strong>${escapeHtml(maxCombo)}</strong>
+                </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.totalHits)}</span>
+                    <strong class="accent">${escapeHtml(totalHits)}</strong>
+                </div>
+                <div class="player-profile-stat">
+                    <span>${escapeHtml(t.stats.replaysWatched)}</span>
+                    <strong>${escapeHtml(replaysWatched)}</strong>
+                </div>
             </div>
 
             <div class="player-profile-topplay">
@@ -936,6 +1171,7 @@ function renderPlayerProfileContent(user, topPlay, mode) {
             </div>
         </div>
     `;
+    animateRoomContentOnce('player');
 }
 
 function renderTrendLine(trend) {
@@ -964,6 +1200,7 @@ async function renderTopPlaysRoom(route) {
             <div class="top-plays-state">${escapeHtml(rooms.noPlayerSelected)}</div>
             <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
         `;
+        animateRoomContentOnce('top-plays');
         return;
     }
 
@@ -982,10 +1219,11 @@ async function renderTopPlaysRoom(route) {
         ]);
 
         if (currentRoomRoute?.name === 'top-plays' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            playRoomResponseSound('top-plays');
             renderTopPlaysContent(user, scores, mode, limit);
         }
     } catch (error) {
-        if (currentRoomRoute?.name !== 'top-plays') return;
+        if (currentRoomRoute?.name !== 'top-plays' || normalizeUsername(currentRoomRoute.param) !== normalizeUsername(username)) return;
 
         document.getElementById('room-actions').innerHTML = `
             <div class="top-plays-state top-plays-state--error">
@@ -993,6 +1231,8 @@ async function renderTopPlaysRoom(route) {
             </div>
             <a class="room-action-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
         `;
+        playRoomResponseSound('top-plays', 'error');
+        animateRoomContentOnce('top-plays');
     }
 }
 
@@ -1052,6 +1292,7 @@ function renderTopPlaysContent(user, scores, mode, limit) {
                 : `<div class="top-plays-state">${escapeHtml(t.noTopPlay)}</div>`}
         </div>
     `;
+    animateRoomContentOnce('top-plays');
 }
 
 function getTopPlaysSharePaging(scores, limit) {
@@ -1094,6 +1335,7 @@ async function renderRecentPlaysRoom(route) {
             <div class="top-plays-state">${escapeHtml(rooms.noPlayerSelected)}</div>
             <a class="room-action-link" href="#/compare">${escapeHtml(rooms.openCompare)}</a>
         `;
+        animateRoomContentOnce('recent');
         return;
     }
 
@@ -1112,10 +1354,11 @@ async function renderRecentPlaysRoom(route) {
         ]);
 
         if (currentRoomRoute?.name === 'recent' && normalizeUsername(currentRoomRoute.param) === normalizeUsername(username)) {
+            playRoomResponseSound('recent');
             renderRecentPlaysContent(user, scores, mode);
         }
     } catch (error) {
-        if (currentRoomRoute?.name !== 'recent') return;
+        if (currentRoomRoute?.name !== 'recent' || normalizeUsername(currentRoomRoute.param) !== normalizeUsername(username)) return;
 
         document.getElementById('room-actions').innerHTML = `
             <div class="top-plays-state top-plays-state--error">
@@ -1123,6 +1366,8 @@ async function renderRecentPlaysRoom(route) {
             </div>
             <a class="room-action-link" href="${buildRoomHash('player', username)}">${escapeHtml(rooms.backToProfile.replace('← ', ''))}</a>
         `;
+        playRoomResponseSound('recent', 'error');
+        animateRoomContentOnce('recent');
     }
 }
 
@@ -1185,6 +1430,7 @@ function renderRecentPlaysContent(user, scores, mode) {
                 : `<div class="top-plays-state">${escapeHtml(rooms.noRecentPlays)}</div>`}
         </div>
     `;
+    animateRoomContentOnce('recent');
 }
 
 function getRecentSharePaging(scores) {
@@ -1430,6 +1676,7 @@ function renderHistoryRoom() {
             ${body}
         </div>
     `;
+    animateRoomContentOnce('history');
 }
 
 function renderFriendsRoom() {
@@ -1454,6 +1701,7 @@ function renderFriendsRoom() {
                 </div>
             </div>
         `;
+        animateRoomContentOnce('friends');
         return;
     }
 
@@ -1542,6 +1790,7 @@ function renderFriendsRoom() {
             ${body}
         </div>
     `;
+    if (!friendsState.loading) animateRoomContentOnce('friends');
 }
 
 function handleRouteChange() {
@@ -1560,6 +1809,16 @@ function handleRouteChange() {
 // ══ ESTADO ══
 let currentPlayers = [];
 let currentMode = 'osu';
+let roomAnimationKey = '';
+let roomContentAnimationDone = false;
+let roomContentAnimationFrame = null;
+let compareDuelModeEnabled = false;
+let lastComparisonUsers = [];
+let lastComparisonTopPlays = [];
+let lastComparisonBestPlays = [];
+let lastComparisonIsSingle = false;
+let compareDuelAnimationTimer = null;
+let focusCleanupTimer = null;
 let refreshTimer = null;
 let roomScoresRefreshTimer = null;
 // Cache de top plays para el Focus Mode: { 'username': scoreData | null }
@@ -2781,6 +3040,698 @@ function renderCompareSummary(users, topPlays, isSingle) {
     summary.style.display = items.length ? 'grid' : 'none';
 }
 
+function getDuelBestPlays(item) {
+    if (Array.isArray(item?.bestPlays) && item.bestPlays.length) return item.bestPlays;
+    return item?.topPlay ? [item.topPlay] : [];
+}
+
+function getDuelTopFivePp(item) {
+    const scores = getDuelBestPlays(item).slice(0, DUEL_TOP_PLAYS_LIMIT);
+    const total = scores.reduce((sum, score) => {
+        const pp = typeof score?.pp === 'number' ? score.pp : Number(score?.pp);
+        return Number.isFinite(pp) ? sum + pp : sum;
+    }, 0);
+    return total > 0 ? total : null;
+}
+
+function getUserTotalHits(stats) {
+    const direct = getFiniteMetricValue(stats?.total_hits);
+    if (direct !== null) return direct;
+
+    const counts = ['count_300', 'count_100', 'count_50']
+        .map(key => Number(stats?.[key]))
+        .filter(Number.isFinite);
+    const total = counts.reduce((sum, value) => sum + value, 0);
+    return total > 0 ? total : null;
+}
+
+function getUserMaxCombo(stats) {
+    return stats?.maximum_combo ?? stats?.max_combo ?? null;
+}
+
+function getUserReplaysWatched(stats) {
+    return stats?.replays_watched_by_others ?? stats?.replays_watched ?? null;
+}
+
+function formatOptionalNumber(value, suffix = '') {
+    if (value === null || value === undefined || value === '') return '—';
+    const number = Number(value);
+    return Number.isFinite(number) ? `${fmtNum(number)}${suffix}` : '—';
+}
+
+function getCompareDuelMetrics(valid) {
+    const t = LANGS[currentLang].compare;
+    return [
+        {
+            key: 'pp',
+            label: t.metricPp,
+            tone: 'gold',
+            category: 'overall',
+            tieAbs: 50,
+            tieRatio: 0.006,
+            value: item => getFiniteMetricValue(item.data.statistics?.pp),
+            format: value => `${fmtNum(Math.round(value))}pp`,
+            formatDiff: value => `+${fmtNum(Math.round(value))}pp`
+        },
+        {
+            key: 'accuracy',
+            label: t.metricAccuracy,
+            tone: 'cyan',
+            category: 'consistency',
+            tieAbs: 0.05,
+            value: item => getFiniteMetricValue(item.data.statistics?.hit_accuracy),
+            format: value => fmtAcc(value),
+            formatDiff: value => `+${value.toFixed(2)}%`
+        },
+        {
+            key: 'play-count',
+            label: t.metricPlayCount,
+            tone: 'pink',
+            category: 'activity',
+            tieAbs: 250,
+            tieRatio: 0.015,
+            value: item => getFiniteMetricValue(item.data.statistics?.play_count),
+            format: value => fmtNum(value),
+            formatDiff: value => `+${fmtNum(value)}`
+        },
+        {
+            key: 'play-time',
+            label: t.metricPlayTime,
+            tone: 'cyan',
+            category: 'activity',
+            tieAbs: 3600,
+            tieRatio: 0.012,
+            value: item => getFiniteMetricValue(item.data.statistics?.play_time),
+            format: value => fmtTime(value),
+            formatDiff: value => `+${fmtTime(value)}`
+        },
+        {
+            key: 'global-rank',
+            label: t.metricGlobalRank,
+            tone: 'pink',
+            category: 'consistency',
+            lowerBetter: true,
+            tieAbs: 500,
+            tieRatio: 0.004,
+            value: item => getFiniteMetricValue(item.data.statistics?.global_rank),
+            format: value => `#${fmtNum(value)}`,
+            formatDiff: value => t.duelRankDiff.replace('{value}', fmtNum(value))
+        },
+        {
+            key: 'top-play',
+            label: t.metricTopPlay,
+            tone: 'gold',
+            category: 'peak',
+            tieAbs: 5,
+            tieRatio: 0.02,
+            value: item => getFiniteMetricValue(item.topPlay?.pp),
+            format: value => `${fmtNum(Math.round(value))}pp`,
+            formatDiff: value => `+${fmtNum(Math.round(value))}pp`
+        },
+        {
+            key: 'top-five-pp',
+            label: t.metricTopFivePp,
+            tone: 'gold',
+            category: 'peak',
+            tieAbs: 18,
+            tieRatio: 0.018,
+            value: item => getFiniteMetricValue(getDuelTopFivePp(item)),
+            format: value => `${fmtNum(Math.round(value))}pp`,
+            formatDiff: value => `+${fmtNum(Math.round(value))}pp`
+        },
+        {
+            key: 'total-score',
+            label: t.metricTotalScore,
+            tone: 'gold',
+            category: 'overall',
+            tieAbs: 1000000,
+            tieRatio: 0.01,
+            value: item => getFiniteMetricValue(item.data.statistics?.total_score),
+            format: value => fmtNum(value),
+            formatDiff: value => `+${fmtNum(value)}`
+        },
+        {
+            key: 'total-hits',
+            label: t.metricTotalHits,
+            tone: 'cyan',
+            category: 'activity',
+            tieAbs: 10000,
+            tieRatio: 0.012,
+            value: item => getFiniteMetricValue(getUserTotalHits(item.data.statistics)),
+            format: value => fmtNum(value),
+            formatDiff: value => `+${fmtNum(value)}`
+        },
+        {
+            key: 'max-combo',
+            label: t.metricMaxCombo,
+            tone: 'cyan',
+            category: 'peak',
+            tieAbs: 20,
+            tieRatio: 0.018,
+            value: item => getFiniteMetricValue(getUserMaxCombo(item.data.statistics)),
+            format: value => `${fmtNum(value)}x`,
+            formatDiff: value => `+${fmtNum(value)}x`
+        },
+        {
+            key: 'replays-watched',
+            label: t.metricReplaysWatched,
+            tone: 'pink',
+            category: 'overall',
+            tieAbs: 25,
+            tieRatio: 0.02,
+            value: item => getFiniteMetricValue(getUserReplaysWatched(item.data.statistics)),
+            format: value => fmtNum(value),
+            formatDiff: value => `+${fmtNum(value)}`
+        }
+    ].map(metric => {
+        const entries = valid
+            .map(item => ({
+                item,
+                index: item.index,
+                value: metric.value(item)
+            }))
+            .filter(entry => entry.value !== null);
+
+        return { ...metric, entries };
+    }).filter(metric => metric.entries.length === 2);
+}
+
+function getCompareDuelTieLimit(metric, firstValue, secondValue) {
+    const baseline = Math.max(firstValue, secondValue);
+    const ratioLimit = Number.isFinite(baseline) && baseline > 0 ? baseline * (metric.tieRatio || 0) : 0;
+    return Math.max(metric.tieAbs || 0, ratioLimit);
+}
+
+function getCompareDuelDecision(metric) {
+    const [first, second] = metric.entries;
+    const bestValue = metric.lowerBetter
+        ? Math.min(first.value, second.value)
+        : Math.max(first.value, second.value);
+    const firstLead = metric.lowerBetter
+        ? second.value - first.value
+        : first.value - second.value;
+    const diff = Math.abs(firstLead);
+    const tieLimit = getCompareDuelTieLimit(metric, first.value, second.value);
+    const winnerIndex = diff <= tieLimit ? null : (firstLead > 0 ? first.index : second.index);
+    const entries = metric.entries.map(entry => ({
+        ...entry,
+        percent: getCompareBreakdownPercent(metric, entry.value, bestValue)
+    }));
+
+    return {
+        ...metric,
+        entries,
+        diff,
+        winnerIndex,
+        diffLabel: metric.formatDiff(diff)
+    };
+}
+
+function getCompareDuelReason(decisions, winnerIndex) {
+    const t = LANGS[currentLang].compare;
+    const winningKeys = decisions
+        .filter(decision => decision.winnerIndex === winnerIndex)
+        .map(decision => decision.key);
+    const has = key => winningKeys.includes(key);
+
+    if ((has('play-count') || has('play-time')) && (has('total-hits') || has('total-score'))) return t.duelReasonActivity;
+    if ((has('top-play') || has('top-five-pp') || has('max-combo')) && (has('pp') || has('global-rank'))) return t.duelReasonPeak;
+    if (has('accuracy') && has('global-rank')) return t.duelReasonConsistency;
+    if (has('top-play') || has('top-five-pp') || has('max-combo')) return t.duelReasonPeak;
+    if (has('accuracy')) return t.duelReasonConsistency;
+    if (has('play-count') || has('play-time') || has('total-hits')) return t.duelReasonActivity;
+    return t.duelReasonOverall;
+}
+
+function getCompareDuelCategoryLabel(category) {
+    const t = LANGS[currentLang].compare;
+    const labels = {
+        overall: t.duelCategoryOverall,
+        peak: t.duelCategoryPeak,
+        consistency: t.duelCategoryConsistency,
+        activity: t.duelCategoryActivity
+    };
+    return labels[category] || t.duelCategoryOverall;
+}
+
+function getCompareDuelCategoryTone(category) {
+    const tones = {
+        overall: 'gold',
+        peak: 'gold',
+        consistency: 'cyan',
+        activity: 'pink'
+    };
+    return tones[category] || 'gold';
+}
+
+function renderCompareDuelCategoryReadout(decisions, valid) {
+    const t = LANGS[currentLang].compare;
+    const [left, right] = valid;
+    const categories = ['overall', 'peak', 'consistency', 'activity'];
+
+    const items = categories.map(category => {
+        const categoryDecisions = decisions.filter(decision => decision.category === category);
+        const points = new Map([[left.index, 0], [right.index, 0]]);
+
+        categoryDecisions.forEach(decision => {
+            if (decision.winnerIndex === null) return;
+            points.set(decision.winnerIndex, (points.get(decision.winnerIndex) || 0) + 1);
+        });
+
+        const leftPoints = points.get(left.index) || 0;
+        const rightPoints = points.get(right.index) || 0;
+        const winnerIndex = leftPoints === rightPoints ? null : (leftPoints > rightPoints ? left.index : right.index);
+        const winner = winnerIndex === null ? null : valid.find(entry => entry.index === winnerIndex);
+        const winnerName = winner?.data.username || winner?.name || '';
+        const winnerClass = winnerName && isCreatorUsername(winnerName) ? ' creator-name' : '';
+        const detail = winner
+            ? t.duelCategoryEdge.replace('{player}', winnerName)
+            : t.duelCategoryNoEdge;
+
+        return `
+            <div class="compare-duel-category compare-duel-category--${getCompareDuelCategoryTone(category)}${winner ? '' : ' compare-duel-category--tie'}">
+                <span>${escapeHtml(getCompareDuelCategoryLabel(category))}</span>
+                <strong>${leftPoints}-${rightPoints}</strong>
+                <em class="${winnerClass.trim()}">${escapeHtml(detail)}</em>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="compare-duel-category-title">${escapeHtml(t.duelCategoryReadout)}</div>
+        <div class="compare-duel-category-grid">
+            ${items}
+        </div>
+    `;
+}
+
+function renderCompareDuelMiniStat(label, value, tone = '') {
+    return `
+        <div class="compare-duel-player-stat${tone ? ` compare-duel-player-stat--${tone}` : ''}">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+        </div>
+    `;
+}
+
+function renderCompareDuelTopFive(scores) {
+    const t = LANGS[currentLang].compare;
+    const safeScores = Array.isArray(scores) ? scores.slice(0, DUEL_TOP_PLAYS_LIMIT) : [];
+    const totalPp = getDuelTopFivePp({ bestPlays: safeScores });
+
+    if (!safeScores.length) {
+        return `
+            <div class="compare-duel-top-five compare-duel-top-five--empty">
+                <div class="compare-duel-top-five-head">
+                    <span>${escapeHtml(t.duelTopFive)}</span>
+                    <strong>${escapeHtml(t.duelNoTopFive)}</strong>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="compare-duel-top-five">
+            <div class="compare-duel-top-five-head">
+                <span>${escapeHtml(t.duelTopFive)}</span>
+                <strong>${escapeHtml(t.duelTopFiveTotal)} ${fmtNum(Math.round(totalPp || 0))}pp</strong>
+            </div>
+            <div class="compare-duel-top-five-list">
+                ${safeScores.map((score, index) => {
+                    const cover = getCoverUrl(score);
+                    const mapName = score.beatmapset?.title || '—';
+                    const pp = typeof score.pp === 'number' ? `${fmtNum(Math.round(score.pp))}pp` : '—';
+                    const mods = getMods(score).slice(0, 3);
+                    return `
+                        <div class="compare-duel-top-five-row">
+                            <span class="compare-duel-top-five-rank">#${index + 1}</span>
+                            ${cover ? `<img src="${escapeHtml(cover)}" alt="" onerror="this.style.display='none'">` : '<span class="compare-duel-top-five-cover"></span>'}
+                            <div class="compare-duel-top-five-map">
+                                <strong>${escapeHtml(mapName)}</strong>
+                                <span>${mods.length ? mods.map(mod => escapeHtml(mod)).join(' ') : 'NM'}</span>
+                            </div>
+                            <em>${escapeHtml(pp)}</em>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderCompareDuelPlayer(entry, score, isWinner, side = 'left') {
+    const t = LANGS[currentLang];
+    const compare = t.compare;
+    const username = entry.data.username || entry.name || 'osu!';
+    const creatorClass = isCreatorUsername(username) ? ' creator-name' : '';
+    const avatarUrl = safeHttpUrl(entry.data.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const pp = Math.round(entry.data.statistics?.pp || 0);
+    const title = isCreatorUsername(username) ? 'PAGE CREATOR' : getUserTitle(pp);
+    const rank = entry.data.statistics?.global_rank ? `#${fmtNum(entry.data.statistics.global_rank)}` : '—';
+    const countryRank = entry.data.statistics?.country_rank ? `#${fmtNum(entry.data.statistics.country_rank)}` : '—';
+    const acc = fmtAcc(entry.data.statistics?.hit_accuracy);
+
+    return `
+        <div class="compare-duel-player compare-duel-player--${side}${isWinner ? ' compare-duel-player--winner' : ''}">
+            <div class="compare-duel-score-pill">
+                <span>${escapeHtml(compare.duelScore)}</span>
+                <strong>${score}</strong>
+            </div>
+            <div class="compare-duel-avatar-wrap${isCreatorUsername(username) ? ' creator-frame' : ''}">
+                <div class="avatar-glow"></div>
+                <img class="compare-duel-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+            </div>
+            <div class="compare-duel-player-body">
+                <div class="compare-duel-player-country">${renderCountryFlag(entry.data.country_code)}</div>
+                <div class="compare-duel-player-name${creatorClass}" data-text="${escapeHtml(username)}">
+                    <span class="compare-duel-player-name-main">${escapeHtml(username)}</span>
+                </div>
+                <div class="compare-duel-player-title">${escapeHtml(title)}</div>
+                <div class="compare-duel-player-pp">${fmtNum(pp)}<span>pp</span></div>
+                <div class="compare-duel-player-stats">
+                    ${renderCompareDuelMiniStat(t.stats.global, rank, 'pink')}
+                    ${renderCompareDuelMiniStat(t.stats.country, countryRank, 'cyan')}
+                    ${renderCompareDuelMiniStat(t.stats.acc, acc, 'gold')}
+                </div>
+                ${renderCompareDuelTopFive(entry.bestPlays)}
+            </div>
+        </div>
+    `;
+}
+
+function renderCompareDuelMetric(decision) {
+    const t = LANGS[currentLang].compare;
+    const categoryLabel = getCompareDuelCategoryLabel(decision.category);
+    const categoryTone = getCompareDuelCategoryTone(decision.category);
+    const winnerEntry = decision.winnerIndex === null
+        ? null
+        : decision.entries.find(entry => entry.index === decision.winnerIndex);
+    const resultName = winnerEntry?.item.data.username || '';
+    const resultClass = resultName && isCreatorUsername(resultName) ? ' creator-name' : '';
+    const resultText = winnerEntry
+        ? `${resultName} ${decision.diffLabel}`
+        : t.duelTie;
+    const pointText = winnerEntry ? t.duelPoint : t.duelNoPoint;
+    const roundDetail = winnerEntry
+        ? t.duelRoundWinDetail.replace('{diff}', decision.diffLabel)
+        : t.duelRoundTieDetail;
+
+    const renderSide = entry => {
+        const username = entry.item.data.username || entry.item.name || 'osu!';
+        const creatorClass = isCreatorUsername(username) ? ' creator-name' : '';
+        const isWinner = entry.index === decision.winnerIndex;
+        return `
+            <div class="compare-duel-side${isWinner ? ' compare-duel-side--winner' : ''}">
+                <div class="compare-duel-side-head">
+                    <span class="${creatorClass.trim()}">${escapeHtml(username)}</span>
+                    <strong>${escapeHtml(decision.format(entry.value))}</strong>
+                </div>
+                <div class="compare-duel-track" aria-hidden="true">
+                    <div class="compare-duel-fill" style="--pct:${entry.percent.toFixed(2)}%;"></div>
+                </div>
+            </div>
+        `;
+    };
+
+    return `
+        <div class="compare-duel-metric compare-duel-metric--${decision.tone}${winnerEntry ? '' : ' compare-duel-metric--tie'}">
+            <div class="compare-duel-metric-head">
+                <span>${escapeHtml(decision.label)}</span>
+                <div class="compare-duel-metric-badges">
+                    <b class="compare-duel-category-pill compare-duel-category-pill--${categoryTone}">${escapeHtml(categoryLabel)}</b>
+                    <em>${escapeHtml(pointText)}</em>
+                </div>
+            </div>
+            <div class="compare-duel-result">
+                ${winnerEntry
+                    ? `<strong class="${resultClass.trim()}">${escapeHtml(resultName)}</strong><span>${escapeHtml(decision.diffLabel)}</span>`
+                    : `<strong>${escapeHtml(resultText)}</strong>`}
+            </div>
+            <div class="compare-duel-round-note">
+                ${winnerEntry ? `<span class="${resultClass.trim()}">${escapeHtml(resultName)}</span>` : ''}
+                <em>${escapeHtml(roundDetail)}</em>
+            </div>
+            <div class="compare-duel-sides">
+                ${decision.entries.map(renderSide).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderCompareDuelVerdict(winner, scoreText, reason) {
+    const t = LANGS[currentLang].compare;
+    if (!winner) {
+        return escapeHtml(t.duelTieLine.replace('{score}', scoreText));
+    }
+
+    const username = winner.data.username || winner.name || 'osu!';
+    const creatorClass = isCreatorUsername(username) ? ' creator-name' : '';
+    const template = t.duelWinnerLine
+        .replace('{score}', scoreText)
+        .replace('{reason}', reason);
+    const [before, after] = template.split('{player}');
+
+    return `${escapeHtml(before)}<span class="${creatorClass.trim()}">${escapeHtml(username)}</span>${escapeHtml(after || '')}`;
+}
+
+function canShowCompareDuel(users, isSingle) {
+    const validCount = users.filter(user => user.ok).length;
+    return !IS_SHARE_COMPARE_MODE && !isSingle && currentPlayers.length === 2 && validCount === 2;
+}
+
+function syncCompareDuelModeState(users = lastComparisonUsers, isSingle = lastComparisonIsSingle) {
+    const results = document.getElementById('results');
+    if (!results) return;
+
+    const active = compareDuelModeEnabled && canShowCompareDuel(users, isSingle);
+    const closing = document.getElementById('compare-duel')?.classList.contains('is-closing');
+    results.classList.toggle('duel-mode-active', active);
+    document.documentElement.classList.toggle('duel-focus-open', active || closing);
+    document.body.classList.toggle('duel-focus-open', active || closing);
+}
+
+function renderCompareDuelControls(users = lastComparisonUsers, isSingle = lastComparisonIsSingle) {
+    const controls = document.getElementById('compare-duel-controls');
+    if (!controls) return;
+
+    if (!canShowCompareDuel(users, isSingle)) {
+        syncCompareDuelModeState(users, isSingle);
+        controls.innerHTML = '';
+        controls.style.display = 'none';
+        return;
+    }
+
+    syncCompareDuelModeState(users, isSingle);
+    const t = LANGS[currentLang].compare;
+    controls.innerHTML = `
+        <button
+            type="button"
+            class="compare-duel-toggle${compareDuelModeEnabled ? ' active' : ''}"
+            onclick="toggleCompareDuelMode()"
+            aria-pressed="${compareDuelModeEnabled ? 'true' : 'false'}"
+        >
+            <span>${escapeHtml(compareDuelModeEnabled ? t.duelToggleOff : t.duelToggleOn)}</span>
+        </button>
+    `;
+    controls.style.display = 'flex';
+}
+
+function toggleCompareDuelMode() {
+    if (!canShowCompareDuel(lastComparisonUsers, lastComparisonIsSingle)) return;
+
+    compareDuelModeEnabled = !compareDuelModeEnabled;
+    renderCompareDuel(lastComparisonUsers, lastComparisonTopPlays, lastComparisonIsSingle, lastComparisonBestPlays);
+    renderCompareDuelControls();
+
+    if (compareDuelModeEnabled) {
+        requestAnimationFrame(() => {
+            document.querySelector('#compare-duel .compare-duel-close')?.focus();
+        });
+    } else {
+        setTimeout(() => {
+            document.querySelector('#compare-duel-controls .compare-duel-toggle')?.focus();
+        }, 280);
+    }
+}
+
+function closeCompareDuelMode(restoreFocus = true) {
+    if (!compareDuelModeEnabled) return;
+
+    compareDuelModeEnabled = false;
+    renderCompareDuel(lastComparisonUsers, lastComparisonTopPlays, lastComparisonIsSingle, lastComparisonBestPlays);
+    renderCompareDuelControls();
+
+    if (restoreFocus) {
+        setTimeout(() => {
+            document.querySelector('#compare-duel-controls .compare-duel-toggle')?.focus();
+        }, 280);
+    }
+}
+
+function closeCompareDuel(event) {
+    if (event.target === document.getElementById('compare-duel')) {
+        window.UISounds?.play('back');
+        closeCompareDuelMode();
+    }
+}
+
+function renderCompareDuelUtilityControls() {
+    const t = LANGS[currentLang];
+    const activeTheme = document.documentElement.dataset.theme || 'cyberpunk';
+    const themes = typeof THEMES !== 'undefined' && Array.isArray(THEMES) ? THEMES : [];
+    const languages = [
+        { id: 'es', flag: '🇲🇽', label: 'Español' },
+        { id: 'en', flag: '🇺🇸', label: 'English' },
+        { id: 'de', flag: '🇩🇪', label: 'Deutsch' }
+    ];
+
+    return `
+        <div class="compare-duel-utilities">
+            <div class="compare-duel-languages" aria-label="Language">
+                ${languages.map(language => `
+                    <button
+                        type="button"
+                        class="compare-duel-language${currentLang === language.id ? ' active' : ''}"
+                        onclick="changeLang('${language.id}')"
+                        title="${escapeHtml(language.label)}"
+                        aria-label="${escapeHtml(language.label)}"
+                    >${escapeHtml(language.flag)}</button>
+                `).join('')}
+            </div>
+            <label class="compare-duel-theme">
+                <span>${escapeHtml(t.theme)}</span>
+                <select onchange="applyTheme(this.value)" aria-label="${escapeHtml(t.theme)}">
+                    ${themes.map(theme => `
+                        <option value="${escapeHtml(theme.id)}"${theme.id === activeTheme ? ' selected' : ''}>${escapeHtml(theme.label)}</option>
+                    `).join('')}
+                </select>
+            </label>
+        </div>
+    `;
+}
+
+function renderCompareDuel(users, topPlays, isSingle, bestPlays = lastComparisonBestPlays) {
+    const duel = document.getElementById('compare-duel');
+    if (!duel) return;
+
+    const valid = users
+        .map((user, idx) => user.ok ? {
+            ...user,
+            index: idx,
+            topPlay: topPlays[idx],
+            bestPlays: Array.isArray(bestPlays?.[idx]) ? bestPlays[idx] : (topPlays[idx] ? [topPlays[idx]] : [])
+        } : null)
+        .filter(Boolean);
+
+    if (!compareDuelModeEnabled || !canShowCompareDuel(users, isSingle) || valid.length !== 2) {
+        clearTimeout(compareDuelAnimationTimer);
+        if (duel.style.display === 'none' || !duel.innerHTML) {
+            duel.innerHTML = '';
+            duel.classList.remove('is-open', 'is-closing');
+            duel.style.display = 'none';
+            document.documentElement.classList.remove('duel-focus-open');
+            document.body.classList.remove('duel-focus-open');
+            return;
+        }
+
+        duel.classList.remove('is-open');
+        duel.classList.add('is-closing');
+        duel.setAttribute('aria-hidden', 'true');
+        window.AppAnimations?.exitDuel(duel);
+        compareDuelAnimationTimer = setTimeout(() => {
+            if (compareDuelModeEnabled) return;
+            duel.innerHTML = '';
+            duel.classList.remove('is-closing');
+            duel.style.display = 'none';
+            document.documentElement.classList.remove('duel-focus-open');
+            document.body.classList.remove('duel-focus-open');
+        }, 240);
+        return;
+    }
+
+    const decisions = getCompareDuelMetrics(valid).map(getCompareDuelDecision);
+    if (!decisions.length) {
+        duel.innerHTML = '';
+        duel.style.display = 'none';
+        return;
+    }
+
+    const t = LANGS[currentLang].compare;
+    const scores = new Map(valid.map(entry => [entry.index, 0]));
+    decisions.forEach(decision => {
+        if (decision.winnerIndex === null) return;
+        scores.set(decision.winnerIndex, (scores.get(decision.winnerIndex) || 0) + 1);
+    });
+
+    const [left, right] = valid;
+    const leftScore = scores.get(left.index) || 0;
+    const rightScore = scores.get(right.index) || 0;
+    const scoreText = `${leftScore}-${rightScore}`;
+    const winnerIndex = leftScore === rightScore ? null : (leftScore > rightScore ? left.index : right.index);
+    const winner = winnerIndex === null ? null : valid.find(entry => entry.index === winnerIndex);
+    const verdict = renderCompareDuelVerdict(
+        winner,
+        scoreText,
+        winner ? getCompareDuelReason(decisions, winnerIndex) : ''
+    );
+
+    clearTimeout(compareDuelAnimationTimer);
+    const wasOpen = duel.classList.contains('is-open');
+    duel.classList.remove('is-closing');
+    duel.innerHTML = `
+        <div class="compare-duel-shell" role="dialog" aria-modal="true" aria-labelledby="compare-duel-title">
+            <div class="compare-duel-glitch" aria-hidden="true">
+                <span class="compare-duel-glitch-bar"></span>
+                <span class="compare-duel-glitch-bar"></span>
+                <span class="compare-duel-glitch-bar"></span>
+                <span class="compare-duel-glitch-bar"></span>
+                <span class="compare-duel-glitch-bar"></span>
+            </div>
+            <div class="compare-duel-header">
+                <div>
+                    <div class="compare-duel-kicker">${escapeHtml(t.duelKicker)}</div>
+                    <h2 id="compare-duel-title" class="compare-duel-glitch-text" data-text="${escapeHtml(t.duelTitle)}">${escapeHtml(t.duelTitle)}</h2>
+                </div>
+                <div class="compare-duel-header-actions">
+                    ${renderCompareDuelUtilityControls()}
+                    <span class="compare-duel-player-count">${escapeHtml(t.duelPlayers)}</span>
+                    <button class="compare-duel-close" type="button" onclick="closeCompareDuelMode()">← ${escapeHtml(t.duelClose)}</button>
+                </div>
+            </div>
+            <div class="compare-duel-scoreboard" aria-label="${escapeHtml(t.duelScore)}">
+                ${renderCompareDuelPlayer(left, leftScore, winnerIndex === left.index, 'left')}
+                <div class="compare-duel-center">
+                    <span>${escapeHtml(t.duelKicker)}</span>
+                    <strong class="compare-duel-glitch-text compare-duel-score-text" data-text="${escapeHtml(scoreText)}">${escapeHtml(scoreText)}</strong>
+                    <em>${escapeHtml(t.duelVs)}</em>
+                </div>
+                ${renderCompareDuelPlayer(right, rightScore, winnerIndex === right.index, 'right')}
+            </div>
+            <div class="compare-duel-verdict${winner ? '' : ' compare-duel-verdict--tie'}">
+                <span>${verdict}</span>
+            </div>
+            ${renderCompareDuelCategoryReadout(decisions, valid)}
+            <div class="compare-duel-rounds-title">${escapeHtml(t.duelRounds)}</div>
+            <div class="compare-duel-grid">
+                ${decisions.map(renderCompareDuelMetric).join('')}
+            </div>
+        </div>
+    `;
+    duel.onclick = closeCompareDuel;
+    duel.setAttribute('aria-hidden', 'false');
+    duel.style.display = 'block';
+    if (!wasOpen) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                duel.classList.add('is-open');
+                window.AppAnimations?.enterDuel(duel);
+            });
+        });
+    } else {
+        duel.classList.add('is-open');
+    }
+}
+
 function getFiniteMetricValue(value) {
     if (value === null || value === undefined || value === '') return null;
     const number = Number(value);
@@ -3010,6 +3961,212 @@ function renderCompareBreakdown(users, topPlays, isSingle) {
     breakdown.style.display = 'grid';
 }
 
+function getMetricRanking(entries, valueFn, lowerBetter = false) {
+    return entries
+        .map(entry => ({ ...entry, value: getFiniteMetricValue(valueFn(entry)) }))
+        .filter(entry => entry.value !== null)
+        .sort((a, b) => lowerBetter ? a.value - b.value : b.value - a.value);
+}
+
+function getRankingLeadRatio(ranking, lowerBetter = false) {
+    if (!ranking || ranking.length < 2) return 0;
+    const [best, second] = ranking;
+    const diff = lowerBetter ? second.value - best.value : best.value - second.value;
+    if (!Number.isFinite(diff) || diff <= 0) return 0;
+    const baseline = lowerBetter ? second.value : best.value;
+    return baseline > 0 ? diff / baseline : 0;
+}
+
+function getEntryKey(entry) {
+    return entry.data.id ?? entry.data.username ?? entry.index;
+}
+
+function addStyleTag(tagsByKey, entry, key, tone, priority) {
+    if (!entry) return;
+    const entryKey = getEntryKey(entry);
+    const current = tagsByKey.get(entryKey) || [];
+    if (current.some(tag => tag.key === key)) return;
+    current.push({ key, tone, priority });
+    tagsByKey.set(entryKey, current);
+}
+
+function getComparisonStyleTags(users, topPlays, isSingle) {
+    const empty = users.map(() => []);
+    if (isSingle) return empty;
+
+    const entries = users
+        .map((user, index) => user.ok ? {
+            index,
+            data: user.data,
+            topPlay: topPlays[index],
+            stats: user.data.statistics || {}
+        } : null)
+        .filter(Boolean);
+
+    if (entries.length < 2) return empty;
+
+    const tagsByKey = new Map(entries.map(entry => [getEntryKey(entry), []]));
+    const ppRanking = getMetricRanking(entries, entry => entry.stats.pp);
+    const accuracyRanking = getMetricRanking(entries, entry => entry.stats.hit_accuracy);
+    const playCountRanking = getMetricRanking(entries, entry => entry.stats.play_count);
+    const playTimeRanking = getMetricRanking(entries, entry => entry.stats.play_time);
+    const globalRankRanking = getMetricRanking(entries, entry => entry.stats.global_rank, true);
+    const topPlayRanking = getMetricRanking(entries, entry => entry.topPlay?.pp);
+    const topPlayRatioRanking = getMetricRanking(entries, entry => {
+        const pp = getFiniteMetricValue(entry.stats.pp);
+        const topPp = getFiniteMetricValue(entry.topPlay?.pp);
+        return pp && topPp ? topPp / pp : null;
+    });
+
+    const ppLeader = ppRanking[0];
+    const ppLeaderKey = ppLeader ? getEntryKey(ppLeader) : null;
+    addStyleTag(tagsByKey, ppLeader, 'ppLeader', 'gold', 100);
+
+    const accuracyLeader = accuracyRanking[0];
+    if (accuracyLeader) {
+        const accuracyLead = accuracyRanking.length > 1 ? accuracyLeader.value - accuracyRanking[1].value : 0;
+        if (accuracyLeader.value >= 98 || accuracyLead >= 0.2) {
+            addStyleTag(tagsByKey, accuracyLeader, 'accuracyDemon', 'cyan', 92);
+        }
+    }
+
+    const playCountLead = getRankingLeadRatio(playCountRanking);
+    const playTimeLead = getRankingLeadRatio(playTimeRanking);
+    if (playCountLead >= 0.12) addStyleTag(tagsByKey, playCountRanking[0], 'grinder', 'pink', 86);
+    if (playTimeLead >= 0.12) addStyleTag(tagsByKey, playTimeRanking[0], 'grinder', 'pink', 86);
+
+    const topRatioLeader = topPlayRatioRanking[0];
+    if (topRatioLeader && topPlayRatioRanking.length > 1) {
+        const ratioLead = topRatioLeader.value - topPlayRatioRanking[1].value;
+        const isBestTopPlay = topPlayRanking[0] && getEntryKey(topPlayRanking[0]) === getEntryKey(topRatioLeader);
+        if ((topRatioLeader.value >= 0.05 && ratioLead >= 0.004) || (isBestTopPlay && getEntryKey(topRatioLeader) !== ppLeaderKey)) {
+            addStyleTag(tagsByKey, topRatioLeader, 'topPlayCarry', 'gold', 82);
+        }
+    }
+
+    const metricLeaders = [accuracyRanking, playCountRanking, playTimeRanking, globalRankRanking, topPlayRanking]
+        .map(ranking => ranking[0])
+        .filter(Boolean);
+    metricLeaders.forEach(entry => {
+        if (getEntryKey(entry) !== ppLeaderKey) {
+            addStyleTag(tagsByKey, entry, 'underdog', 'cyan', 70);
+        }
+    });
+
+    entries.forEach(entry => {
+        const topTwoCount = [ppRanking, accuracyRanking, playCountRanking, playTimeRanking, globalRankRanking, topPlayRanking]
+            .filter(ranking => ranking.slice(0, 2).some(candidate => getEntryKey(candidate) === getEntryKey(entry)))
+            .length;
+        if (topTwoCount >= 4 && getEntryKey(entry) !== ppLeaderKey) {
+            addStyleTag(tagsByKey, entry, 'balanced', 'neutral', 58);
+        }
+    });
+
+    return users.map((user, index) => {
+        if (!user.ok) return [];
+        const entryKey = user.data.id ?? user.data.username ?? index;
+        return (tagsByKey.get(entryKey) || [])
+            .sort((a, b) => b.priority - a.priority)
+            .slice(0, 3);
+    });
+}
+
+function renderPlayerStyleTags(tags) {
+    if (!tags?.length) return '';
+
+    const compare = LANGS[currentLang].compare;
+    return `
+        <div class="player-style-tags" aria-label="${escapeHtml(compare.styleLabel)}">
+            <div class="player-style-label">${escapeHtml(compare.styleLabel)}</div>
+            <div class="player-style-chip-row">
+                ${tags.map(tag => {
+                    const label = compare.styleTags[tag.key] || tag.key;
+                    const description = compare.styleTagDescriptions?.[tag.key] || label;
+                    return `
+                    <span class="player-style-chip player-style-chip--${tag.tone}" data-style-description="${escapeHtml(description)}" aria-label="${escapeHtml(description)}" tabindex="0">
+                        ${escapeHtml(label)}
+                    </span>
+                `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+let playerStyleTooltipEl = null;
+
+function getPlayerStyleTooltip() {
+    if (playerStyleTooltipEl) return playerStyleTooltipEl;
+
+    playerStyleTooltipEl = document.createElement('div');
+    playerStyleTooltipEl.className = 'floating-style-tooltip';
+    playerStyleTooltipEl.setAttribute('role', 'tooltip');
+    document.body.appendChild(playerStyleTooltipEl);
+    return playerStyleTooltipEl;
+}
+
+function positionPlayerStyleTooltip(target, tooltip) {
+    const rect = target.getBoundingClientRect();
+    const gap = 9;
+    const margin = 8;
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.bottom + gap;
+
+    left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+    if (top + tooltipRect.height > window.innerHeight - margin) {
+        top = rect.top - tooltipRect.height - gap;
+        tooltip.classList.add('floating-style-tooltip--above');
+    } else {
+        tooltip.classList.remove('floating-style-tooltip--above');
+    }
+
+    const arrowX = rect.left + (rect.width / 2) - left;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${Math.max(margin, top)}px`;
+    tooltip.style.setProperty('--style-tooltip-arrow-x', `${Math.max(10, Math.min(tooltipRect.width - 10, arrowX))}px`);
+}
+
+function showPlayerStyleTooltip(target) {
+    const description = target?.dataset?.styleDescription;
+    if (!description) return;
+
+    const tooltip = getPlayerStyleTooltip();
+    tooltip.textContent = description;
+    tooltip.classList.add('is-visible');
+    positionPlayerStyleTooltip(target, tooltip);
+}
+
+function hidePlayerStyleTooltip() {
+    playerStyleTooltipEl?.classList.remove('is-visible');
+}
+
+function setupPlayerStyleTooltips() {
+    if (setupPlayerStyleTooltips.ready) return;
+    setupPlayerStyleTooltips.ready = true;
+
+    document.addEventListener('pointerover', event => {
+        const target = event.target.closest?.('.player-style-chip');
+        if (target) showPlayerStyleTooltip(target);
+    });
+
+    document.addEventListener('pointerout', event => {
+        const target = event.target.closest?.('.player-style-chip');
+        if (target && !target.contains(event.relatedTarget)) hidePlayerStyleTooltip();
+    });
+
+    document.addEventListener('focusin', event => {
+        if (event.target.matches?.('.player-style-chip')) showPlayerStyleTooltip(event.target);
+    });
+
+    document.addEventListener('focusout', event => {
+        if (event.target.matches?.('.player-style-chip')) hidePlayerStyleTooltip();
+    });
+
+    window.addEventListener('scroll', hidePlayerStyleTooltip, true);
+    window.addEventListener('resize', hidePlayerStyleTooltip);
+}
+
 // ══ TOP PLAY COMPACTO (cards multi-player) ══
 function renderTopPlayCompact(score) {
     const t = LANGS[currentLang];
@@ -3114,7 +4271,7 @@ function renderTopPlayFull(score) {
 }
 
 // ══ RENDER CARD ══
-function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
+function renderCard(user, rank, maxPP, idx, topPlay, isSingle, styleTags = []) {
     const t = LANGS[currentLang];
     const pp = Math.round(user.statistics?.pp || 0);
     const barPct = maxPP > 0 ? (pp / maxPP * 100) : 0;
@@ -3157,6 +4314,8 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle) {
             </div>
         </div>
     </div>
+
+    ${renderPlayerStyleTags(styleTags)}
 
     ${renderTopPlayCompact(topPlay)}
 
@@ -3300,6 +4459,10 @@ function openFocusWithData(user, topPlay) {
             <div class="focus-rank-type">${escapeHtml(t.stats.level)}</div>
         </div>`;
 
+    const focusTotalHits = formatOptionalNumber(getUserTotalHits(user.statistics));
+    const focusMaxCombo = formatOptionalNumber(getUserMaxCombo(user.statistics), 'x');
+    const focusReplaysWatched = formatOptionalNumber(getUserReplaysWatched(user.statistics));
+
     // Stats extendidos
     document.getElementById('focus-stats').innerHTML = `
         <div class="focus-stat-cell">
@@ -3317,6 +4480,18 @@ function openFocusWithData(user, topPlay) {
         <div class="focus-stat-cell">
             <div class="focus-stat-label">${escapeHtml(t.stats.score)}</div>
             <div class="focus-stat-val gold">${fmtNum(user.statistics?.total_score)}</div>
+        </div>
+        <div class="focus-stat-cell">
+            <div class="focus-stat-label">${escapeHtml(t.stats.maxCombo)}</div>
+            <div class="focus-stat-val">${escapeHtml(focusMaxCombo)}</div>
+        </div>
+        <div class="focus-stat-cell">
+            <div class="focus-stat-label">${escapeHtml(t.stats.totalHits)}</div>
+            <div class="focus-stat-val accent">${escapeHtml(focusTotalHits)}</div>
+        </div>
+        <div class="focus-stat-cell">
+            <div class="focus-stat-label">${escapeHtml(t.stats.replaysWatched)}</div>
+            <div class="focus-stat-val">${escapeHtml(focusReplaysWatched)}</div>
         </div>`;
 
     // Top play en modal
@@ -3341,8 +4516,11 @@ function openFocusWithData(user, topPlay) {
 
     // Abrir
     const overlay = document.getElementById('focus-overlay');
+    clearTimeout(focusCleanupTimer);
+    overlay.classList.remove('is-closing');
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+    window.AppAnimations?.enterFocus(overlay);
 
     // Scroll al top del modal
     document.getElementById('focus-modal').scrollTop = 0;
@@ -3429,18 +4607,32 @@ function renderFocusTopPlay(score) {
 
 function closeFocusBtn() {
     const overlay = document.getElementById('focus-overlay');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-    // Limpiar fondo
-    setTimeout(() => {
-        const bg = document.getElementById('focus-bg');
-        bg.className = 'focus-bg';
-        bg.style.backgroundImage = '';
-    }, 400);
+    if (!overlay) return;
+
+    const finishClose = () => {
+        overlay.classList.remove('active', 'is-closing');
+        document.body.style.overflow = '';
+        focusCleanupTimer = setTimeout(() => {
+            if (overlay.classList.contains('active')) return;
+            const bg = document.getElementById('focus-bg');
+            bg.className = 'focus-bg';
+            bg.style.backgroundImage = '';
+        }, 120);
+    };
+
+    if (!overlay.classList.contains('active')) {
+        finishClose();
+        return;
+    }
+
+    overlay.classList.add('is-closing');
+    const animated = window.AppAnimations?.exitFocus(overlay, finishClose);
+    if (!animated) finishClose();
 }
 
 function closeFocus(e) {
     if (e.target === document.getElementById('focus-overlay')) {
+        window.UISounds?.play('back');
         closeFocusBtn();
     }
 }
@@ -3448,23 +4640,33 @@ function closeFocus(e) {
 // ESC para cerrar
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        if (compareDuelModeEnabled) {
+            window.UISounds?.play('back');
+            closeCompareDuelMode();
+            return;
+        }
+
         const focusOverlay = document.getElementById('focus-overlay');
         if (focusOverlay?.classList.contains('active')) {
+            window.UISounds?.play('back');
             closeFocusBtn();
             return;
         }
 
         if (shouldReturnToResultsFromRoom()) {
+            window.UISounds?.play('back');
             navigateToRoom('results');
             return;
         }
 
         if (currentRoomRoute?.name === 'top-plays' && currentRoomRoute.param) {
+            window.UISounds?.play('back');
             navigateToRoom('player', currentRoomRoute.param);
             return;
         }
 
         if (currentRoomRoute?.name === 'recent' && currentRoomRoute.param) {
+            window.UISounds?.play('back');
             navigateToRoom('player', currentRoomRoute.param);
             return;
         }
@@ -3680,6 +4882,8 @@ async function doSearch() {
     topPlayCache = {};
     topPlaysCache.clear();
     recentPlaysCache.clear();
+    compareDuelModeEnabled = false;
+    syncCompareDuelModeState([], names.length === 1);
 
     currentPlayers = names;
     currentMode = document.getElementById('gamemode').value;
@@ -3699,7 +4903,11 @@ async function doSearch() {
         `<div class="mode-chip">${escapeHtml(t.modes[currentMode] || currentMode)}</div>
          <div class="mode-chip">${names.length} ${escapeHtml(names.length === 1 ? t.players.one : t.players.many)}</div>`;
 
-    await loadCards();
+    const loadResult = await loadCards();
+    if (!IS_SHARE_MODE) {
+        const playerCount = Math.min(4, Math.max(1, names.length));
+        window.UISounds?.play(loadResult?.failed ? 'error' : `comparison-${playerCount}`);
+    }
     await waitForSharedCompareImages();
     markSharedCompareReady();
 
@@ -3725,6 +4933,16 @@ async function loadCards() {
         summary.innerHTML = '';
         summary.style.display = 'none';
     }
+    const duelControls = document.getElementById('compare-duel-controls');
+    if (duelControls) {
+        duelControls.innerHTML = '';
+        duelControls.style.display = 'none';
+    }
+    const duel = document.getElementById('compare-duel');
+    if (duel && !compareDuelModeEnabled) {
+        duel.innerHTML = '';
+        duel.style.display = 'none';
+    }
     const breakdown = document.getElementById('compare-breakdown');
     if (breakdown) {
         breakdown.innerHTML = '';
@@ -3740,10 +4958,10 @@ async function loadCards() {
         container.appendChild(loadDiv);
     });
 
-    // Fetch usuarios y top plays en paralelo
+    // Fetch usuarios y mejores jugadas en paralelo
     const [userResults, bestResults] = await Promise.all([
         Promise.allSettled(currentPlayers.map(name => fetchPlayer(name, currentMode))),
-        Promise.allSettled(currentPlayers.map(name => fetchBestPlay(name, currentMode)))
+        Promise.allSettled(currentPlayers.map(name => fetchBestPlays(name, currentMode, DUEL_TOP_PLAYS_LIMIT)))
     ]);
 
     // Timestamp
@@ -3756,7 +4974,12 @@ async function loadCards() {
         return { ok: false, error: r.reason.message, name: currentPlayers[i] };
     });
 
-    const topPlays = bestResults.map(r => r.status === 'fulfilled' ? r.value : null);
+    const bestPlays = bestResults.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
+    const topPlays = bestPlays.map(scores => scores[0] || null);
+    lastComparisonUsers = users;
+    lastComparisonTopPlays = topPlays;
+    lastComparisonBestPlays = bestPlays;
+    lastComparisonIsSingle = isSingle;
 
     // Errores globales
     const t = LANGS[currentLang];
@@ -3788,14 +5011,17 @@ async function loadCards() {
     }
 
     renderCompareSummary(users, topPlays, isSingle);
+    renderCompareDuelControls(users, isSingle);
+    renderCompareDuel(users, topPlays, isSingle, bestPlays);
     renderCompareBreakdown(users, topPlays, isSingle);
+    const styleTags = getComparisonStyleTags(users, topPlays, isSingle);
 
     // Render
     container.innerHTML = '';
     users.forEach((u, idx) => {
         if (u.ok) {
             const rank = isSingle ? 1 : (sorted.findIndex(s => s.data.id === u.data.id) + 1);
-            const card = renderCard(u.data, rank, maxPP, idx, topPlays[idx], isSingle);
+            const card = renderCard(u.data, rank, maxPP, idx, topPlays[idx], isSingle, styleTags[idx]);
             container.appendChild(card);
         } else {
             const errDiv = document.createElement('div');
@@ -3815,6 +5041,11 @@ async function loadCards() {
             el.style.width = el.dataset.pct + '%';
         });
     }, 200);
+
+    return {
+        success: users.filter(user => user.ok).length,
+        failed: users.filter(user => !user.ok).length
+    };
 }
 
 async function refreshData() {
@@ -3855,6 +5086,7 @@ window.addEventListener('scroll', () => {
 });
 
 // Init
+setupPlayerStyleTooltips();
 applyLang();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {
