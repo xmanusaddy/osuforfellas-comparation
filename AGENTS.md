@@ -1,208 +1,357 @@
 # AGENTS.md
 
-## Proyecto
+## Fuente De Verdad
 
-osu! For Fellas Comparison
+Ultima sincronizacion: 2026-06-24.
 
-Aplicacion ASP.NET Core para comparar perfiles de jugadores de osu! de forma visual y atractiva.
+Este archivo describe el estado real del proyecto segun el codigo del workspace actual. No asumir features desde chats viejos: antes de tocar una feature, verificar en codigo.
 
-La filosofia del proyecto es ofrecer una comparacion rapida, estetica y moderna entre jugadores, no reemplazar la pagina oficial de osu!.
+Proyecto: `osu! For Fellas Comparison`.
+
+Aplicacion ASP.NET Core + frontend estatico para comparar perfiles de jugadores de osu! con una UI cyberpunk/moderna, rooms internas, OAuth con osu!, bot de Discord por Interactions HTTP, capturas visuales con Chromium, animaciones GSAP y sonidos UI.
+
+La filosofia sigue siendo: comparacion rapida, visual y con personalidad para amigos/fellas. No intenta reemplazar la pagina oficial de osu!.
 
 ---
 
-## Estructura Principal
+## Estructura Actual
 
-### Frontend
+### Raiz
 
-* `wwwroot/index.html`
+* `Program.cs`
+  * Configura servicios ASP.NET Core.
+  * Registra `OsuApiService`, servicios de Discord, session/cookie y controllers.
+  * Sirve archivos estaticos/default files.
+  * Agrega headers de seguridad: `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`.
+  * Mapea `/terms` y `/privacy` a paginas HTML estaticas.
+  * Usa `PORT` si existe; si no, levanta `http://0.0.0.0:8080`.
 
-  * Interfaz principal.
-  * Contiene el selector de idiomas, selector de themes, formulario de busqueda, resultados, navegacion de rooms y contenedores principales.
-  * Contiene el contenedor `#auth-widget` para login OAuth con osu!.
-  * Contiene `#room-view` para las secciones internas tipo Friends, History, perfil extendido y Top Plays.
+* `osuforfellascomparison.csproj`
+  * Target: `.NET 8`.
+  * `UserSecretsId`: `osuforfellascomparison-local-oauth`.
+  * Paquetes: `BouncyCastle.Cryptography`, `Microsoft.AspNetCore.OpenApi`.
 
-* `wwwroot/styles.css`
+* `appsettings.json`
+  * Contiene placeholders vacios para osu!, Discord, URL publica y Chromium.
+  * No debe contener secrets reales.
 
-  * Hoja de estilos principal.
-  * Contiene el diseno cyberpunk actual.
-  * Contiene variables CSS semanticas para themes.
-  * Contiene overrides del theme Heaven.
-  * Contiene estilos de comparativas, Top Play, Focus Mode, rooms, perfil extendido, Top Plays ampliados, Friends/History y responsive.
+* `appsettings.Development.json`
+  * Solo logging. No contiene secrets.
 
-* `wwwroot/script.js`
+* `Dockerfile`
+  * Publica la app .NET.
+  * Instala Chromium, fonts y emoji fonts en runtime.
+  * Define `CHROMIUM_PATH=/usr/bin/chromium`.
 
-  * Logica frontend.
-  * Sistema de idiomas.
-  * UI de login/logout OAuth.
-  * Comparacion de jugadores.
-  * Renderizado de resultados.
-  * Focus Mode.
-  * Top Play.
-  * Rooms internas por hash route.
-  * Friends Room.
-  * History Room.
-  * Perfil extendido de jugador.
-  * Sala de Top Plays.
-  * Resumen comparativo entre jugadores.
-  * Indicador osu!lazer / osu!stable dentro de Focus Mode.
-  * Tooltips para mostrar nombres completos de mods al pasar el mouse.
+* `Properties/launchSettings.json`
+  * Perfil local de Visual Studio usa `http://localhost:5188` y `https://localhost:7044`.
+  * Ojo: esto no es lo mismo que el fallback de `Program.cs` en `8080`.
 
-* `wwwroot/theme-manager.js`
+* `README.md`
+  * Documento publico del proyecto, con changelog hasta Discord/Recent/Choke.
 
-  * Sistema de themes.
-  * Aplica el theme mediante `document.documentElement.dataset.theme`.
-  * Guarda el theme seleccionado en `localStorage` usando la key `theme`.
-  * Rellena el selector `#theme-select`.
+* `osuforfellascomparison.http`
+  * Archivo helper de Visual Studio. Actualmente apunta a `/weatherforecast/`, que no representa los endpoints reales.
+
+* `.github`
+  * Existe, pero no contiene archivos relevantes en el workspace actual.
+
+* `.agents`
+  * Existe, pero no contiene archivos relevantes en el workspace actual.
+
+* `Backup/osuforfellascomparison.slnx`
+  * Copia de solucion. No forma parte del flujo activo.
+
+* `bin`, `obj`, `.vs`, `UpgradeLog.htm`
+  * Generados/locales. No usarlos como fuente de verdad.
 
 ### Backend
 
 * `Features/Osu/OsuController.cs`
+  * Endpoint base: `/api/osu`.
+  * `GET /api/osu/{mode}/{username}`.
+  * `GET /api/osu/{mode}/{username}/best?limit=...`.
+  * `GET /api/osu/{mode}/{username}/recent?limit=...`.
+  * Modos validos: `osu`, `taiko`, `fruits`, `mania`.
+  * Username maximo: 100 caracteres.
 
-  * Comunicacion con la API de osu!.
-  * Endpoint principal: `/api/osu`.
-  * Para Top Plays usa el header `x-api-version: 20220705`.
-  * Ese header es necesario para recibir el Score object moderno y leer `legacy_score_id`.
-  * Mantiene el flujo publico/client credentials para busqueda manual, Top Play y Top Plays ampliados.
-  * Endpoint de best plays acepta `limit` por query y lo limita internamente entre 1 y 20.
-  * La logica compartida de API de osu! vive en `Features/Osu/OsuApiService.cs`.
+* `Features/Osu/OsuApiService.cs`
+  * Usa OAuth client credentials con scope `public`.
+  * Cachea token publico con lock.
+  * Resuelve usuario antes de pedir scores.
+  * Best plays: `/api/v2/users/{id}/scores/best`, `include_fails=0`, limit clamp 1..20.
+  * Recent plays con limit: clamp 1..20, `include_fails=1`.
+  * Recent plays sin limit: pagina de 20 en 20 hasta 50 paginas o hasta que osu! devuelva menos de 20.
+  * Scores usan header `x-api-version: 20220705` para recibir score object moderno y `legacy_score_id`.
 
 * `Controllers/AuthController.cs`
-
   * Maneja OAuth Authorization Code Flow con osu!.
-  * Rutas principales:
-
+  * Rutas:
     * `GET /auth/osu/login`
     * `GET /auth/osu/callback`
     * `POST /auth/logout`
     * `GET /auth/logout`
     * `GET /api/me`
     * `GET /api/me/friends`
-
-  * No debe exponer `access_token` ni `refresh_token` al frontend.
-  * Guarda la sesion del usuario en backend mediante session/cookie.
-  * Fase actual: login con lista de amigos, favoritos locales y seleccion de amigos para comparacion.
+  * Scopes: `identify public friends.read`.
+  * Usa `state` en session y comparacion fixed-time.
+  * Guarda access token, refresh token, expiry y user JSON en session backend.
+  * Refresca access token si expira.
+  * `/api/me` no expone tokens al frontend.
+  * `/api/me/friends` requiere sesion y llama `https://osu.ppy.sh/api/v2/friends`.
 
 * `Features/Discord/DiscordController.cs`
-
-  * Endpoint principal para Discord Interactions: `POST /discord/interactions`.
-  * Verifica firmas Ed25519 de Discord mediante `Discord__PublicKey`.
+  * Endpoint health: `GET /discord/health`.
+  * Endpoint Interactions: `POST /discord/interactions`.
+  * Verifica firmas Ed25519 antes de procesar.
   * Responde `PING` con `PONG`.
-  * Comandos actuales: `/osu-profile` y `/osu-compare`.
+  * Comandos actuales:
+    * `/osu-profile`
+    * `/osu-compare`
+  * Maneja componentes de Discord para refresh, select menu, cambio de vista y paginacion.
 
 * `Features/Discord/DiscordCommandRegistrationService.cs`
-
-  * Registra slash commands al iniciar la app si existen `Discord__ApplicationId` y `Discord__BotToken`.
-  * Registra `/osu-profile username mode`.
-  * Registra `/osu-compare player1 player2 player3 player4 mode theme`.
+  * Registra comandos globales al iniciar si existen `Discord:ApplicationId` y `Discord:BotToken`.
+  * `/osu-profile`: `username`, `mode`.
+  * `/osu-compare`: `player1`, `player2`, `player3`, `player4`, `mode`, `theme`, `language`.
+  * Usa `integration_types` y `contexts`, asi que soporta instalacion en servidor/usuario segun configuracion de Discord.
 
 * `Features/Discord/DiscordCompareImageService.cs`
-
-  * Genera la URL interna `share=compare`, pide la captura PNG y actualiza la respuesta original de Discord.
-  * Usa deferred response para no pasar el limite de tiempo de Discord.
+  * Genera imagenes PNG para Discord usando share mode y Chromium.
+  * Mantiene estado temporal en memoria por 6 horas.
+  * Vista compare: imagen de comparacion visual.
+  * Vistas room: `profile`, `top`, `recent`.
+  * Top/Recent en Discord usan paginas de 4 items.
+  * Componentes actuales:
+    * Open visual compare / Open in website.
+    * Refresh image.
+    * Select menu por jugador: Profile, Top Plays, Recent Plays.
+    * Botones Profile, Top Plays, Recent.
+    * Prev, Next, Refresh para Top/Recent.
+  * Intenta captura publica en produccion y fallback local cuando aplica.
 
 * `Features/Discord/ChromiumScreenshotService.cs`
-
-  * Abre Chromium headless con Chrome DevTools Protocol.
+  * Controla Chromium headless via Chrome DevTools Protocol.
+  * Solo permite capturar URLs loopback o dentro de `App:PublicBaseUrl`/URL publica configurada.
   * Espera `window.__osuShareReady === true`.
-  * Captura PNG 1280x720 para Discord.
+  * Captura PNG 1280x720.
+  * Limpia proceso y perfil temporal.
 
 * `Features/Discord/DiscordSignatureVerifier.cs`
+  * Verifica `X-Signature-Ed25519` y `X-Signature-Timestamp`.
+  * Tolerancia de timestamp: 5 minutos.
+  * Usa `Discord:PublicKey`.
 
-  * Verifica headers `X-Signature-Ed25519` y `X-Signature-Timestamp`.
-  * Usa `BouncyCastle.Cryptography` para Ed25519.
+### Frontend
 
-### Prototipos
+* `wwwroot/index.html`
+  * HTML principal.
+  * Contiene landing, resultados, room view, focus overlay, controles de idioma/theme/audio/auth.
+  * Carga scripts en este orden: `sound-system.js`, `animation-system.js`, `theme-manager.js`, `script.js`.
 
-* `prototypes/heaven-theme-prototype.html`
+* `wwwroot/script.js`
+  * Logica principal del frontend.
+  * Traducciones ES/EN/DE.
+  * Rutas hash.
+  * Comparacion manual.
+  * Focus Mode.
+  * Rooms.
+  * OAuth UI.
+  * Friends/History.
+  * Top Plays/Recent Plays.
+  * Choke Detector.
+  * Style tags.
+  * Share mode.
+  * Integracion con `window.UISounds` y `window.AppAnimations`.
 
-  * Prototipo aislado para experimentar con fondo Heaven.
-  * No es parte del flujo principal de produccion.
+* `wwwroot/styles.css`
+  * CSS principal.
+  * Cyberpunk base, Heaven overrides, responsive, Focus Mode, rooms, Discord share layouts, Duel Mode, sonidos, tooltips, legal-adjacent UI.
+  * Incluye `@media` para resoluciones/anchos bajos y `prefers-reduced-motion`.
 
----
+* `wwwroot/theme-manager.js`
+  * Registra themes actuales: `cyberpunk`, `heaven`.
+  * Guarda theme en `localStorage` key `theme`.
+  * Aplica `document.documentElement.dataset.theme`.
 
-## Idiomas
+* `wwwroot/animation-system.js`
+  * Carga GSAP desde CDN: `https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js`.
+  * Expone `window.AppAnimations`.
+  * Desactiva animaciones GSAP en share mode y con `prefers-reduced-motion`.
+  * Animaciones actuales: Duel Mode, Focus Mode, shell/contents de rooms.
+  * Agrega clases `gsap-ready` o `gsap-fallback`.
 
-El proyecto soporta:
+* `wwwroot/sound-system.js`
+  * Sistema de sonidos UI.
+  * Expone `window.UISounds`.
+  * Carga `/sounds/ui/manifest.json`.
+  * Guarda mute/volumen en `localStorage`.
+  * Sonidos validos: `click`, `back`, `success`, `error`, `duel`, `profile`, `comparison-1`, `comparison-2`, `comparison-3`, `comparison-4`.
+  * Desactiva sonidos en share mode.
+  * Tiene fallback sintetico si falta un asset.
 
-* Espanol
-* Ingles
-* Aleman
+* `wwwroot/sounds/ui`
+  * Assets `.wav` actuales:
+    * `main-click.wav`
+    * `back.wav`
+    * `api-error.wav`
+    * `duel-glitch.wav`
+    * `full-profile.wav`
+    * `comparison-1.wav`
+    * `comparison-2.wav`
+    * `comparison-3.wav`
+    * `comparison-4.wav`
+  * `manifest.json` deja `success` vacio, por lo que usa fallback sintetico.
 
-### Regla Obligatoria
-
-Toda nueva funcionalidad visible para el usuario debe implementarse en los tres idiomas.
-
-No dejar textos visibles hardcodeados.
-
-Utilizar siempre el sistema de traducciones existente en `wwwroot/script.js`.
-
-Traducciones ya incluidas para features recientes:
-
-* Selector de theme: `Tema`, `Theme`, `Thema`.
-* OAuth/login:
-
-  * `Iniciar sesion con osu!`
-  * `Cerrar sesion`
-  * `Conectado como`
-  * `Error al iniciar sesion`
-  * `Sign in with osu!`
-  * `Log out`
-  * `Connected as`
-  * `Sign-in failed`
-  * `Mit osu! anmelden`
-  * `Abmelden`
-  * `Verbunden als`
-  * `Anmeldung fehlgeschlagen`
-
-* Indicador de cliente:
-
-  * `Jugado en Lazer`
-  * `Jugado en Stable`
-  * `Played on Lazer`
-  * `Played on Stable`
-  * `Gespielt auf Lazer`
-  * `Gespielt auf Stable`
-
-* Resumen comparativo:
-
-  * Ventaja PP / PP Lead / PP-Vorsprung.
-  * Mejor precision / Best Accuracy / Beste Genauigkeit.
-  * Partidas jugadas / Play Count / Spielanzahl.
-  * Mejor Top Play / Best Top Play / Bestes Top Play.
-  * La ventaja PP debe indicar el nombre real del segundo jugador, no un texto generico como "Top 2".
-
----
-
-## Diseno
-
-### Estilo General
-
-Mantener la estetica cyberpunk actual como base del proyecto.
-
-Caracteristicas principales:
-
-* Fondos oscuros.
-* Glows.
-* Acentos neon.
-* Diseno moderno.
-* Tarjetas visualmente atractivas.
-* Tipografia fuerte y estilo arcade/cyberpunk.
-
-### No hacer
-
-* No convertir la interfaz en una copia de la pagina oficial de osu!.
-* No eliminar glows ni elementos visuales importantes.
-* No simplificar excesivamente la interfaz.
-* No introducir textos visibles sin traduccion.
-* No romper la comparacion de hasta 4 jugadores.
+* `wwwroot/terms.html`, `wwwroot/privacy.html`, `wwwroot/legal.css`
+  * Paginas legales para Discord verification/links publicos.
+  * Contenido en ES/EN/DE.
+  * Servidas tambien por `/terms` y `/privacy`.
 
 ---
 
 ## Funcionalidades Implementadas
 
-### Navegacion por Rooms
+### Idiomas
 
-Implementado sistema de secciones internas usando hash routes.
+* ES, EN y DE en `LANGS` dentro de `wwwroot/script.js`.
+* Toda feature visible nueva debe agregar textos en los tres idiomas.
+* Evitar textos visibles hardcodeados fuera de `LANGS`, salvo nombres oficiales de mods o textos de marca.
+
+### Themes
+
+* Themes activos: `cyberpunk`, `heaven`.
+* Cyberpunk es la referencia visual principal.
+* Heaven existe como theme funcional con overrides amplios, pero puede requerir optimizacion visual/rendimiento en el futuro.
+* El theme se conserva en `localStorage`.
+* Share mode acepta `theme`.
+
+### Comparacion Manual
+
+* Soporta 1 a 4 jugadores.
+* Modos soportados: `osu`, `taiko`, `fruits`, `mania`.
+* Inputs `p1` a `p4`.
+* Resultados en `#/results`.
+* Se ordena visualmente por PP.
+* Multi-player muestra banner de lider.
+* Auto-refresh de comparacion cada 60 segundos cuando no esta en share mode.
+* Error global para usuarios invalidos o busquedas mixtas.
+* Si el link trae `player`/`players`, `mode`, `theme` o `lang`, puede hidratar la comparacion desde URL.
+* Al volver al landing desde un link con parametros, `cleanCompareUrlIfNeeded()` limpia query params normales.
+
+### Resumen Comparativo
+
+* `compare-summary` aparece con 2 o mas jugadores.
+* Muestra:
+  * Ventaja PP del lider contra el segundo.
+  * Mejor precision.
+  * Mayor play count.
+  * Mejor Top Play.
+* Si el jugador destacado es `manu is washed`, conserva `creator-name` solo en el nombre principal.
+
+### Comparison Breakdown
+
+* `compare-breakdown` aparece con 2 o mas jugadores.
+* Actualmente compara:
+  * PP total.
+  * Accuracy.
+  * Play count.
+  * Play time.
+  * Global rank.
+  * Top Play.
+* Muestra rankings por metrica, barras, delta contra lider y labels de gap: parejo, ventaja clara, gap grande.
+* En Duel Mode se oculta para no duplicar ruido visual.
+
+### Style Tags
+
+* Tags por jugador en comparaciones multi-player.
+* Tags actuales:
+  * `ppLeader`
+  * `accuracyDemon`
+  * `grinder`
+  * `topPlayCarry`
+  * `underdog`
+  * `balanced`
+* Maximo 3 tags por jugador.
+* Tienen tooltip flotante con explicacion ES/EN/DE.
+* No se muestran en single player.
+
+### Direct Duel / 1v1
+
+* Disponible solo cuando hay exactamente 2 jugadores validos y no es share mode.
+* Se activa con boton en resultados; no reemplaza por defecto la comparacion tradicional.
+* Es overlay/focus propio, con cierre, Escape, botones de idioma/theme internos y animaciones/glitch.
+* Usa fotos de ambos jugadores.
+* Score por rounds calculado con metricas comparativas.
+* Categorias:
+  * General.
+  * Pico de skill.
+  * Consistencia.
+  * Actividad general.
+* Metricas del duelo:
+  * PP total.
+  * Accuracy.
+  * Play count.
+  * Play time.
+  * Global rank.
+  * Top Play.
+  * Top 5 PP.
+  * Total score.
+  * Total hits.
+  * Max combo.
+  * Replays vistos por otros.
+* Cada metrica tiene tolerancia de empate (`tieAbs`/`tieRatio`) para evitar puntos por diferencias pequenas.
+* Incluye lectura por estilo y Top 5 plays por lado.
+
+### Cards De Jugador
+
+* Avatar, bandera, nombre, titulo, actividad, PP, barra PP, style tags, Top Play compacto, stats y ranks.
+* Actividad usa `last_visit`:
+  * Activo ahora si <= 15 min.
+  * Minutos, horas, dias o meses para el resto.
+* Click en la card abre Focus Mode.
+* Boton de focus tambien abre Focus Mode.
+
+### Top Play Compacto Y Full
+
+* Top Play compacto en cards.
+* Top Play full en single player, perfil extendido y Focus Mode.
+* Muestra cover, mapa, artista, dificultad, estrellas, mods, PP, accuracy, combo, rank, misses, fecha y links.
+* Replay download aparece si `replay` o `has_replay` es true y hay `score.id`.
+
+### Focus Mode
+
+* Modal/overlay central al seleccionar un jugador.
+* Muestra avatar, bandera, titulo, actividad, PP, ranks, Peak Rank, tendencia 90 dias, Top Play y stats extendidos.
+* Stats extendidos actuales:
+  * Accuracy.
+  * Play count.
+  * Play time.
+  * Total score.
+  * Max combo.
+  * Total hits.
+  * Replays vistos por otros.
+* Boton "Ver perfil completo" navega a `#/player/:username`.
+* Cierra con Escape, boton o click fuera.
+* Usa GSAP si esta disponible.
+
+### Peak Rank Y 90 Day Rank Trend
+
+* Peak Rank usa `user.rank_highest?.rank`.
+* Trend usa `user.rank_history.data`.
+* Diferencia positiva significa mejora de rank.
+* Si la diferencia absoluta es menor a 50, se considera estable.
+* Solo se muestra si la API trae datos suficientes.
+
+### Stable/Lazer Indicator
+
+* Se basa exclusivamente en `legacy_score_id`.
+* `legacy_score_id != null` => osu!stable.
+* `legacy_score_id == null` => osu!lazer.
+* Backend usa `x-api-version: 20220705` para score objects modernos.
+* Se muestra en Focus Mode y en listas Top/Recent, no como metrica global de usuario.
+
+### Rooms
 
 Rutas actuales:
 
@@ -214,590 +363,333 @@ Rutas actuales:
 * `#/top-plays/:username`
 * `#/recent/:username`
 
-Detalles:
-
-* `#/compare` es el landing/formulario principal.
-* `#/results` muestra la comparacion activa.
-* `#/friends` muestra una vista amplia de amigos.
-* `#/history` muestra historial de comparaciones y jugadores recientes.
-* `#/player/:username` muestra perfil extendido del jugador.
-* `#/top-plays/:username` muestra las mejores jugadas del jugador.
-* `#/recent/:username` esta preparado como habitacion futura, pero aun no tiene feature completa.
-* `roomBack()` debe volver de forma contextual:
-
-  * Desde perfil extendido con comparacion activa: volver a `#/results`.
-  * Desde Top Plays: volver al perfil extendido del jugador.
-  * Si no hay comparacion activa: volver a `#/compare`.
-
-* `Escape` debe cerrar Focus Mode si esta abierto.
-* `Escape` desde perfil extendido debe volver a resultados si hay comparacion activa.
-* `Escape` desde Top Plays debe volver al perfil.
-* No mostrar textos temporales tipo "room ready" en produccion.
-
-### Comparacion de jugadores
-
-* Soporta hasta 4 jugadores.
-* Comparacion visual lado a lado.
-* Ranking visual por PP.
-* Banner de lider.
-* Resumen comparativo superior (`compare-summary`) cuando hay 2 o mas jugadores.
-
-El resumen comparativo muestra:
-
-* Ventaja PP del lider contra el segundo jugador.
-* Mejor precision.
-* Mayor play count.
-* Mejor Top Play por PP.
-
-Regla visual del resumen comparativo:
-
-* Si el jugador destacado es `manu is washed`, solo el nombre principal de la metrica debe usar el rojo especial `creator-name`.
-* La linea secundaria, por ejemplo `contra manu is washed` o `vs manu is washed`, debe quedarse como informacion secundaria gris.
-
-### Friends Room
-
-Disponible en `#/friends`.
-
-Objetivo:
-
-* Dar mas espacio a la gestion de amigos sin cargar el landing.
-* Mantener el panel compacto del landing fuera de la pantalla principal.
-
-Incluye:
-
-* Resumen de amigos totales, favoritos y seleccionados.
-* Buscador.
-* Filtro Friends/Favorites con iconos.
-* Lista amplia responsive.
-* Fila de seleccionados.
-* Boton para comparar seleccionados reutilizando `doSearch()`.
-
 Reglas:
 
-* No hacer llamadas extra innecesarias a la API.
-* Usar los datos ya cargados en memoria cuando sea posible.
-* Mantener compatibilidad Cyberpunk y Heaven.
-
-### History Room
-
-Disponible en `#/history`.
-
-Incluye:
-
-* Comparaciones recientes.
-* Comparaciones favoritas.
-* Jugadores recientes.
-* Buscador.
-* Filtros con iconos.
-* Acciones para repetir comparacion o recuperar jugadores.
-
-Persistencia local:
-
-* `osu_recent_comparisons_<userId|guest>`
-* `osu_favorite_comparisons_<userId|guest>`
-
-Reglas:
-
-* El historial debe separarse por usuario logueado.
-* Si no hay usuario, usar contexto `guest`.
-* No reemplazar el flujo de busqueda manual.
-
-### Perfil extendido
-
-Disponible en `#/player/:username`.
-
-Se puede abrir desde Focus Mode mediante el boton de perfil completo.
-
-Incluye:
-
-* Avatar grande.
-* Username, bandera y titulo.
-* PP.
-* Rank global, rank de pais y nivel.
-* Peak rank y tendencia cuando la API lo ofrece.
-* Stats principales.
-* Top Play principal.
-* Acciones:
-
-  * Ver Top Plays.
-  * Ver Recent Plays.
-  * Abrir perfil en osu!.
-
-Reglas UX:
-
-* No mostrar el username gigante duplicado en la cabecera.
-* No incluir boton "Compare player" dentro del perfil extendido.
-* Debe poder volver a la comparacion activa sin obligar al usuario a rehacer la busqueda.
-
-### OAuth osu!
-
-Implementado login con osu! y lectura de amigos.
-
-Flujo actual:
-
-* Boton `Iniciar sesion con osu!` en la UI.
-* Redireccion a osu! OAuth.
-* Callback en backend.
-* Sesion guardada del lado servidor.
-* Endpoint `/api/me` para consultar si hay usuario logueado.
-* Endpoint `/api/me/friends` para consultar amigos del usuario logueado.
-* Mini-card del usuario logueado en landing y resultados.
-* Logout.
-
-Scopes actuales:
-
-* `identify`
-* `public`
-* `friends.read`
-
-No implementar integraciones sociales adicionales sin pedirlo explicitamente.
-
-Reglas de seguridad:
-
-* No exponer tokens al frontend.
-* No guardar secrets en archivos versionados.
-* Local debe usar .NET User Secrets.
-* Render/produccion debe usar Environment Variables.
-* `appsettings.json` debe quedarse con placeholders vacios.
-* `appsettings.Development.json` no debe contener ClientSecret.
-
-Configuracion usada por OAuth:
-
-* `OsuApi:ClientId`
-* `OsuApi:ClientSecret`
-* `OsuApi:RedirectUri`
-* `Discord:ApplicationId`
-* `Discord:PublicKey`
-* `Discord:BotToken`
-* `App:PublicBaseUrl`
-* `Screenshot:ChromiumPath`
-
-En Render usar formato de variables:
-
-* `OsuApi__ClientId`
-* `OsuApi__ClientSecret`
-* `OsuApi__RedirectUri`
-* `Discord__ApplicationId`
-* `Discord__PublicKey`
-* `Discord__BotToken`
-* `App__PublicBaseUrl`
-* `Screenshot__ChromiumPath` si se necesita sobreescribir la ruta de Chromium
-
-Local User Secrets:
-
-* El proyecto tiene `UserSecretsId` en `osuforfellascomparison.csproj`.
-* Ruta Windows esperada:
-
-  * `C:\Users\darly\AppData\Roaming\Microsoft\UserSecrets\osuforfellascomparison-local-oauth\secrets.json`
-
-Callback local esperado:
-
-* `http://localhost:8080/auth/osu/callback`
-
-Callback produccion esperado:
-
-* `https://osu-comparison-api.onrender.com/auth/osu/callback`
-
-Si osu! solo permite un callback por OAuth App, usar apps separadas para local y produccion.
-
-UI login:
-
-* `#auth-widget` vive cerca del selector de theme.
-* Debe funcionar en landing y results.
-* Debe ocultarse/mostrarse junto con los controles superiores al hacer scroll.
-* Debe verse coherente en Cyberpunk y Heaven.
-* Si el usuario logueado es `manu is washed`, usar `creator-name` y tag `PAGE CREATOR`.
-* Para otros usuarios, usar tag normal via `getUserTitle(pp)`.
-
-### Discord Bot
-
-Implementado MVP del bot de Discord dentro del mismo proyecto ASP.NET.
-
-Backend:
-
-* Endpoint de health:
-
-  * `GET /discord/health`
-
-* Endpoint de Interactions:
-
-  * `POST /discord/interactions`
-
-* Verifica firmas de Discord con Ed25519 usando `Discord:PublicKey`.
-* Registra slash commands globales al iniciar la app cuando existen `Discord:ApplicationId` y `Discord:BotToken`.
-* El bot usa Interactions HTTP, no Gateway; por eso puede verse offline en Discord aunque los comandos funcionen.
-
-Comandos actuales:
-
-* `/osu-profile`
-
-  * Muestra snapshot del perfil osu! como embed.
-  * Incluye avatar, PP, ranks, accuracy, play count, top play resumida y links.
-
-* `/osu-compare`
-
-  * Genera una imagen PNG de comparacion visual al estilo de la pagina.
-  * Acepta `player1`, `player2`, `player3`, `player4`, `mode` y `theme`.
-  * Responde primero con deferred response para no pasar el limite de tiempo de Discord.
-  * Despues edita la respuesta original con la imagen adjunta y un boton para abrir la comparacion visual.
-
-Captura visual:
-
-* La pagina normal soporta modo oculto de render:
-
-  * `/?share=compare&mode=osu&theme=cyberpunk&lang=es&player=user1&player=user2`
-
-* Este modo reutiliza `wwwroot/script.js` y `wwwroot/styles.css`, carga la comparacion y marca `window.__osuShareReady = true`.
-* `ChromiumScreenshotService` abre esa URL localmente con Chromium headless y captura una imagen 1280x720.
-* Render/Docker instala Chromium en la imagen final y usa `CHROMIUM_PATH=/usr/bin/chromium`.
-
-Reglas:
-
-* No guardar token, public key ni application secret en archivos versionados.
-* `appsettings.json` debe conservar placeholders vacios.
-* Si se cambia el diseno de cards principales, revisar el modo `share=compare` porque Discord depende de esa captura.
-
-### Amigos osu!
-
-Implementado con OAuth y scope `friends.read`.
-
-Backend:
-
-* Endpoint: `GET /api/me/friends`.
-* Devuelve 401 si no hay usuario logueado.
-* No expone tokens al frontend.
-
-Frontend:
-
-* La lista de amigos se carga solo si hay sesion.
-* Muestra avatar, username y pais cuando esta disponible.
-* Tiene loading, error y empty states traducidos.
-* Tiene buscador de amigos.
-* Tiene filtros compactos con iconos:
-
-  * Friends / Amigos / Freunde.
-  * Favorites / Favoritos / Favoriten.
-
-* Los favoritos se guardan en `localStorage` por usuario logueado, usando el id de osu! del usuario para separar cuentas.
-* Cada card tiene estrella:
-
-  * Gris = no favorito.
-  * Dorada = favorito.
-
-* Click en la estrella solo marca/desmarca favorito.
-* Click en la card selecciona o deselecciona amigo para comparacion.
-* Maximo 4 amigos seleccionados.
-* Si al menos un input fue rellenado desde amigos, el boton principal cambia a:
-
-  * `Comparar amigos`
-  * `Compare friends`
-  * `Freunde vergleichen`
-
-* No crear un flujo nuevo para comparar amigos; reutilizar siempre `doSearch()`.
-
-### Top Play
-
-Incluye:
-
-* Cover del beatmap.
-* PP obtenidos.
-* Mods.
-* Accuracy.
-* Combo.
-* Rank.
-* Misses.
-* Fecha.
-* Enlace al beatmap.
-* Descarga de replay cuando este disponible.
-* Mods con tooltip de nombre completo al pasar el mouse.
-
-### Top Plays ampliados
-
-Disponible en `#/top-plays/:username`.
-
-Estado actual:
-
-* La UI muestra 10 Top Plays por jugador.
-* El sistema queda preparado para subir a 10 o mas en el futuro.
+* `roomBack()` vuelve contextual:
+  * Desde profile con comparacion activa: `#/results`.
+  * Desde Top Plays/Recent: perfil del jugador.
+  * Sin comparacion activa: `#/compare`.
+* Escape:
+  * Cierra Duel Mode si esta activo.
+  * Cierra Focus Mode si esta activo.
+  * Desde profile con comparacion activa vuelve a results.
+  * Desde Top/Recent vuelve a profile.
+
+### Player Profile Room
+
+* Ruta: `#/player/:username`.
+* Carga usuario + top play.
+* Cache: `playerProfileCache`.
+* Muestra:
+  * Hero con avatar/flag/nombre/titulo/actividad/PP/ranks.
+  * Peak Rank y tendencia si existen.
+  * Accuracy, play count, play time, total score, max combo, total hits, replays vistos.
+  * Top Play full.
+  * Acciones: Top Plays, Recent Plays, perfil en osu!.
+* Sonido de carga: `profile`.
+
+### Top Plays Room
+
+* Ruta: `#/top-plays/:username`.
 * `DEFAULT_TOP_PLAYS_LIMIT = 10`.
 * `MAX_TOP_PLAYS_LIMIT = 20`.
-* El backend acepta `?limit=` y limita el valor entre 1 y 20.
+* Backend clampa 1..20.
+* Carga usuario + best scores.
+* Cache: `topPlaysCache`.
+* Muestra header, refresh, resumen, PP promedio, accuracy promedio, mod mas usado y lista.
+* Lista incluye position, cover, map, artist, mods, choke chip, stars, diff, client, accuracy, rank, misses, date, PP, beatmap link y replay link si aplica.
+* Auto-refresh de score rooms cada 90 segundos.
+* Share room pagina Top Plays en bloques de 3-4 segun config de share.
 
-La sala muestra:
+### Recent Plays Room
 
-* Header compacto del jugador.
-* Top Plays cargadas.
-* PP promedio.
-* Accuracy promedio.
-* Mod mas usado.
-* Lista de plays con:
-
-  * Posicion.
-  * Cover.
-  * Titulo/artista/dificultad.
-  * Stars.
-  * Mods.
-  * PP.
-  * Accuracy.
-  * Rank.
-  * Misses.
-  * Fecha.
-  * Cliente osu!lazer/osu!stable.
-  * Link al beatmap.
-  * Link de replay si esta disponible.
-
-Importante:
-
-* Si solo aparece 1/5, revisar que el backend local este actualizado y reiniciado.
-* Si aun asi sigue 1/5, puede ser que la API solo este devolviendo una score para ese usuario/modo.
-* No asumir que siempre habra 5 scores.
-
-### Tooltips de Mods
-
-Implementado.
-
-Funcionamiento:
-
-* Los chips de mods conservan su apariencia actual.
-* Al pasar el mouse por encima aparece el nombre completo del mod.
-* No usa imagenes externas.
-* Usa `data-mod-name` y CSS con `::after` / `::before`.
-* Incluye variante visual para Heaven.
-
-Ejemplos:
-
-* `HD` => `Hidden`.
-* `HR` => `Hard Rock`.
-* `DT` => `Double Time`.
-* `NC` => `Nightcore`.
-* `FL` => `Flashlight`.
-* `NM` => `No Mod`.
-
-Los nombres de mods son nombres oficiales de osu!, por eso se mantienen en ingles.
+* Ruta: `#/recent/:username`.
+* Implementada de verdad.
+* Frontend llama `fetchRecentPlays(username, mode)` sin limit por defecto.
+* Backend pagina todos los scores recientes disponibles segun osu! API, con `include_fails=1`, hasta 50 paginas de 20.
+* Cache: `recentPlaysCache`.
+* Muestra header, refresh, resumen, ultima jugada, accuracy promedio, mod mas usado y lista igual a Top Plays.
+* Si osu! no devuelve jugadas recientes, muestra empty state.
+* Auto-refresh de score rooms cada 90 segundos.
+* Share room pagina Recent en bloques de 3-4 segun config de share.
 
 ### Choke Detector
 
-Implementado en las listas de Top Plays y Recent Plays.
+* Implementado en listas Top Plays y Recent Plays.
+* Chips:
+  * `1 miss choke`.
+  * High acc choke.
+  * Combo drop.
+* Usa accuracy, misses, combo del score y max combo del beatmap.
+* No muestra chip si no hay senal clara.
+* Incluye tooltip con accuracy, misses y combo.
 
-Objetivo:
+### Mod Tooltips
 
-* Marcar jugadas con senales simples de posible choke sin convertir la UI en una calculadora compleja.
-* Mantenerlo facil de leer mediante chips visuales.
+* Chips de mods usan `data-mod-name`.
+* Tooltips CSS para nombres completos.
+* Nombres de mods se mantienen en ingles por ser nombres oficiales de osu!.
 
-Chips actuales:
+### OAuth osu!
 
-* `1 miss choke`
-* `Choke de alta acc` / `High acc choke` / `High-Acc-Choke`
-* `Combo drop` / `Combo-Drop`
+* Login con osu! funcionando via backend.
+* Tokens nunca deben exponerse al frontend.
+* `#auth-widget` muestra login o mini-card de usuario.
+* Logout disponible por POST/GET.
+* Sesion backend con cookie `.OsuForFellas.Session`.
+* Cookie HttpOnly, SameSite Lax, Secure Always fuera de Development, 7 dias idle.
+* User Secrets locales requeridos para `OsuApi:ClientId`, `OsuApi:ClientSecret`, `OsuApi:RedirectUri`.
 
-Reglas base:
+### Friends
 
-* 1 miss con accuracy alta marca `1 miss choke`.
-* Misses bajos con accuracy muy alta marca choke de alta acc.
-* Combo bajo contra el max combo del beatmap, con accuracy decente y pocos misses o rank alto, marca combo drop.
+* Requiere login y scope `friends.read`.
+* Endpoint: `/api/me/friends`.
+* Friends panel compacto y Friends Room amplia.
+* Busqueda por username/country.
+* Filtro friends/favorites.
+* Favoritos por usuario en `localStorage`: `osu_friend_favorites_<userId>`.
+* Seleccion de hasta 4 amigos para comparacion reutilizando `doSearch()`.
+* Si inputs vienen de friends, boton principal cambia a "compare friends" traducido.
 
-Reglas UX:
+### History
 
-* No mostrar ningun chip si no hay una senal clara.
-* Mostrar una explicacion corta en tooltip con accuracy, misses y combo.
-* Mantener estilos compatibles con Cyberpunk y Heaven.
-* No tocar Focus Mode para esta feature salvo que se pida explicitamente.
+* History panel y History Room.
+* Guarda comparaciones recientes y favoritas por usuario logueado o `guest`.
+* Keys:
+  * `osu_recent_comparisons_<userId|guest>`.
+  * `osu_favorite_comparisons_<userId|guest>`.
+* Limite de recientes: 20.
+* Permite buscar, marcar favorito, rellenar comparacion, repetir comparacion y recuperar jugadores recientes.
 
-### Focus Mode
+### Discord Bot
 
-* Disponible al seleccionar una tarjeta de jugador.
-* Muestra informacion ampliada.
-* Es una funcionalidad central del proyecto.
-* No modificar su comportamiento sin necesidad.
+* Bot vive dentro del mismo proyecto ASP.NET.
+* Usa Interactions HTTP, no Gateway; puede verse offline aunque funcione.
+* Health: `/discord/health`.
+* Interactions: `/discord/interactions`.
+* `/osu-profile`:
+  * Embed con avatar, PP, global/country rank, accuracy, play count, top play resumida y links.
+* `/osu-compare`:
+  * Deferred response.
+  * Genera PNG visual estilo pagina.
+  * Acepta 2 a 4 jugadores.
+  * Acepta mode, theme, language.
+  * Botones y select menu permiten abrir Profile, Top Plays, Recent Plays como imagenes.
+  * Top/Recent tienen Prev/Next/Refresh.
+* Estados de componentes viven en memoria, asi que reiniciar la app puede invalidar botones viejos.
+* No guardar token/public key/secrets en archivos versionados.
 
-Detalles actuales:
+### Share Mode
 
-* El indicador osu!lazer / osu!stable se muestra solamente en Focus Mode.
-* No se muestra en tarjetas compactas, comparacion principal ni vista normal de resultados.
-* La linea decorativa inferior del Focus Mode debe estar al final del contenido, no flotando sobre el Top Play. Esto evita deformaciones al usar zoom o scroll.
+* Compare:
+  * `/?share=compare&mode=osu&theme=cyberpunk&lang=es&player=user1&player=user2`
+* Room:
+  * `/?share=room&room=player&mode=osu&theme=cyberpunk&lang=es&player=user`
+  * `room=top-plays` y `room=recent` soportan `page` y `pageSize`.
+* Share mode:
+  * Agrega clases `share-mode`, `share-compare-mode` o `share-room-mode`.
+  * Oculta controles no necesarios.
+  * Desactiva sonidos y animaciones GSAP.
+  * Marca `window.__osuShareReady = true` cuando termina.
+* Discord depende de este modo para capturas; revisar share mode si se cambia layout importante.
 
-### Indicador osu!lazer / osu!stable
+### Legal Pages
 
-Implementado solo dentro de Focus Mode.
+* `/terms` y `/privacy` existen y apuntan a HTML estatico.
+* Footer del sitio enlaza Terms/Privacy de forma discreta.
+* Las paginas legales estan pensadas tambien para Discord Developer Portal.
 
-Fuente de datos:
+### Animaciones
 
-* Header requerido en backend: `x-api-version: 20220705`.
-* Campo usado en frontend: `legacy_score_id`.
+* CSS sigue manejando animaciones simples/transiciones/estados hover.
+* GSAP se usa para:
+  * Entrada/salida de Duel Mode.
+  * Entrada/salida de Focus Mode.
+  * Entrada de rooms y contenido cargado.
+  * Glitch/impactos del Duel Mode.
+* GSAP no debe usarse para cada hover pequeno.
+* Respetar `prefers-reduced-motion`.
+* Evitar animaciones que dejen estado inline roto al reabrir modales/rooms.
 
-Regla:
+### Sonidos
 
-* `legacy_score_id != null` => osu!stable.
-* `legacy_score_id == null` => osu!lazer.
+* Sistema implementado con `sound-system.js`.
+* Controles visibles: boton mute y slider volumen.
+* `localStorage`:
+  * `osu_ui_sounds_muted`.
+  * `osu_ui_sounds_volume`.
+* Eventos actuales:
+  * Click general.
+  * Back/cerrar/Escape.
+  * Error.
+  * Duel Mode.
+  * Profile loaded.
+  * Comparison loaded segun cantidad de jugadores.
+  * Success fallback para Top/Recent.
+* El sonido `success` personalizado no esta asignado en manifest; usa fallback sintetico.
 
-No inventar otras heuristicas para detectar el cliente.
+### Perfiles Especiales
 
-### Sistema de Themes
-
-Implementado.
-
-Funcionamiento actual:
-
-* El theme se aplica con `data-theme` en el elemento `html`.
-* El theme seleccionado se guarda en `localStorage`.
-* Al recargar la pagina se mantiene el theme elegido.
-* El selector de themes esta visible en Landing page y Pantalla de resultados.
-
-Themes registrados actualmente:
-
-* `cyberpunk`
-* `heaven`
-
-Notas:
-
-* Cyberpunk sigue siendo el theme base y referencia visual principal.
-* Heaven existe como theme en desarrollo/experimental y puede requerir optimizacion de rendimiento, especialmente en PCs modestos con graficos integrados.
-* Horror Rhythm sigue planificado para futuro.
-
-Al agregar themes futuros:
-
-* Registrar el theme en `wwwroot/theme-manager.js`.
-* Agregar variables/overrides usando `[data-theme="theme-id"]`.
-* Mantener los nombres visuales traducibles si aparecen en la UI.
-* No reestructurar el sistema de themes si no es necesario.
+* `manu is washed` tiene tratamiento especial:
+  * Nombre rojo (`creator-name`).
+  * Tag/titulo `PAGE CREATOR`.
+  * Avatar/frame con glow rojo.
+  * Aplica en cards, auth widget, resumen comparativo, profile/focus y otros lugares donde se renderiza via helpers.
 
 ---
 
-## Perfiles Especiales
+## Reglas De Desarrollo
 
-Existen personalizaciones visuales para determinados usuarios.
+### Seguridad
 
-Ejemplo:
+* Nunca commitear secrets reales.
+* `appsettings.json` debe quedarse con placeholders vacios.
+* `appsettings.Development.json` no debe contener secrets.
+* Local: usar `.NET User Secrets`.
+* Produccion/Render: usar environment variables con doble underscore:
+  * `OsuApi__ClientId`
+  * `OsuApi__ClientSecret`
+  * `OsuApi__RedirectUri`
+  * `Discord__ApplicationId`
+  * `Discord__PublicKey`
+  * `Discord__BotToken`
+  * `App__PublicBaseUrl`
+  * `Screenshot__ChromiumPath` si hace falta.
+* No exponer `access_token` ni `refresh_token` al frontend.
+* Mantener verificacion de firma Discord antes de procesar interactions.
+* Screenshot service no debe capturar URLs arbitrarias fuera de loopback o base publica permitida.
 
-* Manu Is Washed
+### UI/UX
 
-  * Nombre en rojo sangre.
-  * Tag `PAGE CREATOR` personalizado.
-  * Marco/avatar con glow rojo.
-  * El nombre tambien debe verse rojo cuando aparezca como jugador destacado en el resumen comparativo.
-  * Si inicia sesion por OAuth, la mini-card de login tambien debe usar el tratamiento creator.
+* Mantener identidad visual cyberpunk: oscuro, neon, glows, arcade, moderno.
+* No convertir la UI en copia de osu! oficial.
+* No simplificar de forma que pierda personalidad.
+* Evitar cards dentro de cards salvo componentes repetidos o modales.
+* No introducir textos visibles sin traduccion ES/EN/DE.
+* Cuidar resoluciones 1920x1080 con escala del sistema y 2560x1440.
+* Verificar que textos no se salgan de contenedores.
+* Focus Mode es central: no tocar su comportamiento salvo necesidad real.
+* Duel Mode es opcional: la comparacion tradicional debe seguir siendo default.
 
-Estas personalizaciones deben mantenerse.
+### Themes
+
+* Registrar nuevos themes en `wwwroot/theme-manager.js`.
+* Agregar CSS con `[data-theme="theme-id"]`.
+* Cyberpunk es baseline.
+* Heaven debe seguir funcionando cuando se cambien componentes.
+* Revisar share mode si el cambio afecta capturas Discord.
+
+### Idiomas
+
+* Toda nueva feature visible debe ir en `LANGS.es`, `LANGS.en`, `LANGS.de`.
+* Mantener placeholders consistentes (`{player}`, `{score}`, etc.).
+* Nombres oficiales de mods pueden quedarse en ingles.
+
+### API osu!
+
+* Mantener `x-api-version: 20220705` en endpoints de scores.
+* No inventar heuristicas para Stable/Lazer: usar solo `legacy_score_id`.
+* No asumir que todos los usuarios tienen top plays o recent plays.
+* `replays_watched_by_others` puede venir ausente; la UI debe soportar guion.
+* Recent Plays depende de lo que devuelva osu! en su ventana reciente.
+
+### Discord
+
+* Bot usa Interactions HTTP, no Gateway.
+* Despues de cambiar comandos, recordar que comandos globales pueden tardar en propagarse.
+* Los botones/selects usan `custom_id`; no duplicarlos dentro del mismo mensaje.
+* Si se cambia layout de rooms o cards, probar share mode porque Discord captura esa vista.
+* No romper `window.__osuShareReady`.
+
+### Animaciones Y Sonidos
+
+* GSAP para entradas/salidas complejas y secuencias grandes.
+* CSS para hover, transiciones pequenas y estados.
+* Respetar `prefers-reduced-motion`.
+* Share mode sin sonidos ni animaciones GSAP.
+* Si se cambia un overlay animado, probar abrir/cerrar varias veces en la misma comparacion.
+* Sonidos deben ser cortos y sin silencio inicial.
+
+### Git Y Archivos
+
+* No modificar `bin`, `obj`, `.vs`, `Backup` ni archivos generados.
+* No editar `AGENTS.md` por rutina: actualizarlo cuando el usuario lo pida o tras cambios grandes confirmados.
+* Antes de commit, revisar `git status` para no mezclar secrets ni basura local.
 
 ---
 
-## Rendimiento
+## Pendientes Reales / Por Verificar
 
-Tener cuidado con:
+Estos puntos salen de codigo actual, no de memoria vieja:
 
-* Fondos animados.
-* Filtros pesados.
-* Animaciones permanentes.
-* SVG filters complejos.
-* Multiples capas visuales en themes claros como Heaven.
-
-Heaven Theme puede sentirse mas lento que Cyberpunk en hardware modesto. Cualquier mejora futura debe priorizar:
-
-* Menos repaints.
-* Animaciones con `transform` y `opacity`.
-* Respeto a `prefers-reduced-motion`.
-* Evitar filtros SVG animados pesados en produccion si afectan FPS.
+* Tests automatizados: no se detecto proyecto de tests dedicado. Por verificar si se quiere agregar smoke tests/backend tests.
+* `osuforfellascomparison.http` sigue apuntando a `/weatherforecast/`, endpoint que no existe en la app actual. Es helper obsoleto.
+* Local dev tiene dos referencias de puerto:
+  * `Program.cs` fallback y Docker: `8080`.
+  * `launchSettings.json`: `5188`/`7044`.
+  * Al configurar OAuth local, confirmar cual puerto se esta usando realmente.
+* `wwwroot/sounds/ui/manifest.json` no tiene asset custom para `success`; usa fallback sintetico.
+* Horror Rhythm Theme no existe en codigo. Solo aparece como idea/futuro en README.
+* No existe `prototypes/heaven-theme-prototype.html` en el workspace actual, aunque versiones viejas de AGENTS lo mencionaban.
+* Las vistas de Discord dependen de estado en memoria; tras reinicio, componentes antiguos pueden no funcionar. Esto es comportamiento actual, no persistencia.
+* Cualquier texto con acentos visto raro en consola puede ser tema de encoding de PowerShell; verificar en navegador/editor antes de corregir.
 
 ---
 
-## Migracion a PC Nueva
+## Como Continuar Sin Perder Contexto
 
-Contexto:
+1. Leer este `AGENTS.md`.
+2. Revisar `git status --short`.
+3. Si se va a tocar frontend, empezar por `wwwroot/script.js`, `wwwroot/styles.css`, `wwwroot/index.html`.
+4. Si se va a tocar osu! API, revisar `Features/Osu/OsuApiService.cs` y `Features/Osu/OsuController.cs`.
+5. Si se va a tocar Discord, revisar `Features/Discord/*` y share mode en `wwwroot/script.js`.
+6. Si se va a tocar OAuth/amigos, revisar `Controllers/AuthController.cs` y las funciones Friends en `wwwroot/script.js`.
+7. Si se agregan textos visibles, hacerlo en ES/EN/DE.
+8. Si se cambia layout principal, verificar:
+   * Comparacion 1, 2, 3 y 4 jugadores.
+   * Focus Mode.
+   * Player Profile.
+   * Top Plays.
+   * Recent Plays.
+   * Friends.
+   * History.
+   * Duel Mode.
+   * Cyberpunk y Heaven.
+   * Share mode de Discord.
+9. Si se cambia animacion, probar abrir/cerrar varias veces el mismo overlay.
+10. Si se cambia sonido, probar mute, volumen y share mode.
 
-* El usuario esta migrando el proyecto a una PC nueva.
-* El repo de GitHub es la fuente para mover el codigo.
-* Los chats de Codex no forman parte del repo.
-* Este `AGENTS.md` debe funcionar como memoria portable del proyecto.
+---
 
-Repo:
+## Configuracion Local Basica
 
-* Remoto usado:
-
-  * `https://github.com/xmanusaddy/osuforfellas-comparation.git`
-
-* Rama principal actual:
-
-  * `master`
-
-Ultimos commits relevantes ya pusheados:
-
-* `feat: add app rooms and expanded player views`
-* `feat: add mod name tooltips`
-* `feat: add "created by manu is washed" footer`
-* `updating README.md with the new stuff`
-* `docs: update project context`
-
-Al preparar una PC nueva:
-
-1. Instalar Visual Studio con workload `ASP.NET and web development`.
-2. Confirmar `.NET 8 SDK`.
-3. Instalar Git y GitHub Desktop si se desea.
-4. Clonar el repo desde GitHub.
-5. Abrir `osuforfellascomparison.csproj` si `.slnx` muestra Migration Report.
-6. Ejecutar `git pull origin master` si GitHub Desktop muestra `Pull origin`.
-7. Verificar que aparecen los commits nuevos:
-
-   * `feat: add app rooms and expanded player views`
-   * `feat: add mod name tooltips`
-
-Secrets locales:
-
-* Los .NET User Secrets no viajan con GitHub.
-* En cada PC hay que configurarlos de nuevo.
-* Ejecutar desde la carpeta donde esta `osuforfellascomparison.csproj`:
+Desde la carpeta del proyecto:
 
 ```powershell
 dotnet user-secrets set "OsuApi:ClientId" "TU_CLIENT_ID"
 dotnet user-secrets set "OsuApi:ClientSecret" "TU_CLIENT_SECRET"
-dotnet user-secrets set "OsuApi:RedirectUri" "http://localhost:8080/auth/osu/callback"
+dotnet user-secrets set "OsuApi:RedirectUri" "http://localhost:5188/auth/osu/callback"
 dotnet user-secrets list
 ```
 
-Render:
+Si corres la app por `dotnet run` sin launch profile y usa `8080`, el redirect local deberia ser:
 
-* Render ya tiene sus propias Environment Variables.
-* No depende de los User Secrets locales.
-* En Render las keys deben usar doble underscore:
+```text
+http://localhost:8080/auth/osu/callback
+```
 
-  * `OsuApi__ClientId`
-  * `OsuApi__ClientSecret`
-  * `OsuApi__RedirectUri`
+En produccion Render:
 
-OAuth local:
+```text
+https://osu-comparison-api.onrender.com/auth/osu/callback
+```
 
-* El callback local esperado sigue siendo:
-
-  * `http://localhost:8080/auth/osu/callback`
-
-* Si Visual Studio abre otro puerto, mantener o ajustar el perfil para usar `8080`, o cambiar el RedirectUri en secrets y en la OAuth App de osu!.
-
-Codex/chat:
-
-* Si el historial de chat no aparece en la PC nueva, abrir un chat nuevo y pedir:
-
-  * `Lee AGENTS.md y continua con este proyecto.`
-
-* No subir chats completos al repo.
-* Mantener este archivo actualizado despues de cambios grandes.
+Si osu! solo permite un callback por OAuth App, usar apps OAuth separadas para local y produccion.
 
 ---
 
-## Reglas de Desarrollo
+## Resumen Corto Del Estado Actual
 
-Antes de realizar cambios:
+La app ya tiene comparacion manual hasta 4 jugadores, Focus Mode, perfil extendido, Top Plays 10, Recent Plays real, Choke Detector, Style Tags, Comparison Breakdown, Direct Duel 1v1, OAuth osu!, Friends, History, themes Cyberpunk/Heaven, idiomas ES/EN/DE, GSAP, sonidos UI, legal pages, Discord bot con visual compare y capturas de profile/top/recent.
 
-1. Revisar el impacto en los tres idiomas.
-2. Revisar el impacto en Focus Mode.
-3. Revisar el impacto en Top Play.
-4. Mantener compatibilidad con comparacion de hasta 4 jugadores.
-5. Revisar que el sistema de themes siga funcionando.
-6. Si se levanta un servidor local para pruebas, cerrarlo al terminar para no bloquear el puerto `8080` en Visual Studio.
-7. Revisar que OAuth local siga usando User Secrets y que no se filtren secrets al repo.
-
-Priorizar siempre:
-
-* Experiencia visual.
-* Claridad.
-* Consistencia del diseno.
-* Escalabilidad futura.
-* Buen rendimiento en equipos modestos.
+No tratar Recent Plays, Duel Mode, GSAP, sonidos, legal pages o share room como pendientes: existen en codigo actual.
