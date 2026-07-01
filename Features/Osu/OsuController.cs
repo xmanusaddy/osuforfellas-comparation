@@ -15,10 +15,12 @@ public class OsuController : ControllerBase
     };
 
     private readonly OsuApiService _osuApi;
+    private readonly OsuUserSessionService _userSession;
 
-    public OsuController(OsuApiService osuApi)
+    public OsuController(OsuApiService osuApi, OsuUserSessionService userSession)
     {
         _osuApi = osuApi;
+        _userSession = userSession;
     }
 
     // GET /api/osu/{mode}/{username}
@@ -65,10 +67,53 @@ public class OsuController : ControllerBase
         return Content(result.Content, "application/json");
     }
 
+    // GET /api/osu/beatmaps/123456?mode=osu
+    [HttpGet("beatmaps/{beatmapId:long}")]
+    public async Task<IActionResult> GetBeatmap(long beatmapId, [FromQuery] string? mode = null)
+    {
+        if (!IsValidBeatmapId(beatmapId) || (!string.IsNullOrWhiteSpace(mode) && !SupportedModes.Contains(mode)))
+            return BadRequest(new { error = "invalid_request" });
+
+        var result = await _osuApi.GetBeatmapJsonAsync(beatmapId, mode);
+        if (!result.Success)
+            return StatusCode(result.StatusCode);
+
+        return Content(result.Content, "application/json");
+    }
+
+    // GET /api/osu/osu/beatmaps/123456/scores?type=global|friend
+    [HttpGet("{mode}/beatmaps/{beatmapId:long}/scores")]
+    public async Task<IActionResult> GetBeatmapScores(string mode, long beatmapId, [FromQuery] string type = "global")
+    {
+        if (!SupportedModes.Contains(mode) || !IsValidBeatmapId(beatmapId) || !IsValidLeaderboardType(type))
+            return BadRequest(new { error = "invalid_request" });
+
+        var accessToken = await _userSession.GetValidAccessTokenAsync();
+        if (string.Equals(type, "friend", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(accessToken))
+                return Unauthorized(new { error = "not_authenticated" });
+        }
+
+        var result = await _osuApi.GetBeatmapScoresJsonAsync(beatmapId, mode, type, accessToken);
+        if (!result.Success)
+            return StatusCode(result.StatusCode);
+
+        return Content(result.Content, "application/json");
+    }
+
     private static bool IsValidRequest(string mode, string username)
     {
         return SupportedModes.Contains(mode)
             && !string.IsNullOrWhiteSpace(username)
             && username.Length <= MaxUsernameLength;
+    }
+
+    private static bool IsValidBeatmapId(long beatmapId) => beatmapId > 0;
+
+    private static bool IsValidLeaderboardType(string type)
+    {
+        return string.Equals(type, "global", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(type, "friend", StringComparison.OrdinalIgnoreCase);
     }
 }

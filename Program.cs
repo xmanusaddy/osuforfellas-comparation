@@ -1,8 +1,10 @@
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<OsuApiService>();
+builder.Services.AddScoped<OsuUserSessionService>();
 builder.Services.AddSingleton<DiscordSignatureVerifier>();
 builder.Services.AddSingleton<ChromiumScreenshotService>();
 builder.Services.AddScoped<DiscordCompareImageService>();

@@ -101,6 +101,36 @@ public sealed class OsuApiService
         return (true, StatusCodes.Status200OK, JsonSerializer.Serialize(allScores));
     }
 
+    public async Task<(bool Success, int StatusCode, string Content)> GetBeatmapJsonAsync(long beatmapId, string? mode = null)
+    {
+        var token = await GetTokenAsync();
+        var url = $"https://osu.ppy.sh/api/v2/beatmaps/{beatmapId}";
+
+        var request = CreateAuthorizedRequest(token, url);
+        var response = await _http.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+        return (response.IsSuccessStatusCode, (int)response.StatusCode, content);
+    }
+
+    public async Task<(bool Success, int StatusCode, string Content)> GetBeatmapScoresJsonAsync(
+        long beatmapId,
+        string mode,
+        string type,
+        string? accessToken = null)
+    {
+        var token = string.IsNullOrWhiteSpace(accessToken) ? await GetTokenAsync() : accessToken;
+        var safeType = string.Equals(type, "friend", StringComparison.OrdinalIgnoreCase) ? "friend" : "global";
+        var request = CreateAuthorizedRequest(
+            token,
+            $"https://osu.ppy.sh/api/v2/beatmaps/{beatmapId}/scores?mode={Uri.EscapeDataString(mode)}&type={Uri.EscapeDataString(safeType)}&legacy_only=0"
+        );
+        request.Headers.Add("x-api-version", "20220705");
+
+        var response = await _http.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+        return (response.IsSuccessStatusCode, (int)response.StatusCode, content);
+    }
+
     private async Task<string> GetTokenAsync()
     {
         if (!string.IsNullOrEmpty(_token) && DateTime.Now < _expires)

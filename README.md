@@ -2,11 +2,22 @@
 
 A simple but clean way to compare osu! player stats, built for me and my friends because yeah... we always gotta know who's better.
 
-Now it also has a Discord bot, custom rooms, a 1v1 duel mode, animations, sounds, and enough neon to make a ranked argument look official xd
+Now it also has a Discord bot, custom rooms, a 1v1 duel mode, map score boards, snipes, animations, sounds, and enough neon to make a ranked argument look official xd
 
 ---
 
 ## Changelog
+
+### v1.9 - Map Scores, Snipes and theme transitions
+- Added a **Map Scores room**: search a beatmap by ID or link and view its score board
+- Added support for **global scores** and **friend scores** when logged in with osu!
+- Added automatic **snipe detection** for visible map scores, because yes, getting passed on a map deserves documentation
+- Added a full **Snipe Focus** view with both players, avatars, ranks, score gap, PP gap, accuracy gap, positions and score details
+- Added a richer beatmap hero for the scores room and snipe detail view
+- Added proper `No Mod` chips in score boards instead of letting NM look like it came from the basement
+- Added a cinematic **theme switch transition**: fade to black, swap theme, fade back in
+
+Small note: this is the first big pass for the map score/snipe system. The core is there now, but I still want to make the snipe side feel even more like its own little rivalry room later.
 
 ### v1.8 - Direct Duel, animations and UI sounds
 - Added a **Direct Duel / 1v1 mode** for 2-player comparisons
@@ -93,6 +104,9 @@ It shows:
 - Activity status from `last_visit`
 - Top Play and expanded Top Plays
 - Recent Plays
+- Map Scores by beatmap ID or link
+- Friend/global score boards when osu! lets us see them
+- Detected snipes between visible map scores
 - Max combo, total hits and replays watched when available
 - Stable/Lazer score indicator
 - Small "did you choke that?" indicators, because pain should be documented
@@ -158,6 +172,8 @@ The goal is not to be another generic osu! bot. The cool part is making comparis
 - Expanded Player Profile room
 - Expanded Top Plays room with 10 plays
 - Recent Plays room
+- Map Scores room
+- Snipe detection and Snipe Focus view
 - Choke Detector Lite
 - Replay download links when osu! exposes replay availability
 - osu!lazer / osu!stable indicator for scores
@@ -167,6 +183,7 @@ The goal is not to be another generic osu! bot. The cool part is making comparis
 - Comparison history and favorite comparisons
 - Multi-language: ES / EN / DE
 - Theme selector: Cyberpunk and Heaven
+- Cinematic theme switching transition
 - GSAP animations for major views
 - UI sound system with mute and volume controls
 - Legal Terms and Privacy pages for Discord verification
@@ -181,7 +198,7 @@ The goal is not to be another generic osu! bot. The cool part is making comparis
 - Better animation language across the whole app
 - Better sound set and maybe different sound profiles later
 - Polish and optimize Heaven Theme
-- Horror Rhythm Theme
+- Crimson Night / Horror Rhythm seasonal theme for Halloween
 - More Discord commands and layouts
 - Better public share links
 - Maybe richer historical/player analysis if osu! API gives us enough good data

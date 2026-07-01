@@ -117,6 +117,10 @@
                 <span class="room-nav-icon">⌁</span>
                 <span id="room-nav-history"></span>
             </a>
+            <a class="room-nav-link" href="#/scores" data-room-link="scores">
+                <span class="room-nav-icon">▦</span>
+                <span id="room-nav-scores"></span>
+            </a>
         </nav>
 
     </section>
@@ -219,6 +223,14 @@
                 </div>
                 <div class="focus-stats-grid" id="focus-stats"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- ══ SNIPE FOCUS MODAL ══ -->
+    <div id="snipe-focus-overlay" class="snipe-focus-overlay" onclick="closeSnipeFocus(event)">
+        <div class="snipe-focus-modal" id="snipe-focus-modal">
+            <button class="focus-close snipe-focus-close" onclick="closeSnipeFocusBtn()">✕</button>
+            <div class="snipe-focus-content" id="snipe-focus-content"></div>
         </div>
     </div>
 

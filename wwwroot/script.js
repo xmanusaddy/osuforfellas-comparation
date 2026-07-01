@@ -31,6 +31,12 @@ const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
 const recentPlaysCache = new Map();
+const beatmapScoresCache = new Map();
+let currentBeatmapSnipes = [];
+let currentScoresBeatmap = null;
+let scoreLeaderboardType = ['friend', 'global'].includes(localStorage.getItem('osu_score_leaderboard_type'))
+    ? localStorage.getItem('osu_score_leaderboard_type')
+    : 'friend';
 const MOD_FULL_NAMES = {
     NM: 'No Mod',
     NF: 'No Fail',
@@ -84,6 +90,7 @@ const LANGS = {
             compare: 'Comparar',
             friends: 'Amigos',
             history: 'Historial',
+            scores: 'Scores',
             back: '← Volver',
             backToComparison: '← Volver a comparación',
             friendsTitle: 'Amigos',
@@ -131,7 +138,48 @@ const LANGS = {
             latestPlay: 'Última jugada',
             noRecentPlays: 'Sin jugadas recientes',
             page: 'Página',
-            openCompare: 'Ir a comparar'
+            openCompare: 'Ir a comparar',
+            scoresTitle: 'Scores de mapa',
+            scoresCopy: 'Busca un beatmap por ID o link para ver scores globales o de amigos y detectar snipes.',
+            scoresSearchPlaceholder: 'ID o link del beatmap...',
+            scoresSearch: 'Buscar mapa',
+            scoresMode: 'Modo',
+            scoresScope: 'Tabla',
+            scoresFriendScope: 'Amigos',
+            scoresGlobalScope: 'Global',
+            scoresLoginHint: 'Inicia sesión con osu! para ver scores de amigos.',
+            scoresLoadingMap: 'Cargando mapa...',
+            scoresLoadingScores: 'Cargando scores...',
+            scoresBeatmapError: 'No se pudo cargar el beatmap',
+            scoresLeaderboardError: 'No se pudieron cargar los scores',
+            scoresNoBeatmap: 'Pega un ID o link de beatmap para empezar.',
+            scoresNoScores: 'No hay scores para mostrar en este mapa.',
+            scoresOpenBeatmap: 'Abrir beatmap',
+            scoresRefresh: 'Actualizar scores',
+            scoresYourScore: 'Tu score',
+            scoresLeaderboard: 'Leaderboard',
+            scoresTopVisible: 'Top visible',
+            scoresFriendScores: 'Scores de amigos',
+            scoresGlobalScores: 'Scores globales',
+            scoresSnipes: 'Snipes detectados',
+            scoresNoSnipes: 'No hay snipes claros en los scores visibles.',
+            scoresSniped: '{winner} superó a {target}',
+            scoresSnipeAction: 'superó a',
+            scoresSnipeWinner: 'Jugador que superó',
+            scoresSnipeTarget: 'Jugador superado',
+            scoresSnipeDate: 'Fecha del snipe',
+            scoresSnipePositions: 'Posiciones',
+            scoresOpenSnipe: 'Ver snipe',
+            scoresSnipeFocusTitle: 'Detalle del snipe',
+            scoresScoreGap: 'Diferencia de score',
+            scoresPpGap: 'Diferencia PP',
+            scoresAccGap: 'Diferencia acc',
+            scoresPosition: 'Posición',
+            scoresMapper: 'Mapper',
+            scoresDifficulty: 'Dificultad',
+            scoresLength: 'Duración',
+            scoresBpm: 'BPM',
+            scoresMaxCombo: 'Max combo'
         },
         loginOsu: 'Iniciar sesión con osu!',
         logout: 'Cerrar sesión',
@@ -299,6 +347,7 @@ const LANGS = {
             compare: 'Compare',
             friends: 'Friends',
             history: 'History',
+            scores: 'Scores',
             back: '← Back',
             backToComparison: '← Back to comparison',
             friendsTitle: 'Friends',
@@ -346,7 +395,48 @@ const LANGS = {
             latestPlay: 'Latest play',
             noRecentPlays: 'No recent plays',
             page: 'Page',
-            openCompare: 'Go compare'
+            openCompare: 'Go compare',
+            scoresTitle: 'Map Scores',
+            scoresCopy: 'Search a beatmap by ID or link to view global/friend scores and detect snipes.',
+            scoresSearchPlaceholder: 'Beatmap ID or link...',
+            scoresSearch: 'Search map',
+            scoresMode: 'Mode',
+            scoresScope: 'Board',
+            scoresFriendScope: 'Friends',
+            scoresGlobalScope: 'Global',
+            scoresLoginHint: 'Sign in with osu! to view friend scores.',
+            scoresLoadingMap: 'Loading map...',
+            scoresLoadingScores: 'Loading scores...',
+            scoresBeatmapError: 'Could not load beatmap',
+            scoresLeaderboardError: 'Could not load scores',
+            scoresNoBeatmap: 'Paste a beatmap ID or link to start.',
+            scoresNoScores: 'No scores to show for this map.',
+            scoresOpenBeatmap: 'Open beatmap',
+            scoresRefresh: 'Refresh scores',
+            scoresYourScore: 'Your score',
+            scoresLeaderboard: 'Leaderboard',
+            scoresTopVisible: 'Visible top',
+            scoresFriendScores: 'Friend scores',
+            scoresGlobalScores: 'Global scores',
+            scoresSnipes: 'Detected snipes',
+            scoresNoSnipes: 'No clear snipes in the visible scores.',
+            scoresSniped: '{winner} sniped {target}',
+            scoresSnipeAction: 'sniped',
+            scoresSnipeWinner: 'Sniper',
+            scoresSnipeTarget: 'Target',
+            scoresSnipeDate: 'Snipe date',
+            scoresSnipePositions: 'Positions',
+            scoresOpenSnipe: 'View snipe',
+            scoresSnipeFocusTitle: 'Snipe detail',
+            scoresScoreGap: 'Score gap',
+            scoresPpGap: 'PP gap',
+            scoresAccGap: 'Acc gap',
+            scoresPosition: 'Position',
+            scoresMapper: 'Mapper',
+            scoresDifficulty: 'Difficulty',
+            scoresLength: 'Length',
+            scoresBpm: 'BPM',
+            scoresMaxCombo: 'Max combo'
         },
         loginOsu: 'Sign in with osu!',
         logout: 'Log out',
@@ -514,6 +604,7 @@ const LANGS = {
             compare: 'Vergleichen',
             friends: 'Freunde',
             history: 'Verlauf',
+            scores: 'Scores',
             back: '← Zurück',
             backToComparison: '← Zurück zum Vergleich',
             friendsTitle: 'Freunde',
@@ -561,7 +652,48 @@ const LANGS = {
             latestPlay: 'Letztes Play',
             noRecentPlays: 'Keine letzten Plays',
             page: 'Seite',
-            openCompare: 'Zum Vergleich'
+            openCompare: 'Zum Vergleich',
+            scoresTitle: 'Map-Scores',
+            scoresCopy: 'Suche eine Beatmap per ID oder Link, um globale/Freundes-Scores und Snipes zu sehen.',
+            scoresSearchPlaceholder: 'Beatmap-ID oder Link...',
+            scoresSearch: 'Map suchen',
+            scoresMode: 'Modus',
+            scoresScope: 'Tabelle',
+            scoresFriendScope: 'Freunde',
+            scoresGlobalScope: 'Global',
+            scoresLoginHint: 'Melde dich mit osu! an, um Freundes-Scores zu sehen.',
+            scoresLoadingMap: 'Map wird geladen...',
+            scoresLoadingScores: 'Scores werden geladen...',
+            scoresBeatmapError: 'Beatmap konnte nicht geladen werden',
+            scoresLeaderboardError: 'Scores konnten nicht geladen werden',
+            scoresNoBeatmap: 'Fuege eine Beatmap-ID oder einen Link ein, um zu starten.',
+            scoresNoScores: 'Keine Scores fuer diese Map.',
+            scoresOpenBeatmap: 'Beatmap oeffnen',
+            scoresRefresh: 'Scores aktualisieren',
+            scoresYourScore: 'Dein Score',
+            scoresLeaderboard: 'Leaderboard',
+            scoresTopVisible: 'Sichtbares Top',
+            scoresFriendScores: 'Freundes-Scores',
+            scoresGlobalScores: 'Globale Scores',
+            scoresSnipes: 'Erkannte Snipes',
+            scoresNoSnipes: 'Keine klaren Snipes in den sichtbaren Scores.',
+            scoresSniped: '{winner} hat {target} ueberholt',
+            scoresSnipeAction: 'ueberholt',
+            scoresSnipeWinner: 'Snipe-Spieler',
+            scoresSnipeTarget: 'Ziel',
+            scoresSnipeDate: 'Snipe-Datum',
+            scoresSnipePositions: 'Positionen',
+            scoresOpenSnipe: 'Snipe ansehen',
+            scoresSnipeFocusTitle: 'Snipe-Detail',
+            scoresScoreGap: 'Score-Abstand',
+            scoresPpGap: 'PP-Abstand',
+            scoresAccGap: 'Acc-Abstand',
+            scoresPosition: 'Position',
+            scoresMapper: 'Mapper',
+            scoresDifficulty: 'Schwierigkeit',
+            scoresLength: 'Laenge',
+            scoresBpm: 'BPM',
+            scoresMaxCombo: 'Max combo'
         },
         loginOsu: 'Mit osu! anmelden',
         logout: 'Abmelden',
@@ -727,6 +859,7 @@ function applyLang() {
     document.getElementById('room-nav-compare').textContent = t.rooms.compare;
     document.getElementById('room-nav-friends').textContent = t.rooms.friends;
     document.getElementById('room-nav-history').textContent = t.rooms.history;
+    document.getElementById('room-nav-scores').textContent = t.rooms.scores;
     updateRoomBackLabel();
 
     const label = document.querySelector('.podium-label');
@@ -760,7 +893,7 @@ function parseRoomRoute() {
     const name = parts[0] || 'compare';
     const param = parts.slice(1).join('/');
 
-    if (['compare', 'results', 'friends', 'history', 'player', 'top-plays', 'recent'].includes(name)) {
+    if (['compare', 'results', 'friends', 'history', 'scores', 'player', 'top-plays', 'recent'].includes(name)) {
         return { name, param: decodeURIComponent(param || '') };
     }
 
@@ -963,6 +1096,7 @@ function showFutureRoom(route) {
     }
     closeCompareDuelMode(false);
     closeFocusBtn();
+    closeSnipeFocusBtn(false);
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'block';
@@ -988,6 +1122,10 @@ function renderRoomView(route = currentRoomRoute) {
     }
     if (route.name === 'history') {
         renderHistoryRoom();
+        return;
+    }
+    if (route.name === 'scores') {
+        renderScoresRoom(route);
         return;
     }
     if (route.name === 'player') {
@@ -1458,6 +1596,699 @@ function getRecentSharePaging(scores) {
         offset: start,
         label: `${rooms.page} ${page}/${totalPages} · ${fmtNum(scores.length)}`
     };
+}
+
+async function renderScoresRoom(route) {
+    const rooms = LANGS[currentLang].rooms;
+    const beatmapId = extractBeatmapId(route.param || '');
+    const mode = getActiveMode();
+    const scope = getScoresLeaderboardType();
+
+    setRoomTitle(rooms.scoresTitle);
+    document.getElementById('room-copy').textContent = rooms.scoresCopy;
+
+    if (!beatmapId) {
+        document.getElementById('room-actions').innerHTML = renderScoresShell({
+            beatmapId: '',
+            mode,
+            body: `<div class="scores-empty-panel">
+                <div class="scores-empty-icon">▦</div>
+                <div>${escapeHtml(rooms.scoresNoBeatmap)}</div>
+            </div>`
+        });
+        animateRoomContentOnce('scores');
+        return;
+    }
+
+    document.getElementById('room-actions').innerHTML = renderScoresShell({
+        beatmapId,
+        mode,
+        body: `<div class="top-plays-state">
+            <div class="spinner"></div>
+            <span>${escapeHtml(rooms.scoresLoadingMap)}</span>
+            <span>${escapeHtml(rooms.scoresLoadingScores)}</span>
+        </div>`
+    });
+
+    try {
+        const beatmap = await fetchBeatmap(beatmapId, mode);
+        if (!isActiveScoresRoom(beatmapId)) return;
+
+        if (scope === 'friend' && !loggedInUser) {
+            renderScoresContent(beatmap, null, mode, { authRequired: true });
+            animateRoomContentOnce('scores');
+            return;
+        }
+
+        const payload = await fetchBeatmapScores(beatmapId, mode, scope);
+        if (!isActiveScoresRoom(beatmapId)) return;
+
+        playRoomResponseSound('scores');
+        renderScoresContent(beatmap, payload, mode);
+    } catch (error) {
+        if (!isActiveScoresRoom(beatmapId)) return;
+
+        const message = error?.message || rooms.scoresLeaderboardError;
+        document.getElementById('room-actions').innerHTML = renderScoresShell({
+            beatmapId,
+            mode,
+            body: `<div class="top-plays-state top-plays-state--error">${escapeHtml(message)}</div>`
+        });
+        playRoomResponseSound('scores', 'error');
+        animateRoomContentOnce('scores');
+    }
+}
+
+function renderScoresShell({ beatmapId = '', mode = getActiveMode(), body = '' } = {}) {
+    const rooms = LANGS[currentLang].rooms;
+    const currentScope = getScoresLeaderboardType();
+
+    return `
+        <div class="scores-room">
+            <form class="scores-search" onsubmit="submitBeatmapScoresSearch(event)">
+                <div class="scores-query-wrap">
+                    <div class="input-label">${escapeHtml(rooms.scoresTitle)}</div>
+                    <input class="scores-query" id="scores-query" type="text" value="${escapeHtml(beatmapId)}" placeholder="${escapeHtml(rooms.scoresSearchPlaceholder)}">
+                </div>
+                <div class="scores-mode-wrap">
+                    <div class="input-label">${escapeHtml(rooms.scoresMode)}</div>
+                    <select class="mode-select scores-mode-select" id="scores-mode-select" onchange="setScoresRoomMode(this.value)">
+                        ${['osu', 'taiko', 'fruits', 'mania'].map(value =>
+                            `<option value="${value}"${value === mode ? ' selected' : ''}>${escapeHtml(LANGS[currentLang].modes[value] || value)}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                <button class="btn-search scores-search-button" type="submit">▶ ${escapeHtml(rooms.scoresSearch)}</button>
+            </form>
+            <div class="scores-scope-row" aria-label="${escapeHtml(rooms.scoresScope)}">
+                <span>${escapeHtml(rooms.scoresScope)}</span>
+                <button class="scores-scope-tab${currentScope === 'friend' ? ' active' : ''}" type="button" onclick="setScoresLeaderboardType('friend')">${escapeHtml(rooms.scoresFriendScope)}</button>
+                <button class="scores-scope-tab${currentScope === 'global' ? ' active' : ''}" type="button" onclick="setScoresLeaderboardType('global')">${escapeHtml(rooms.scoresGlobalScope)}</button>
+                ${beatmapId ? `<button class="scores-scope-tab scores-refresh-tab" type="button" onclick="refreshBeatmapScoresRoom()">⟳ ${escapeHtml(rooms.scoresRefresh)}</button>` : ''}
+            </div>
+            ${body}
+        </div>
+    `;
+}
+
+function renderScoresContent(beatmap, payload, mode, options = {}) {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const beatmapId = String(beatmap?.id || '');
+    const scores = Array.isArray(payload?.scores) ? payload.scores.slice(0, 50) : [];
+    const userScore = normalizeBeatmapUserScore(payload?.userScore ?? payload?.user_score);
+    const shouldShowUserScore = userScore?.score && !scores.some(score => isSameScore(score, userScore.score));
+    const snipes = getBeatmapSnipes(scores);
+    const scopeLabel = getScoresLeaderboardType() === 'friend' ? rooms.scoresFriendScores : rooms.scoresGlobalScores;
+    currentBeatmapSnipes = snipes;
+    currentScoresBeatmap = beatmap || null;
+
+    const authBody = options.authRequired
+        ? `<div class="scores-auth-gate">
+            <div>
+                <strong>${escapeHtml(rooms.scoresFriendScope)}</strong>
+                <span>${escapeHtml(rooms.scoresLoginHint)}</span>
+            </div>
+            <a class="room-action-link" href="/auth/osu/login">${escapeHtml(t.loginOsu)}</a>
+            <button class="room-action-link scores-global-fallback" type="button" onclick="setScoresLeaderboardType('global')">${escapeHtml(rooms.scoresGlobalScope)}</button>
+        </div>`
+        : '';
+
+    document.getElementById('room-actions').innerHTML = renderScoresShell({
+        beatmapId,
+        mode,
+        body: `
+            ${renderBeatmapHero(beatmap, mode)}
+            ${authBody || `
+                <div class="top-plays-summary scores-summary">
+                    <div class="top-plays-stat">
+                        <span>${escapeHtml(rooms.scoresLeaderboard)}</span>
+                        <strong>${escapeHtml(scopeLabel)}</strong>
+                    </div>
+                    <div class="top-plays-stat">
+                        <span>${escapeHtml(rooms.scoresTopVisible)}</span>
+                        <strong>${fmtNum(scores.length)} / 50</strong>
+                    </div>
+                    <div class="top-plays-stat">
+                        <span>${escapeHtml(rooms.scoresSnipes)}</span>
+                        <strong>${fmtNum(snipes.length)}</strong>
+                    </div>
+                    <div class="top-plays-stat">
+                        <span>${escapeHtml(t.stats.maxCombo)}</span>
+                        <strong>${beatmap?.max_combo ? `${fmtNum(beatmap.max_combo)}x` : '—'}</strong>
+                    </div>
+                </div>
+                ${shouldShowUserScore ? renderOwnBeatmapScore(userScore, beatmap) : ''}
+                ${scores.length
+                    ? `<div class="scores-board">${scores.map((score, index) => renderBeatmapScoreRow(score, index + 1, beatmap)).join('')}</div>`
+                    : `<div class="top-plays-state">${escapeHtml(rooms.scoresNoScores)}</div>`}
+                ${renderSnipesPanel(snipes)}
+            `}
+        `
+    });
+
+    animateRoomContentOnce('scores');
+}
+
+function renderBeatmapHero(beatmap, mode) {
+    const rooms = LANGS[currentLang].rooms;
+    const set = beatmap?.beatmapset || {};
+    const title = set.title || beatmap?.title || 'osu!';
+    const artist = set.artist || beatmap?.artist || '';
+    const creator = set.creator || beatmap?.creator || '—';
+    const diff = beatmap?.version || '—';
+    const cover = safeHttpUrl(set.covers?.['cover@2x'] || set.covers?.cover || set.covers?.card || set.covers?.list || '');
+    const stars = typeof beatmap?.difficulty_rating === 'number' ? beatmap.difficulty_rating.toFixed(2) : '—';
+    const bpm = typeof set.bpm === 'number' ? Math.round(set.bpm) : (typeof beatmap?.bpm === 'number' ? Math.round(beatmap.bpm) : null);
+    const length = formatBeatmapLength(beatmap?.total_length || beatmap?.hit_length);
+    const url = safeHttpUrl(beatmap?.url) || `https://osu.ppy.sh/b/${beatmap?.id || ''}`;
+
+    return `
+        <section class="scores-beatmap-hero">
+            <div class="scores-beatmap-cover-wrap">
+                ${cover
+                    ? `<img class="scores-beatmap-cover" src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'">`
+                    : `<div class="scores-beatmap-cover scores-beatmap-cover--empty">♫</div>`}
+            </div>
+            <div class="scores-beatmap-info">
+                <div class="scores-beatmap-kicker">${escapeHtml(LANGS[currentLang].modes[mode] || mode)} · ${escapeHtml(rooms.scoresDifficulty)} ${escapeHtml(diff)}</div>
+                <h2>${escapeHtml(title)}</h2>
+                <p>${artist ? `${escapeHtml(artist)} · ` : ''}${escapeHtml(rooms.scoresMapper)} ${escapeHtml(creator)}</p>
+                <div class="scores-beatmap-tags">
+                    <span>✦ ${escapeHtml(stars)}</span>
+                    <span>${escapeHtml(rooms.scoresLength)} ${escapeHtml(length)}</span>
+                    <span>${escapeHtml(rooms.scoresBpm)} ${bpm ? fmtNum(bpm) : '—'}</span>
+                    <span>${escapeHtml(rooms.scoresMaxCombo)} ${beatmap?.max_combo ? `${fmtNum(beatmap.max_combo)}x` : '—'}</span>
+                </div>
+            </div>
+            <a class="room-action-link scores-beatmap-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(rooms.scoresOpenBeatmap)}</a>
+        </section>
+    `;
+}
+
+function renderOwnBeatmapScore(userScore, beatmap) {
+    const rooms = LANGS[currentLang].rooms;
+    const position = userScore.position ? `#${fmtNum(userScore.position)}` : '—';
+
+    return `
+        <section class="scores-own-score">
+            <div class="scores-section-head">
+                <span>${escapeHtml(rooms.scoresYourScore)}</span>
+                <strong>${escapeHtml(rooms.scoresPosition)} ${escapeHtml(position)}</strong>
+            </div>
+            ${renderBeatmapScoreRow(userScore.score, userScore.position || 0, beatmap, true)}
+        </section>
+    `;
+}
+
+function renderBeatmapScoreRow(score, position, beatmap, isOwnScore = false) {
+    const t = LANGS[currentLang];
+    const user = score?.user || {};
+    const username = user.username || `#${score?.user_id || position}`;
+    const countryCode = user.country_code || user.country?.code || '';
+    const isCreator = isCreatorUsername(username);
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const totalScore = getScoreTotalValue(score);
+    const pp = typeof score?.pp === 'number' ? Math.round(score.pp) : null;
+    const acc = typeof score?.accuracy === 'number' ? (score.accuracy * 100).toFixed(2) : '—';
+    const rank = score?.rank || 'D';
+    const misses = getScoreMisses(score);
+    const combo = score?.max_combo ? `${fmtNum(score.max_combo)}x` : '—';
+    const maxCombo = beatmap?.max_combo ? ` / ${fmtNum(beatmap.max_combo)}x` : '';
+    const mods = getMods(score);
+    const dateStr = fmtDate(getScoreDate(score)).replace('\n', ' ');
+    const scoreUrl = score?.id ? `https://osu.ppy.sh/scores/${score.id}` : '';
+
+    return `
+        <article class="scores-row${isOwnScore ? ' scores-row--own' : ''}">
+            <div class="scores-rank">#${position ? fmtNum(position) : '—'}</div>
+            <div class="scores-user">
+                <img class="scores-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+                <div class="scores-user-copy">
+                    <div class="scores-user-line">
+                        ${renderCountryFlag(countryCode, 'scores-country')}
+                        <strong class="${isCreator ? 'creator-name' : ''}">${escapeHtml(username)}</strong>
+                    </div>
+                    <div class="scores-mods">${renderScoreModChips(score)}</div>
+                </div>
+            </div>
+            <div class="scores-grade ${getRankClass(rank)}">${getRankDisplay(rank)}</div>
+            <div class="scores-primary">
+                <span>${escapeHtml(t.stats.score)}</span>
+                <strong>${totalScore ? fmtNum(totalScore) : '—'}</strong>
+            </div>
+            <div class="scores-metric scores-metric--pink">
+                <span>${escapeHtml(t.stats.pp)}</span>
+                <strong>${pp == null ? '—' : `${fmtNum(pp)}pp`}</strong>
+            </div>
+            <div class="scores-metric scores-metric--cyan">
+                <span>${escapeHtml(t.stats.accuracy)}</span>
+                <strong>${acc}%</strong>
+            </div>
+            <div class="scores-metric">
+                <span>${escapeHtml(t.stats.maxCombo)}</span>
+                <strong>${combo}${maxCombo}</strong>
+            </div>
+            <div class="scores-metric">
+                <span>${escapeHtml(t.stats.misses)}</span>
+                <strong class="${misses > 0 ? 'miss-val' : ''}">${fmtNum(misses)}</strong>
+            </div>
+            <div class="scores-metric">
+                <span>${escapeHtml(t.stats.date)}</span>
+                <strong>${escapeHtml(dateStr)}</strong>
+            </div>
+            <div class="scores-side">
+                ${renderScoreClient(score)}
+                ${scoreUrl ? `<a class="top-play-action" href="${escapeHtml(scoreUrl)}" target="_blank" rel="noopener">↗</a>` : ''}
+            </div>
+        </article>
+    `;
+}
+
+function renderSnipesPanel(snipes) {
+    const rooms = LANGS[currentLang].rooms;
+
+    return `
+        <section class="scores-snipes">
+            <div class="scores-section-head">
+                <span>${escapeHtml(rooms.scoresSnipes)}</span>
+                <strong>${fmtNum(snipes.length)}</strong>
+            </div>
+            ${snipes.length
+                ? `<div class="scores-snipe-grid">${snipes.map((snipe, index) => renderSnipeCard(snipe, index)).join('')}</div>`
+                : `<div class="scores-snipe-empty">${escapeHtml(rooms.scoresNoSnipes)}</div>`}
+        </section>
+    `;
+}
+
+function renderSnipeCard(snipe, index = 0) {
+    const rooms = LANGS[currentLang].rooms;
+    const t = LANGS[currentLang];
+    const title = rooms.scoresSniped
+        .replace('{winner}', snipe.winnerName)
+        .replace('{target}', snipe.targetName);
+    const winnerTotal = getScoreTotalValue(snipe.winnerScore);
+    const targetTotal = getScoreTotalValue(snipe.targetScore);
+
+    return `
+        <article class="scores-snipe-card" role="button" tabindex="0" onclick="openSnipeFocus(${index})" onkeydown="handleSnipeCardKey(event, ${index})">
+            <div class="scores-snipe-header">
+                <div>
+                    <div class="scores-snipe-kicker">${escapeHtml(rooms.scoresSnipes)}</div>
+                    <div class="scores-snipe-title">${escapeHtml(title)}</div>
+                </div>
+                <div class="scores-snipe-date">
+                    <span>${escapeHtml(rooms.scoresSnipeDate)}</span>
+                    <strong>${escapeHtml(fmtDate(snipe.date).replace('\n', ' '))}</strong>
+                </div>
+            </div>
+
+            <div class="scores-snipe-versus">
+                ${renderSnipePlayerPanel(snipe.winnerScore, {
+                    label: rooms.scoresSnipeWinner,
+                    position: snipe.winnerPosition,
+                    highlight: true
+                })}
+                <div class="scores-snipe-vs">
+                    <span>${escapeHtml(rooms.scoresSnipeAction)}</span>
+                    <strong>#${fmtNum(snipe.winnerPosition)} → #${fmtNum(snipe.targetPosition)}</strong>
+                </div>
+                ${renderSnipePlayerPanel(snipe.targetScore, {
+                    label: rooms.scoresSnipeTarget,
+                    position: snipe.targetPosition
+                })}
+            </div>
+
+            <div class="scores-snipe-stats">
+                <div><span>${escapeHtml(rooms.scoresScoreGap)}</span><strong>${fmtNum(snipe.scoreGap)}</strong></div>
+                <div><span>${escapeHtml(rooms.scoresPpGap)}</span><strong>${snipe.ppGap == null ? '—' : `${fmtNum(snipe.ppGap)}pp`}</strong></div>
+                <div><span>${escapeHtml(rooms.scoresAccGap)}</span><strong>${snipe.accGap == null ? '—' : `${snipe.accGap.toFixed(2)}%`}</strong></div>
+                <div><span>${escapeHtml(t.stats.score)}</span><strong>${fmtNum(winnerTotal)} / ${fmtNum(targetTotal)}</strong></div>
+            </div>
+            <div class="scores-snipe-open">${escapeHtml(rooms.scoresOpenSnipe)}</div>
+        </article>
+    `;
+}
+
+function handleSnipeCardKey(event, index) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openSnipeFocus(index);
+}
+
+function openSnipeFocus(index) {
+    const snipe = currentBeatmapSnipes[index];
+    const overlay = document.getElementById('snipe-focus-overlay');
+    const content = document.getElementById('snipe-focus-content');
+    if (!snipe || !overlay || !content) return;
+
+    content.innerHTML = renderSnipeFocusContent(snipe, currentScoresBeatmap);
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    window.UISounds?.play('click');
+}
+
+function closeSnipeFocusBtn(playSound = true) {
+    const overlay = document.getElementById('snipe-focus-overlay');
+    if (!overlay?.classList.contains('active')) return;
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    if (playSound) window.UISounds?.play('back');
+}
+
+function closeSnipeFocus(event) {
+    if (event.target === document.getElementById('snipe-focus-overlay')) {
+        closeSnipeFocusBtn();
+    }
+}
+
+function renderSnipeFocusContent(snipe, beatmap) {
+    const rooms = LANGS[currentLang].rooms;
+    const title = rooms.scoresSniped
+        .replace('{winner}', snipe.winnerName)
+        .replace('{target}', snipe.targetName);
+
+    return `
+        <div class="snipe-focus-kicker">${escapeHtml(rooms.scoresSnipeFocusTitle)}</div>
+        <div class="snipe-focus-title">${escapeHtml(title)}</div>
+        ${renderSnipeFocusMap(beatmap)}
+        <div class="snipe-focus-stage">
+            ${renderSnipeFocusPlayer(snipe.winnerScore, {
+                label: rooms.scoresSnipeWinner,
+                position: snipe.winnerPosition,
+                isWinner: true
+            })}
+            <div class="snipe-focus-center">
+                <span>${escapeHtml(rooms.scoresSnipeAction)}</span>
+                <strong>#${fmtNum(snipe.winnerPosition)} → #${fmtNum(snipe.targetPosition)}</strong>
+                <em>${escapeHtml(fmtDate(snipe.date).replace('\n', ' '))}</em>
+            </div>
+            ${renderSnipeFocusPlayer(snipe.targetScore, {
+                label: rooms.scoresSnipeTarget,
+                position: snipe.targetPosition
+            })}
+        </div>
+        <div class="snipe-focus-deltas">
+            ${renderSnipeDelta(rooms.scoresScoreGap, fmtNum(snipe.scoreGap), 'gold')}
+            ${renderSnipeDelta(rooms.scoresPpGap, snipe.ppGap == null ? '—' : `${fmtNum(snipe.ppGap)}pp`, 'pink')}
+            ${renderSnipeDelta(rooms.scoresAccGap, snipe.accGap == null ? '—' : `${snipe.accGap.toFixed(2)}%`, 'cyan')}
+            ${renderSnipeDelta(rooms.scoresSnipePositions, `#${fmtNum(snipe.winnerPosition)} / #${fmtNum(snipe.targetPosition)}`, 'white')}
+        </div>
+    `;
+}
+
+function renderSnipeFocusMap(beatmap) {
+    const rooms = LANGS[currentLang].rooms;
+    const mode = getActiveMode();
+    const set = beatmap?.beatmapset || {};
+    const title = set.title || beatmap?.title || 'osu!';
+    const artist = set.artist || beatmap?.artist || '';
+    const creator = set.creator || beatmap?.creator || '—';
+    const diff = beatmap?.version || '—';
+    const cover = safeHttpUrl(set.covers?.['list@2x'] || set.covers?.list || set.covers?.card || set.covers?.cover || '');
+    const stars = typeof beatmap?.difficulty_rating === 'number' ? beatmap.difficulty_rating.toFixed(2) : '—';
+    const bpm = typeof set.bpm === 'number' ? Math.round(set.bpm) : (typeof beatmap?.bpm === 'number' ? Math.round(beatmap.bpm) : null);
+    const length = formatBeatmapLength(beatmap?.total_length || beatmap?.hit_length);
+
+    return `
+        <section class="snipe-focus-map-card">
+            <div class="snipe-focus-map-cover-wrap">
+                ${cover
+                    ? `<img class="snipe-focus-map-cover" src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'">`
+                    : `<div class="snipe-focus-map-cover snipe-focus-map-cover--empty">♫</div>`}
+            </div>
+            <div class="snipe-focus-map-copy">
+                <div class="snipe-focus-map-kicker">${escapeHtml(LANGS[currentLang].modes[mode] || mode)} · ${escapeHtml(rooms.scoresDifficulty)} ${escapeHtml(diff)}</div>
+                <div class="snipe-focus-map-title">${escapeHtml(title)}</div>
+                <div class="snipe-focus-map-artist">${artist ? `${escapeHtml(artist)} · ` : ''}${escapeHtml(rooms.scoresMapper)} ${escapeHtml(creator)}</div>
+                <div class="snipe-focus-map-tags">
+                    <span>✦ ${escapeHtml(stars)}</span>
+                    <span>${escapeHtml(rooms.scoresLength)} ${escapeHtml(length)}</span>
+                    <span>${escapeHtml(rooms.scoresBpm)} ${bpm ? fmtNum(bpm) : '—'}</span>
+                    <span>${escapeHtml(rooms.scoresMaxCombo)} ${beatmap?.max_combo ? `${fmtNum(beatmap.max_combo)}x` : '—'}</span>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+function renderSnipeFocusPlayer(score, options = {}) {
+    const t = LANGS[currentLang];
+    const rooms = t.rooms;
+    const user = score?.user || {};
+    const username = user.username || `#${score?.user_id || options.position || '?'}`;
+    const countryCode = user.country_code || user.country?.code || '';
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const totalScore = getScoreTotalValue(score);
+    const pp = typeof score?.pp === 'number' ? `${fmtNum(score.pp)}pp` : '—';
+    const acc = typeof score?.accuracy === 'number' ? `${(score.accuracy * 100).toFixed(2)}%` : '—';
+    const combo = score?.max_combo ? `${fmtNum(score.max_combo)}x` : '—';
+    const misses = getScoreMisses(score);
+    const rank = getRankDisplay(score?.rank);
+    const date = fmtDate(getScoreDate(score)).replace('\n', ' ');
+    const position = options.position ? `#${fmtNum(options.position)}` : '—';
+
+    return `
+        <section class="snipe-focus-player${options.isWinner ? ' snipe-focus-player--winner' : ''}">
+            <div class="snipe-focus-player-label">${escapeHtml(options.label || '')}</div>
+            <div class="snipe-focus-avatar-wrap">
+                <img class="snipe-focus-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+            </div>
+            <div class="snipe-focus-player-name">
+                ${renderCountryFlag(countryCode, 'scores-country')}
+                <strong class="${isCreatorUsername(username) ? 'creator-name' : ''}">${escapeHtml(username)}</strong>
+            </div>
+            <div class="snipe-focus-score-badges">
+                <div class="snipe-focus-position-badge">
+                    <span>${escapeHtml(rooms.scoresPosition)}</span>
+                    <strong>${escapeHtml(position)}</strong>
+                </div>
+                <div class="snipe-focus-rank-badge">
+                    <span>${escapeHtml(t.stats.rank)}</span>
+                    <strong class="${getRankClass(score?.rank)}">${escapeHtml(rank)}</strong>
+                </div>
+            </div>
+            <div class="snipe-focus-mods">${renderScoreModChips(score)}</div>
+            <div class="snipe-focus-player-grid">
+                ${renderSnipeMetric(t.stats.score, fmtNum(totalScore), 'gold')}
+                ${renderSnipeMetric(t.stats.pp, pp, 'pink')}
+                ${renderSnipeMetric(t.stats.accuracy, acc, 'cyan')}
+                ${renderSnipeMetric(t.stats.maxCombo, combo, '')}
+                ${renderSnipeMetric(t.stats.misses, fmtNum(misses), misses > 0 ? 'miss' : '')}
+                ${renderSnipeMetric(t.stats.date, date, '')}
+            </div>
+        </section>
+    `;
+}
+
+function renderSnipeMetric(label, value, tone = '') {
+    return `<div class="snipe-focus-metric ${tone ? `snipe-focus-metric--${tone}` : ''}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+    </div>`;
+}
+
+function renderSnipeDelta(label, value, tone = '') {
+    return `<div class="snipe-focus-delta ${tone ? `snipe-focus-delta--${tone}` : ''}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+    </div>`;
+}
+
+function renderSnipePlayerPanel(score, options = {}) {
+    const t = LANGS[currentLang];
+    const label = options.label || '';
+    const position = options.position || 0;
+    const user = score?.user || {};
+    const username = user.username || `#${score?.user_id || position || '?'}`;
+    const countryCode = user.country_code || user.country?.code || '';
+    const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const pp = typeof score?.pp === 'number' ? `${fmtNum(score.pp)}pp` : '—';
+    const acc = typeof score?.accuracy === 'number' ? `${(score.accuracy * 100).toFixed(2)}%` : '—';
+    const combo = score?.max_combo ? `${fmtNum(score.max_combo)}x` : '—';
+    const misses = getScoreMisses(score);
+    const rank = getRankDisplay(score?.rank);
+
+    return `
+        <div class="scores-snipe-player${options.highlight ? ' scores-snipe-player--winner' : ''}">
+            <div class="scores-snipe-player-label">${escapeHtml(label)}</div>
+            <div class="scores-snipe-player-main">
+                <img class="scores-snipe-avatar" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(username)}" onerror="this.src='https://osu.ppy.sh/images/layout/avatar-guest.png'">
+                <div class="scores-snipe-player-copy">
+                    <div class="scores-snipe-player-name">
+                        ${renderCountryFlag(countryCode, 'scores-country')}
+                        <strong class="${isCreatorUsername(username) ? 'creator-name' : ''}">${escapeHtml(username)}</strong>
+                    </div>
+                    <div class="scores-snipe-player-rank">#${position ? fmtNum(position) : '—'} · ${escapeHtml(t.stats.rank)} ${escapeHtml(rank)}</div>
+                    <div class="scores-snipe-player-mods">${renderScoreModChips(score)}</div>
+                </div>
+            </div>
+            <div class="scores-snipe-player-stats">
+                <div><span>${escapeHtml(t.stats.pp)}</span><strong>${escapeHtml(pp)}</strong></div>
+                <div><span>${escapeHtml(t.stats.accuracy)}</span><strong>${escapeHtml(acc)}</strong></div>
+                <div><span>${escapeHtml(t.stats.maxCombo)}</span><strong>${escapeHtml(combo)}</strong></div>
+                <div><span>${escapeHtml(t.stats.misses)}</span><strong class="${misses > 0 ? 'miss-val' : ''}">${fmtNum(misses)}</strong></div>
+            </div>
+        </div>
+    `;
+}
+
+function submitBeatmapScoresSearch(event) {
+    event?.preventDefault();
+    const input = document.getElementById('scores-query');
+    const beatmapId = extractBeatmapId(input?.value || '');
+    if (!beatmapId) {
+        input?.focus();
+        window.UISounds?.play('error');
+        return;
+    }
+
+    window.UISounds?.play('click');
+    navigateToRoom('scores', beatmapId);
+}
+
+function setScoresLeaderboardType(type) {
+    if (!['friend', 'global'].includes(type)) return;
+    scoreLeaderboardType = type;
+    localStorage.setItem('osu_score_leaderboard_type', type);
+    beatmapScoresCache.clear();
+    renderScoresRoom(currentRoomRoute || { name: 'scores', param: '' });
+}
+
+function setScoresRoomMode(mode) {
+    if (!['osu', 'taiko', 'fruits', 'mania'].includes(mode)) return;
+    currentMode = mode;
+    const landingMode = document.getElementById('gamemode');
+    if (landingMode) landingMode.value = mode;
+    beatmapScoresCache.clear();
+    renderScoresRoom(currentRoomRoute || { name: 'scores', param: '' });
+}
+
+function refreshBeatmapScoresRoom() {
+    beatmapScoresCache.clear();
+    renderScoresRoom(currentRoomRoute || { name: 'scores', param: '' });
+}
+
+function getScoresLeaderboardType() {
+    return scoreLeaderboardType === 'global' ? 'global' : 'friend';
+}
+
+function isActiveScoresRoom(beatmapId) {
+    return currentRoomRoute?.name === 'scores'
+        && extractBeatmapId(currentRoomRoute.param || '') === String(beatmapId);
+}
+
+function extractBeatmapId(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    if (/^\d{1,12}$/.test(raw)) return raw;
+
+    const patterns = [
+        /#(?:osu|taiko|fruits|mania)\/(\d+)/i,
+        /osu:\/\/b\/(\d+)/i,
+        /\/(?:b|beatmaps)\/(\d+)/i,
+        /[?&](?:b|beatmap_id|beatmapid)=(\d+)/i
+    ];
+
+    for (const pattern of patterns) {
+        const match = raw.match(pattern);
+        if (match?.[1]) return match[1];
+    }
+
+    try {
+        const url = new URL(raw);
+        const fromHash = extractBeatmapId(url.hash);
+        if (fromHash) return fromHash;
+        const fromPath = extractBeatmapId(url.pathname);
+        if (fromPath) return fromPath;
+    } catch {
+        // Not a URL; regex fallback already ran.
+    }
+
+    return '';
+}
+
+function normalizeBeatmapUserScore(raw) {
+    if (!raw) return null;
+    const score = raw.score || raw;
+    if (!score || typeof score !== 'object') return null;
+    return {
+        position: Number(raw.position || score.position || 0) || 0,
+        score
+    };
+}
+
+function getBeatmapSnipes(scores) {
+    if (!Array.isArray(scores) || scores.length < 2) return [];
+
+    const entries = scores
+        .map((score, index) => ({
+            score,
+            position: index + 1,
+            name: score?.user?.username || `#${index + 1}`,
+            total: getScoreTotalValue(score),
+            pp: typeof score?.pp === 'number' ? score.pp : null,
+            acc: typeof score?.accuracy === 'number' ? score.accuracy * 100 : null,
+            date: getScoreDate(score)
+        }))
+        .filter(entry => entry.total && entry.date);
+
+    const snipes = [];
+    for (let i = 0; i < entries.length - 1; i++) {
+        const winner = entries[i];
+        const target = entries[i + 1];
+        if (new Date(winner.date).getTime() <= new Date(target.date).getTime()) continue;
+
+        snipes.push({
+            winnerName: winner.name,
+            targetName: target.name,
+            winnerScore: winner.score,
+            targetScore: target.score,
+            winnerPosition: winner.position,
+            targetPosition: target.position,
+            date: winner.date,
+            scoreGap: Math.max(0, winner.total - target.total),
+            ppGap: winner.pp != null && target.pp != null ? Math.max(0, winner.pp - target.pp) : null,
+            accGap: winner.acc != null && target.acc != null ? winner.acc - target.acc : null
+        });
+    }
+
+    return snipes;
+}
+
+function getScoreTotalValue(score) {
+    return Number(score?.total_score ?? score?.score ?? score?.legacy_total_score ?? 0) || 0;
+}
+
+function getScoreMisses(score) {
+    return Number(score?.statistics?.miss ?? score?.statistics?.count_miss ?? 0) || 0;
+}
+
+function getScoreDate(score) {
+    return score?.ended_at || score?.created_at || score?.started_at || '';
+}
+
+function renderScoreModChips(score) {
+    const mods = getMods(score);
+    return renderModChips(mods.length ? mods : ['NM']);
+}
+
+function isSameScore(a, b) {
+    if (!a || !b) return false;
+    const aId = a.id ?? a.best_id;
+    const bId = b.id ?? b.best_id;
+    if (aId && bId) return String(aId) === String(bId);
+    return String(a.user_id || a.user?.id || '') === String(b.user_id || b.user?.id || '')
+        && getScoreTotalValue(a) === getScoreTotalValue(b)
+        && getScoreDate(a) === getScoreDate(b);
+}
+
+function formatBeatmapLength(seconds) {
+    const total = Number(seconds || 0);
+    if (!total) return '—';
+    const min = Math.floor(total / 60);
+    const sec = Math.floor(total % 60);
+    return `${min}:${String(sec).padStart(2, '0')}`;
 }
 
 function getTopPlaysSummary(scores) {
@@ -1996,6 +2827,41 @@ async function fetchRecentPlays(username, mode, limit = null) {
     return scores;
 }
 
+async function fetchBeatmap(beatmapId, mode) {
+    const id = extractBeatmapId(beatmapId);
+    if (!id) throw new Error(LANGS[currentLang].rooms.scoresBeatmapError);
+
+    const cacheKey = `beatmap:${mode}:${id}`;
+    if (beatmapScoresCache.has(cacheKey)) return beatmapScoresCache.get(cacheKey);
+
+    const res = await fetch(`/api/osu/beatmaps/${encodeURIComponent(id)}?mode=${encodeURIComponent(mode)}`);
+    if (!res.ok) throw new Error(LANGS[currentLang].rooms.scoresBeatmapError);
+
+    const beatmap = await res.json();
+    beatmapScoresCache.set(cacheKey, beatmap);
+    return beatmap;
+}
+
+async function fetchBeatmapScores(beatmapId, mode, type = 'friend') {
+    const id = extractBeatmapId(beatmapId);
+    const scope = type === 'global' ? 'global' : 'friend';
+    if (!id) throw new Error(LANGS[currentLang].rooms.scoresLeaderboardError);
+
+    const cacheKey = `scores:${mode}:${id}:${scope}`;
+    if (beatmapScoresCache.has(cacheKey)) return beatmapScoresCache.get(cacheKey);
+
+    const res = await fetch(`/api/osu/${encodeURIComponent(mode)}/beatmaps/${encodeURIComponent(id)}/scores?type=${encodeURIComponent(scope)}`, {
+        cache: 'no-store'
+    });
+
+    if (res.status === 401) throw new Error(LANGS[currentLang].rooms.scoresLoginHint);
+    if (!res.ok) throw new Error(LANGS[currentLang].rooms.scoresLeaderboardError);
+
+    const payload = await res.json();
+    beatmapScoresCache.set(cacheKey, payload);
+    return payload;
+}
+
 // ══ HELPERS ══
 function fmtNum(n) {
     if (!n && n !== 0) return '—';
@@ -2112,6 +2978,7 @@ function modClass(mod) {
     if (m === 'FL') return 'mod-fl';
     if (m === 'EZ') return 'mod-ez';
     if (m === 'NF') return 'mod-nf';
+    if (m === 'NM') return 'mod-nm';
     return '';
 }
 
@@ -3600,7 +4467,7 @@ function renderCompareDuelUtilityControls() {
             </div>
             <label class="compare-duel-theme">
                 <span>${escapeHtml(t.theme)}</span>
-                <select onchange="applyTheme(this.value)" aria-label="${escapeHtml(t.theme)}">
+                <select data-theme-select="true" onchange="switchTheme(this.value)" aria-label="${escapeHtml(t.theme)}">
                     ${themes.map(theme => `
                         <option value="${escapeHtml(theme.id)}"${theme.id === activeTheme ? ' selected' : ''}>${escapeHtml(theme.label)}</option>
                     `).join('')}
@@ -4640,6 +5507,12 @@ function closeFocus(e) {
 // ESC para cerrar
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        const snipeOverlay = document.getElementById('snipe-focus-overlay');
+        if (snipeOverlay?.classList.contains('active')) {
+            closeSnipeFocusBtn();
+            return;
+        }
+
         if (compareDuelModeEnabled) {
             window.UISounds?.play('back');
             closeCompareDuelMode();
