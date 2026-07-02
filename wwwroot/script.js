@@ -9,6 +9,9 @@ const SHARE_MODE = INITIAL_URL_PARAMS.get('share');
 const IS_SHARE_COMPARE_MODE = SHARE_MODE === 'compare';
 const IS_SHARE_ROOM_MODE = SHARE_MODE === 'room';
 const IS_SHARE_MODE = IS_SHARE_COMPARE_MODE || IS_SHARE_ROOM_MODE;
+const SHARE_SOURCE = INITIAL_URL_PARAMS.get('source');
+const IS_WEB_SHARE_CAPTURE = IS_SHARE_COMPARE_MODE && SHARE_SOURCE === 'web';
+const SHARE_CAPTURE_VARIANT = INITIAL_URL_PARAMS.get('capture') === 'clean' ? 'clean' : 'full';
 const HAS_LINKED_COMPARE_PARAMS = INITIAL_URL_PARAMS.has('player') || INITIAL_URL_PARAMS.has('players');
 const requestedLang = INITIAL_URL_PARAMS.get('lang');
 let currentLang = SUPPORTED_LANGS.includes(requestedLang)
@@ -245,6 +248,23 @@ const LANGS = {
             bestTopPlay: 'Mejor Top Play',
             breakdownKicker: 'Análisis',
             breakdownTitle: 'Desglose de comparación',
+            cleanViewOn: 'Vista limpia',
+            cleanViewOff: 'Vista completa',
+            cleanViewHint: 'Oculta resumen, líder y desglose para ver solo los jugadores.',
+            shareCapture: 'Compartir',
+            shareCaptureKicker: 'Captura',
+            shareCaptureTitle: 'Compartir comparación',
+            shareCaptureCopy: 'Genera una imagen PNG de la comparación actual, revisa la vista previa y descárgala cuando te guste.',
+            shareCaptureFull: 'Completa',
+            shareCaptureFullCopy: 'Jugadores, líder, resumen y desglose de métricas.',
+            shareCaptureClean: 'Clean',
+            shareCaptureCleanCopy: 'Solo los jugadores, centrado y listo para una captura más limpia.',
+            shareCaptureGenerate: 'Generar vista previa',
+            shareCaptureGenerating: 'Generando captura...',
+            shareCaptureDownload: 'Descargar PNG',
+            shareCaptureEmpty: 'Elige un estilo y genera una vista previa.',
+            shareCaptureError: 'No se pudo generar la captura ahora mismo.',
+            shareCapturePreviewAlt: 'Vista previa de la comparación',
             duelKicker: '1v1',
             duelTitle: 'Duelo directo',
             duelPlayers: '2 jugadores',
@@ -502,6 +522,23 @@ const LANGS = {
             bestTopPlay: 'Best Top Play',
             breakdownKicker: 'Breakdown',
             breakdownTitle: 'Comparison Breakdown',
+            cleanViewOn: 'Clean view',
+            cleanViewOff: 'Full view',
+            cleanViewHint: 'Hide summary, leader and breakdown to focus on the players.',
+            shareCapture: 'Share',
+            shareCaptureKicker: 'Screenshot',
+            shareCaptureTitle: 'Share comparison',
+            shareCaptureCopy: 'Generate a PNG image of the current comparison, check the preview, then download it when it looks right.',
+            shareCaptureFull: 'Full',
+            shareCaptureFullCopy: 'Players, leader, summary and metric breakdown.',
+            shareCaptureClean: 'Clean',
+            shareCaptureCleanCopy: 'Only the players, centered and ready for a cleaner screenshot.',
+            shareCaptureGenerate: 'Generate preview',
+            shareCaptureGenerating: 'Generating screenshot...',
+            shareCaptureDownload: 'Download PNG',
+            shareCaptureEmpty: 'Choose a style and generate a preview.',
+            shareCaptureError: 'Could not generate the screenshot right now.',
+            shareCapturePreviewAlt: 'Comparison screenshot preview',
             duelKicker: '1v1',
             duelTitle: 'Direct Duel',
             duelPlayers: '2 players',
@@ -759,6 +796,23 @@ const LANGS = {
             bestTopPlay: 'Bestes Top Play',
             breakdownKicker: 'Analyse',
             breakdownTitle: 'Vergleichsdetails',
+            cleanViewOn: 'Clean View',
+            cleanViewOff: 'Volle Ansicht',
+            cleanViewHint: 'Blendet Zusammenfassung, Leader und Details aus, damit nur die Spieler im Fokus stehen.',
+            shareCapture: 'Teilen',
+            shareCaptureKicker: 'Screenshot',
+            shareCaptureTitle: 'Vergleich teilen',
+            shareCaptureCopy: 'Erzeuge ein PNG-Bild des aktuellen Vergleichs, pruefe die Vorschau und lade es dann herunter.',
+            shareCaptureFull: 'Voll',
+            shareCaptureFullCopy: 'Spieler, Leader, Zusammenfassung und Metrik-Details.',
+            shareCaptureClean: 'Clean',
+            shareCaptureCleanCopy: 'Nur die Spieler, zentriert und bereit fuer einen cleaneren Screenshot.',
+            shareCaptureGenerate: 'Vorschau erzeugen',
+            shareCaptureGenerating: 'Screenshot wird erzeugt...',
+            shareCaptureDownload: 'PNG herunterladen',
+            shareCaptureEmpty: 'Waehle einen Stil und erzeuge eine Vorschau.',
+            shareCaptureError: 'Der Screenshot konnte gerade nicht erzeugt werden.',
+            shareCapturePreviewAlt: 'Vorschau des Vergleich-Screenshots',
             duelKicker: '1v1',
             duelTitle: 'Direktes Duell',
             duelPlayers: '2 Spieler',
@@ -861,6 +915,8 @@ function applyLang() {
     document.getElementById('room-nav-history').textContent = t.rooms.history;
     document.getElementById('room-nav-scores').textContent = t.rooms.scores;
     updateRoomBackLabel();
+    syncComparisonCleanViewButton();
+    syncShareCaptureUi();
 
     const label = document.querySelector('.podium-label');
     if (label) label.textContent = t.leader;
@@ -1055,6 +1111,8 @@ function showCompareRoom() {
     }
     closeCompareDuelMode(false);
     closeFocusBtn();
+    closeShareCaptureBtn(false);
+    setComparisonCleanView(false);
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
     document.getElementById('landing').style.display = 'flex';
@@ -1082,6 +1140,7 @@ function showResultsRoom() {
     setActiveRoomLink('');
     currentRoomRoute = { name: 'results', param: '' };
     updateRoomBackLabel();
+    syncComparisonCleanViewButton();
 
     if (!IS_SHARE_MODE && !refreshTimer) {
         refreshTimer = setInterval(refreshData, 60000);
@@ -2644,10 +2703,15 @@ let roomAnimationKey = '';
 let roomContentAnimationDone = false;
 let roomContentAnimationFrame = null;
 let compareDuelModeEnabled = false;
+let comparisonCleanViewEnabled = false;
 let lastComparisonUsers = [];
 let lastComparisonTopPlays = [];
 let lastComparisonBestPlays = [];
 let lastComparisonIsSingle = false;
+let shareCaptureVariant = 'full';
+let shareCaptureObjectUrl = '';
+let shareCaptureFilename = '';
+let shareCaptureLoading = false;
 let compareDuelAnimationTimer = null;
 let focusCleanupTimer = null;
 let refreshTimer = null;
@@ -4151,6 +4215,234 @@ function getCompareDuelCategoryTone(category) {
     return tones[category] || 'gold';
 }
 
+function syncComparisonCleanViewButton() {
+    const results = document.getElementById('results');
+    const button = document.getElementById('btn-clean-view');
+    if (results) {
+        results.classList.toggle('comparison-clean-view', comparisonCleanViewEnabled);
+    }
+    if (!button) return;
+
+    const t = LANGS[currentLang].compare;
+    const label = comparisonCleanViewEnabled ? t.cleanViewOff : t.cleanViewOn;
+    button.innerHTML = `<span aria-hidden="true">${comparisonCleanViewEnabled ? '▣' : '□'}</span><span>${escapeHtml(label)}</span>`;
+    button.title = t.cleanViewHint;
+    button.setAttribute('aria-label', `${label}. ${t.cleanViewHint}`);
+    button.setAttribute('aria-pressed', comparisonCleanViewEnabled ? 'true' : 'false');
+    button.classList.toggle('active', comparisonCleanViewEnabled);
+}
+
+function setComparisonCleanView(enabled) {
+    comparisonCleanViewEnabled = Boolean(enabled);
+    syncComparisonCleanViewButton();
+}
+
+function toggleComparisonCleanView() {
+    setComparisonCleanView(!comparisonCleanViewEnabled);
+    window.UISounds?.play('click');
+}
+
+function getCurrentThemeId() {
+    return document.documentElement.dataset.theme || localStorage.getItem('theme') || 'cyberpunk';
+}
+
+function getShareCaptureScale() {
+    const ratio = Number(window.devicePixelRatio || 1);
+    return Math.max(1, Math.min(3, ratio));
+}
+
+function resetShareCapturePreview() {
+    if (shareCaptureObjectUrl) {
+        URL.revokeObjectURL(shareCaptureObjectUrl);
+        shareCaptureObjectUrl = '';
+    }
+    shareCaptureFilename = '';
+
+    const preview = document.getElementById('share-capture-preview');
+    const download = document.getElementById('share-capture-download');
+    const error = document.getElementById('share-capture-error');
+    const t = LANGS[currentLang].compare;
+
+    if (preview) {
+        preview.innerHTML = `<div class="share-capture-empty" id="share-capture-empty">${escapeHtml(t.shareCaptureEmpty)}</div>`;
+    }
+    if (download) download.disabled = true;
+    if (error) {
+        error.textContent = '';
+        error.style.display = 'none';
+    }
+}
+
+function syncShareCaptureUi() {
+    const t = LANGS[currentLang].compare;
+    const shareButton = document.getElementById('btn-share-capture');
+    if (shareButton) {
+        shareButton.innerHTML = `<span aria-hidden="true">↗</span><span>${escapeHtml(t.shareCapture)}</span>`;
+        shareButton.setAttribute('aria-label', t.shareCaptureTitle);
+    }
+
+    const labels = {
+        'share-capture-kicker': t.shareCaptureKicker,
+        'share-capture-title': t.shareCaptureTitle,
+        'share-capture-copy': t.shareCaptureCopy,
+        'share-capture-full-label': t.shareCaptureFull,
+        'share-capture-full-copy': t.shareCaptureFullCopy,
+        'share-capture-clean-label': t.shareCaptureClean,
+        'share-capture-clean-copy': t.shareCaptureCleanCopy,
+        'share-capture-generate': shareCaptureLoading ? t.shareCaptureGenerating : t.shareCaptureGenerate,
+        'share-capture-download': t.shareCaptureDownload
+    };
+
+    Object.entries(labels).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    });
+
+    document.getElementById('share-capture-option-full')?.classList.toggle('active', shareCaptureVariant === 'full');
+    document.getElementById('share-capture-option-clean')?.classList.toggle('active', shareCaptureVariant === 'clean');
+
+    const generate = document.getElementById('share-capture-generate');
+    if (generate) generate.disabled = shareCaptureLoading;
+}
+
+function openShareCapture() {
+    if (!currentPlayers.length || shareCaptureLoading) return;
+
+    const overlay = document.getElementById('share-capture-overlay');
+    if (!overlay) return;
+
+    shareCaptureVariant = comparisonCleanViewEnabled ? 'clean' : 'full';
+    resetShareCapturePreview();
+    syncShareCaptureUi();
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('share-capture-open');
+    window.UISounds?.play('click');
+}
+
+function closeShareCaptureBtn(playSound = true) {
+    const overlay = document.getElementById('share-capture-overlay');
+    if (!overlay) return;
+
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('share-capture-open');
+    if (playSound) window.UISounds?.play('back');
+}
+
+function closeShareCapture(event) {
+    if (event.target === document.getElementById('share-capture-overlay')) {
+        closeShareCaptureBtn();
+    }
+}
+
+function setShareCaptureVariant(variant) {
+    shareCaptureVariant = variant === 'clean' ? 'clean' : 'full';
+    resetShareCapturePreview();
+    syncShareCaptureUi();
+    window.UISounds?.play('click');
+}
+
+function buildShareCapturePayload() {
+    return {
+        players: currentPlayers.slice(0, 4),
+        mode: currentMode,
+        theme: getCurrentThemeId(),
+        lang: currentLang,
+        capture: shareCaptureVariant,
+        scale: getShareCaptureScale()
+    };
+}
+
+function getShareCaptureFilenameFromResponse(response) {
+    const disposition = response.headers.get('content-disposition') || '';
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match) return decodeURIComponent(utf8Match[1].replace(/"/g, ''));
+
+    const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+    if (plainMatch) return plainMatch[1];
+
+    const slug = currentPlayers
+        .map(player => String(player || '').trim().toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, ''))
+        .filter(Boolean)
+        .join('-vs-') || 'comparison';
+    return `osu-for-fellas-${slug}-${shareCaptureVariant}.png`;
+}
+
+async function generateShareCapturePreview() {
+    if (shareCaptureLoading || !currentPlayers.length) return;
+
+    const t = LANGS[currentLang].compare;
+    const preview = document.getElementById('share-capture-preview');
+    const error = document.getElementById('share-capture-error');
+    const download = document.getElementById('share-capture-download');
+
+    shareCaptureLoading = true;
+    if (error) {
+        error.textContent = '';
+        error.style.display = 'none';
+    }
+    if (download) download.disabled = true;
+    if (preview) {
+        preview.innerHTML = `
+            <div class="share-capture-loading">
+                <div class="spinner"></div>
+                <span>${escapeHtml(t.shareCaptureGenerating)}</span>
+            </div>
+        `;
+    }
+    syncShareCaptureUi();
+
+    try {
+        const response = await fetch('/api/share/compare-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildShareCapturePayload())
+        });
+
+        if (!response.ok) throw new Error(`capture_${response.status}`);
+
+        const blob = await response.blob();
+        if (shareCaptureObjectUrl) URL.revokeObjectURL(shareCaptureObjectUrl);
+
+        shareCaptureObjectUrl = URL.createObjectURL(blob);
+        shareCaptureFilename = getShareCaptureFilenameFromResponse(response);
+
+        if (preview) {
+            preview.innerHTML = `
+                <img class="share-capture-image" src="${shareCaptureObjectUrl}" alt="${escapeHtml(t.shareCapturePreviewAlt)}">
+            `;
+        }
+        if (download) download.disabled = false;
+        window.UISounds?.play('success');
+    } catch (errorValue) {
+        if (preview) {
+            preview.innerHTML = `<div class="share-capture-empty">${escapeHtml(t.shareCaptureEmpty)}</div>`;
+        }
+        if (error) {
+            error.textContent = t.shareCaptureError;
+            error.style.display = 'block';
+        }
+        window.UISounds?.play('error');
+        console.error(errorValue);
+    } finally {
+        shareCaptureLoading = false;
+        syncShareCaptureUi();
+    }
+}
+
+function downloadShareCapture() {
+    if (!shareCaptureObjectUrl) return;
+
+    const link = document.createElement('a');
+    link.href = shareCaptureObjectUrl;
+    link.download = shareCaptureFilename || `osu-for-fellas-${shareCaptureVariant}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.UISounds?.play('click');
+}
+
 function renderCompareDuelCategoryReadout(decisions, valid) {
     const t = LANGS[currentLang].compare;
     const [left, right] = valid;
@@ -4446,6 +4738,12 @@ function renderCompareDuelUtilityControls() {
     const t = LANGS[currentLang];
     const activeTheme = document.documentElement.dataset.theme || 'cyberpunk';
     const themes = typeof THEMES !== 'undefined' && Array.isArray(THEMES) ? THEMES : [];
+    const themeOptions = typeof renderThemeOptions === 'function'
+        ? renderThemeOptions(activeTheme)
+        : themes
+            .filter(theme => !theme.hidden || theme.id === activeTheme)
+            .map(theme => `<option value="${escapeHtml(theme.id)}"${theme.id === activeTheme ? ' selected' : ''}>${escapeHtml(theme.label)}</option>`)
+            .join('');
     const languages = [
         { id: 'es', flag: '🇲🇽', label: 'Español' },
         { id: 'en', flag: '🇺🇸', label: 'English' },
@@ -4468,9 +4766,7 @@ function renderCompareDuelUtilityControls() {
             <label class="compare-duel-theme">
                 <span>${escapeHtml(t.theme)}</span>
                 <select data-theme-select="true" onchange="switchTheme(this.value)" aria-label="${escapeHtml(t.theme)}">
-                    ${themes.map(theme => `
-                        <option value="${escapeHtml(theme.id)}"${theme.id === activeTheme ? ' selected' : ''}>${escapeHtml(theme.label)}</option>
-                    `).join('')}
+                    ${themeOptions}
                 </select>
             </label>
         </div>
@@ -5513,6 +5809,12 @@ document.addEventListener('keydown', e => {
             return;
         }
 
+        const shareOverlay = document.getElementById('share-capture-overlay');
+        if (shareOverlay?.classList.contains('active')) {
+            closeShareCaptureBtn();
+            return;
+        }
+
         if (compareDuelModeEnabled) {
             window.UISounds?.play('back');
             closeCompareDuelMode();
@@ -5576,7 +5878,10 @@ function getSharedCompareMode() {
 
 function getSharedCompareTheme() {
     const theme = String(INITIAL_URL_PARAMS.get('theme') || 'cyberpunk').trim();
-    return ['cyberpunk', 'heaven'].includes(theme) ? theme : 'cyberpunk';
+    const themeIds = typeof THEMES !== 'undefined' && Array.isArray(THEMES)
+        ? THEMES.map(item => item.id)
+        : ['cyberpunk', 'heaven'];
+    return themeIds.includes(theme) ? theme : 'cyberpunk';
 }
 
 function markSharedCompareReady() {
@@ -5609,10 +5914,14 @@ function initSharedCompareMode() {
     if (!IS_SHARE_COMPARE_MODE) return;
 
     document.body.classList.add('share-mode', 'share-compare-mode');
+    if (IS_WEB_SHARE_CAPTURE) {
+        document.body.classList.add('share-web-capture', `share-capture-${SHARE_CAPTURE_VARIANT}`);
+        comparisonCleanViewEnabled = SHARE_CAPTURE_VARIANT === 'clean';
+    }
     hydrateCompareFromUrlParams();
 
     const players = getSharedComparePlayers();
-    if (players.length < 2) {
+    if (players.length < 1) {
         markSharedCompareReady();
         return;
     }
@@ -5756,6 +6065,7 @@ async function doSearch() {
     topPlaysCache.clear();
     recentPlaysCache.clear();
     compareDuelModeEnabled = false;
+    setComparisonCleanView(IS_WEB_SHARE_CAPTURE && SHARE_CAPTURE_VARIANT === 'clean');
     syncCompareDuelModeState([], names.length === 1);
 
     currentPlayers = names;

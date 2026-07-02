@@ -5,7 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>osu! PP Tracker</title>
     <script>
-        document.documentElement.dataset.theme = localStorage.getItem('theme') || 'cyberpunk';
+        (() => {
+            const storedTheme = localStorage.getItem('theme') || 'cyberpunk';
+            const host = window.location.hostname;
+            const canUseLockedThemes = host === 'localhost'
+                || host === '127.0.0.1'
+                || host === '::1'
+                || host.endsWith('.local');
+            document.documentElement.dataset.theme = storedTheme === 'crimson' && !canUseLockedThemes
+                ? 'cyberpunk'
+                : storedTheme;
+        })();
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Oswald:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -136,7 +146,11 @@
 
         <div class="refresh-bar">
             <div class="refresh-info"><span id="last-update">—</span></div>
-            <button class="btn-refresh" id="btn-refresh" onclick="refreshData()"></button>
+            <div class="results-actions">
+                <button class="btn-clean-view" id="btn-clean-view" type="button" onclick="toggleComparisonCleanView()" aria-pressed="false"></button>
+                <button class="btn-share-capture" id="btn-share-capture" type="button" onclick="openShareCapture()"></button>
+                <button class="btn-refresh" id="btn-refresh" onclick="refreshData()"></button>
+            </div>
         </div>
 
         <div id="podium-banner" class="podium-banner" style="display:none;">
@@ -222,6 +236,36 @@
                     </div>
                 </div>
                 <div class="focus-stats-grid" id="focus-stats"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ SHARE / SCREENSHOT MODAL ══ -->
+    <div id="share-capture-overlay" class="share-capture-overlay" onclick="closeShareCapture(event)" aria-hidden="true">
+        <div class="share-capture-modal" role="dialog" aria-modal="true" aria-labelledby="share-capture-title">
+            <button class="share-capture-close" type="button" onclick="closeShareCaptureBtn()">✕</button>
+            <div class="share-capture-head">
+                <div class="share-capture-kicker" id="share-capture-kicker"></div>
+                <h2 id="share-capture-title"></h2>
+                <p id="share-capture-copy"></p>
+            </div>
+            <div class="share-capture-options" role="group" aria-label="Screenshot style">
+                <button class="share-capture-option" id="share-capture-option-full" type="button" onclick="setShareCaptureVariant('full')">
+                    <strong id="share-capture-full-label"></strong>
+                    <span id="share-capture-full-copy"></span>
+                </button>
+                <button class="share-capture-option" id="share-capture-option-clean" type="button" onclick="setShareCaptureVariant('clean')">
+                    <strong id="share-capture-clean-label"></strong>
+                    <span id="share-capture-clean-copy"></span>
+                </button>
+            </div>
+            <div class="share-capture-preview" id="share-capture-preview">
+                <div class="share-capture-empty" id="share-capture-empty"></div>
+            </div>
+            <div class="share-capture-error" id="share-capture-error" style="display:none;"></div>
+            <div class="share-capture-actions">
+                <button class="share-capture-generate" id="share-capture-generate" type="button" onclick="generateShareCapturePreview()"></button>
+                <button class="share-capture-download" id="share-capture-download" type="button" onclick="downloadShareCapture()" disabled></button>
             </div>
         </div>
     </div>

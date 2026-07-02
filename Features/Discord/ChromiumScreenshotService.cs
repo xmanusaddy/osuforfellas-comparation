@@ -29,9 +29,12 @@ public sealed class ChromiumScreenshotService
         int height,
         string readyExpression,
         TimeSpan readyTimeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        double deviceScaleFactor = 1,
+        bool captureBeyondViewport = false)
     {
         EnsureTrustedCaptureUrl(url);
+        deviceScaleFactor = Math.Clamp(deviceScaleFactor, 1, 3);
 
         var executable = FindChromiumExecutable();
         if (string.IsNullOrWhiteSpace(executable))
@@ -57,7 +60,7 @@ public sealed class ChromiumScreenshotService
             {
                 width,
                 height,
-                deviceScaleFactor = 1,
+                deviceScaleFactor,
                 mobile = false
             }, cancellationToken);
 
@@ -78,7 +81,7 @@ public sealed class ChromiumScreenshotService
             {
                 format = "png",
                 fromSurface = true,
-                captureBeyondViewport = false
+                captureBeyondViewport
             }, cancellationToken);
 
             var data = screenshot

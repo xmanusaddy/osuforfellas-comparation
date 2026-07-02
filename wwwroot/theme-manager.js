@@ -15,11 +15,57 @@ const THEMES = [
     {
         id: 'heaven',
         label: 'Heaven'
+    },
+    {
+        id: 'crimson',
+        label: 'Crimson Night',
+        locked: true,
+        lockedLabel: 'Crimson Night 🔒',
+        lockedMessage: 'Crimson Night is not available yet. It will open closer to Halloween.'
     }
 ];
 
 function getTheme(themeId) {
     return THEMES.find(theme => theme.id === themeId) || THEMES[0];
+}
+
+function canUseLockedThemes() {
+    const host = window.location.hostname;
+    return host === 'localhost'
+        || host === '127.0.0.1'
+        || host === '::1'
+        || host.endsWith('.local');
+}
+
+function isThemeLocked(theme) {
+    return Boolean(theme?.locked) && !canUseLockedThemes();
+}
+
+function getPublicTheme(themeId) {
+    const theme = getTheme(themeId);
+    return isThemeLocked(theme) ? THEMES[0] : theme;
+}
+
+function showThemeLockedNotice(theme) {
+    const message = theme?.lockedMessage || 'This theme is not available yet.';
+    let notice = document.getElementById('theme-locked-notice');
+
+    if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'theme-locked-notice';
+        notice.className = 'theme-locked-notice';
+        notice.setAttribute('role', 'status');
+        notice.setAttribute('aria-live', 'polite');
+        document.body.appendChild(notice);
+    }
+
+    notice.textContent = message;
+    notice.classList.remove('is-visible');
+    window.clearTimeout(showThemeLockedNotice.hideTimer);
+    requestAnimationFrame(() => notice.classList.add('is-visible'));
+    showThemeLockedNotice.hideTimer = window.setTimeout(() => {
+        notice.classList.remove('is-visible');
+    }, 3200);
 }
 
 function waitThemeFrame(ms) {
@@ -56,12 +102,41 @@ function syncThemeControls(themeId) {
     });
 
     document.querySelectorAll('#theme-select, [data-theme-select], .compare-duel-theme select').forEach(select => {
+        ensureThemeOption(select, themeId);
         if (select.value !== themeId) select.value = themeId;
     });
 }
 
+function getSelectableThemes(activeThemeId = '') {
+    return THEMES.filter(theme => !theme.hidden || theme.id === activeThemeId);
+}
+
+function renderThemeOptions(activeThemeId = '') {
+    return getSelectableThemes(activeThemeId)
+        .map(theme => {
+            const locked = isThemeLocked(theme);
+            const label = locked ? (theme.lockedLabel || `${theme.label} 🔒`) : theme.label;
+            return `<option class="theme-option" value="${theme.id}" data-theme="${theme.id}"${locked ? ' data-locked="true"' : ''}>${label}</option>`;
+        })
+        .join('');
+}
+
+function ensureThemeOption(select, themeId) {
+    if (!select || [...select.options].some(option => option.value === themeId)) return;
+
+    const theme = THEMES.find(item => item.id === themeId);
+    if (!theme) return;
+    const locked = isThemeLocked(theme);
+    const label = locked ? (theme.lockedLabel || `${theme.label} 🔒`) : theme.label;
+
+    select.insertAdjacentHTML(
+        'beforeend',
+        `<option class="theme-option" value="${theme.id}" data-theme="${theme.id}"${locked ? ' data-locked="true"' : ''}>${label}</option>`
+    );
+}
+
 function applyTheme(themeId) {
-    const theme = getTheme(themeId);
+    const theme = getPublicTheme(themeId);
     document.documentElement.dataset.theme = theme.id;
     localStorage.setItem(THEME_STORAGE_KEY, theme.id);
     syncThemeControls(theme.id);
@@ -73,6 +148,12 @@ let themeTransitionPromise = Promise.resolve();
 function switchTheme(themeId) {
     const theme = getTheme(themeId);
     const currentTheme = document.documentElement.dataset.theme || localStorage.getItem(THEME_STORAGE_KEY) || THEMES[0].id;
+
+    if (isThemeLocked(theme)) {
+        showThemeLockedNotice(theme);
+        syncThemeControls(currentTheme);
+        return Promise.resolve(currentTheme);
+    }
 
     if (theme.id === currentTheme || isThemeShareMode() || shouldReduceThemeMotion()) {
         return Promise.resolve(applyTheme(theme.id));
@@ -112,13 +193,12 @@ function initThemeSelector() {
     const select = document.getElementById('theme-select');
     if (!select) return;
 
-    select.innerHTML = THEMES
-        .map(theme => `<option class="theme-option" value="${theme.id}" data-theme="${theme.id}">${theme.label}</option>`)
-        .join('');
+    const storedTheme = getPublicTheme(localStorage.getItem(THEME_STORAGE_KEY) || THEMES[0].id);
+    select.innerHTML = renderThemeOptions(storedTheme.id);
 
     select.dataset.themeSelect = 'true';
     select.addEventListener('change', () => switchTheme(select.value));
-    applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || THEMES[0].id);
+    applyTheme(storedTheme.id);
 }
 
 initThemeSelector();
