@@ -102,6 +102,26 @@ public class OsuController : ControllerBase
         return Content(result.Content, "application/json");
     }
 
+    // GET /api/osu/osu/scores/123456/replay
+    [HttpGet("{mode}/scores/{scoreId:long}/replay")]
+    public async Task<IActionResult> DownloadScoreReplay(
+        string mode,
+        long scoreId,
+        [FromQuery] long? alternateScoreId = null,
+        [FromQuery] string? filename = null)
+    {
+        if (!SupportedModes.Contains(mode) || scoreId <= 0)
+            return BadRequest(new { error = "invalid_request" });
+
+        var accessToken = await _userSession.GetValidAccessTokenAsync();
+        var result = await _osuApi.GetScoreReplayAsync(mode, scoreId, alternateScoreId, accessToken);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { error = "replay_unavailable" });
+
+        var safeFilename = BuildReplayFilename(filename, mode, scoreId);
+        return File(result.Content, result.ContentType, safeFilename);
+    }
+
     private static bool IsValidRequest(string mode, string username)
     {
         return SupportedModes.Contains(mode)
@@ -115,5 +135,28 @@ public class OsuController : ControllerBase
     {
         return string.Equals(type, "global", StringComparison.OrdinalIgnoreCase)
             || string.Equals(type, "friend", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildReplayFilename(string? filename, string mode, long scoreId)
+    {
+        var fallback = $"osu-for-fellas-{mode}-{scoreId}";
+        var cleaned = string.IsNullOrWhiteSpace(filename) ? fallback : filename.Trim();
+
+        foreach (var invalidChar in Path.GetInvalidFileNameChars())
+            cleaned = cleaned.Replace(invalidChar, '-');
+
+        cleaned = cleaned.Replace('/', '-').Replace('\\', '-');
+        cleaned = string.Join(" ", cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        cleaned = cleaned.Trim(' ', '.', '-');
+
+        if (string.IsNullOrWhiteSpace(cleaned))
+            cleaned = fallback;
+
+        if (cleaned.Length > 120)
+            cleaned = cleaned[..120].Trim(' ', '.', '-');
+
+        return cleaned.EndsWith(".osr", StringComparison.OrdinalIgnoreCase)
+            ? cleaned
+            : $"{cleaned}.osr";
     }
 }

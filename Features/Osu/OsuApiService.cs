@@ -131,6 +131,62 @@ public sealed class OsuApiService
         return (response.IsSuccessStatusCode, (int)response.StatusCode, content);
     }
 
+    public async Task<(bool Success, int StatusCode, byte[] Content, string ContentType)> GetScoreReplayAsync(
+        string mode,
+        long scoreId,
+        long? alternateScoreId = null,
+        string? accessToken = null)
+    {
+        var token = string.IsNullOrWhiteSpace(accessToken) ? await GetTokenAsync() : accessToken;
+        var scoreIds = alternateScoreId.HasValue && alternateScoreId.Value > 0 && alternateScoreId.Value != scoreId
+            ? new[] { scoreId, alternateScoreId.Value }
+            : new[] { scoreId };
+
+        var attempts = scoreIds.SelectMany(id => new[]
+        {
+            (Url: $"https://osu.ppy.sh/scores/{id}/download", AddScoreApiVersion: false, UseAuth: false),
+            (Url: $"https://osu.ppy.sh/scores/{id}/download", AddScoreApiVersion: false, UseAuth: true),
+            (Url: $"https://osu.ppy.sh/api/v2/scores/{id}/download", AddScoreApiVersion: false, UseAuth: true),
+            (Url: $"https://osu.ppy.sh/api/v2/scores/{id}/download", AddScoreApiVersion: true, UseAuth: true),
+            (Url: $"https://osu.ppy.sh/api/v2/scores/{Uri.EscapeDataString(mode)}/{id}/download", AddScoreApiVersion: true, UseAuth: true),
+            (Url: $"https://osu.ppy.sh/api/v2/scores/{Uri.EscapeDataString(mode)}/{id}/download", AddScoreApiVersion: false, UseAuth: true)
+        }).ToArray();
+
+        (bool Success, int StatusCode, byte[] Content, string ContentType) lastResult = (false, StatusCodes.Status404NotFound, [], "application/octet-stream");
+        foreach (var attempt in attempts)
+        {
+            lastResult = await DownloadScoreReplayFromUrlAsync(token, attempt.Url, attempt.AddScoreApiVersion, attempt.UseAuth);
+            if (lastResult.Success)
+                return lastResult;
+        }
+
+        return lastResult;
+    }
+
+    private async Task<(bool Success, int StatusCode, byte[] Content, string ContentType)> DownloadScoreReplayFromUrlAsync(
+        string token,
+        string url,
+        bool addScoreApiVersion,
+        bool useAuth)
+    {
+        var request = useAuth
+            ? CreateAuthorizedRequest(token, url)
+            : new HttpRequestMessage(HttpMethod.Get, url);
+
+        if (addScoreApiVersion)
+            request.Headers.Add("x-api-version", "20220705");
+        request.Headers.UserAgent.ParseAdd("osu-for-fellas/1.0");
+
+        var response = await _http.SendAsync(request);
+        var content = await response.Content.ReadAsByteArrayAsync();
+        var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+        var looksLikeErrorPayload = contentType.Contains("json", StringComparison.OrdinalIgnoreCase)
+            || contentType.Contains("html", StringComparison.OrdinalIgnoreCase)
+            || content.Length == 0;
+
+        return (response.IsSuccessStatusCode && !looksLikeErrorPayload, (int)response.StatusCode, content, contentType);
+    }
+
     private async Task<string> GetTokenAsync()
     {
         if (!string.IsNullOrEmpty(_token) && DateTime.Now < _expires)

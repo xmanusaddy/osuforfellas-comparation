@@ -31,6 +31,8 @@ const DUEL_TOP_PLAYS_LIMIT = 5;
 const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
 const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
+const PP_REWORK_WARNING_ENABLED = true;
+const PP_REWORK_ESTIMATED_END = '2026-07-15T12:00:00-04:00';
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
 const recentPlaysCache = new Map();
@@ -89,6 +91,12 @@ const LANGS = {
         createdBy: 'creado por',
         terms: 'términos',
         privacy: 'privacidad',
+        ppRework: {
+            title: 'Recalculo de PP en progreso',
+            copy: 'osu! está reprocesando scores, PP total y reindexing. Los Top Plays, rankings y PP pueden verse fuera de orden hasta que termine.',
+            countdownLabel: 'fin estimado del rework',
+            expired: 'Esperando que osu! termine el recalculo.'
+        },
         rooms: {
             compare: 'Comparar',
             friends: 'Amigos',
@@ -363,6 +371,12 @@ const LANGS = {
         createdBy: 'created by',
         terms: 'terms',
         privacy: 'privacy',
+        ppRework: {
+            title: 'PP recalculation in progress',
+            copy: 'osu! is reprocessing scores, total PP, and reindexing. Top Plays, ranks, and PP may look out of order until it finishes.',
+            countdownLabel: 'estimated rework finish',
+            expired: 'Waiting for osu! to finish recalculating.'
+        },
         rooms: {
             compare: 'Compare',
             friends: 'Friends',
@@ -637,6 +651,12 @@ const LANGS = {
         createdBy: 'erstellt von',
         terms: 'nutzungsbedingungen',
         privacy: 'datenschutz',
+        ppRework: {
+            title: 'PP-Neuberechnung läuft',
+            copy: 'osu! verarbeitet Scores, Gesamt-PP und Reindexing neu. Top Plays, Ränge und PP können bis zum Ende falsch sortiert wirken.',
+            countdownLabel: 'geschätztes Rework-Ende',
+            expired: 'Warten, bis osu! die Neuberechnung beendet.'
+        },
         rooms: {
             compare: 'Vergleichen',
             friends: 'Freunde',
@@ -910,6 +930,7 @@ function applyLang() {
     document.getElementById('footer-terms-link').href = `/terms#${currentLang}`;
     document.getElementById('footer-privacy-link').textContent = t.privacy;
     document.getElementById('footer-privacy-link').href = `/privacy#${currentLang}`;
+    updatePpReworkWarning();
     document.getElementById('room-nav-compare').textContent = t.rooms.compare;
     document.getElementById('room-nav-friends').textContent = t.rooms.friends;
     document.getElementById('room-nav-history').textContent = t.rooms.history;
@@ -941,6 +962,45 @@ function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('lang', lang);
     applyLang();
+}
+
+let ppReworkCountdownTimer = null;
+
+function initPpReworkWarning() {
+    const banner = document.getElementById('pp-rework-warning');
+    if (!banner || IS_SHARE_MODE || !PP_REWORK_WARNING_ENABLED) return;
+
+    banner.hidden = false;
+    updatePpReworkWarning();
+
+    if (ppReworkCountdownTimer) clearInterval(ppReworkCountdownTimer);
+    ppReworkCountdownTimer = setInterval(updatePpReworkWarning, 1000);
+}
+
+function updatePpReworkWarning() {
+    const banner = document.getElementById('pp-rework-warning');
+    if (!banner || banner.hidden) return;
+
+    const t = LANGS[currentLang].ppRework;
+    const end = new Date(PP_REWORK_ESTIMATED_END).getTime();
+    const remaining = end - Date.now();
+
+    document.getElementById('pp-rework-title').textContent = t.title;
+    document.getElementById('pp-rework-copy').textContent = remaining > 0 ? t.copy : t.expired;
+    document.getElementById('pp-rework-countdown-label').textContent = t.countdownLabel;
+    document.getElementById('pp-rework-countdown').textContent = remaining > 0
+        ? formatCountdownTime(remaining)
+        : '00:00:00';
+}
+
+function formatCountdownTime(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const clock = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+    return days > 0 ? `${days}d ${clock}` : clock;
 }
 
 function parseRoomRoute() {
@@ -2441,7 +2501,7 @@ function renderTopPlayListItem(score, index) {
     const hasReplay = score.replay === true || score.has_replay === true;
     const choke = getChokeInfo(score);
     const replayUrl = hasReplay && score.id
-        ? `https://osu.ppy.sh/scores/${score.id}/download`
+        ? getReplayDownloadUrl(score)
         : null;
 
     return `
@@ -2474,7 +2534,7 @@ function renderTopPlayListItem(score, index) {
             <div class="top-play-side">
                 <div class="top-play-pp">${pp == null ? '—' : fmtNum(pp)}<span>pp</span></div>
                 <a class="top-play-action" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener">↗</a>
-                ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${escapeHtml(replayUrl)}" target="_blank" rel="noopener">⬇</a>` : ''}
+                ${replayUrl ? `<a class="top-play-action top-play-action--replay" href="${escapeHtml(replayUrl)}" download>⬇</a>` : ''}
             </div>
         </article>
     `;
@@ -3072,6 +3132,24 @@ function getBeatmapUrl(score) {
     if (!score) return '#';
     const bid = score.beatmap?.id;
     return bid ? `https://osu.ppy.sh/b/${bid}` : '#';
+}
+
+function getReplayDownloadUrl(score, mode = getActiveMode()) {
+    const scoreId = score?.id || score?.legacy_score_id;
+    if (!scoreId) return '';
+    const params = new URLSearchParams();
+    if (score?.legacy_score_id && score.legacy_score_id !== scoreId)
+        params.set('alternateScoreId', score.legacy_score_id);
+
+    const playerName = score?.user?.username || score?.username || score?.user_name || '';
+    const mapName = score?.beatmapset?.title || score?.beatmap?.beatmapset?.title || '';
+    const difficulty = score?.beatmap?.version || '';
+    const replayName = [playerName, mapName, difficulty].filter(Boolean).join(' - ');
+    if (replayName)
+        params.set('filename', replayName);
+
+    const query = params.toString();
+    return `/api/osu/${encodeURIComponent(mode || 'osu')}/scores/${encodeURIComponent(scoreId)}/replay${query ? `?${query}` : ''}`;
 }
 
 function getRankDisplay(rank) {
@@ -5715,7 +5793,7 @@ function renderFocusTopPlay(score) {
     // Replay: API v2 indica si hay replay con replay o has_replay
     const hasReplay = score.replay === true || score.has_replay === true;
     const replayUrl = hasReplay && score.id
-        ? `https://osu.ppy.sh/scores/${score.id}/download`
+        ? getReplayDownloadUrl(score)
         : null;
 
     body.innerHTML = `
@@ -5761,7 +5839,7 @@ function renderFocusTopPlay(score) {
         <div class="focus-tp-actions">
             <a class="focus-tp-openmap" href="${escapeHtml(mapUrl)}" target="_blank" rel="noopener">↗ ${escapeHtml(t.openMap.replace('↗ ', ''))}</a>
             ${replayUrl
-            ? `<a class="focus-tp-replay" href="${escapeHtml(replayUrl)}" target="_blank" rel="noopener">⬇ ${escapeHtml(t.downloadReplay)}</a>`
+            ? `<a class="focus-tp-replay" href="${escapeHtml(replayUrl)}" download>⬇ ${escapeHtml(t.downloadReplay)}</a>`
             : `<span class="focus-tp-replay focus-tp-replay--disabled">⬇ ${escapeHtml(t.replayUnavailable)}</span>`
         }
         </div>
@@ -6271,6 +6349,7 @@ window.addEventListener('scroll', () => {
 // Init
 setupPlayerStyleTooltips();
 applyLang();
+initPpReworkWarning();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {
     initSharedCompareMode();
