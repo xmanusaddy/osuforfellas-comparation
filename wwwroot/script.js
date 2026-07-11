@@ -33,6 +33,7 @@ const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
 const PP_REWORK_WARNING_ENABLED = true;
 const PP_REWORK_ESTIMATED_END = '2026-07-15T12:00:00-04:00';
+const PP_REWORK_EXPIRED_HIDE_DELAY_MS = 15000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
 const recentPlaysCache = new Map();
@@ -965,16 +966,29 @@ function changeLang(lang) {
 }
 
 let ppReworkCountdownTimer = null;
+let ppReworkHideTimer = null;
 
 function initPpReworkWarning() {
     const banner = document.getElementById('pp-rework-warning');
     if (!banner || IS_SHARE_MODE || !PP_REWORK_WARNING_ENABLED) return;
 
+    movePpReworkWarning('landing');
     banner.hidden = false;
+    banner.classList.remove('is-closing');
     updatePpReworkWarning();
 
     if (ppReworkCountdownTimer) clearInterval(ppReworkCountdownTimer);
     ppReworkCountdownTimer = setInterval(updatePpReworkWarning, 1000);
+}
+
+function movePpReworkWarning(target = 'landing') {
+    const banner = document.getElementById('pp-rework-warning');
+    if (!banner || IS_SHARE_MODE) return;
+
+    const slot = document.getElementById(`pp-rework-slot-${target}`);
+    if (slot && banner.parentElement !== slot) {
+        slot.appendChild(banner);
+    }
 }
 
 function updatePpReworkWarning() {
@@ -984,13 +998,32 @@ function updatePpReworkWarning() {
     const t = LANGS[currentLang].ppRework;
     const end = new Date(PP_REWORK_ESTIMATED_END).getTime();
     const remaining = end - Date.now();
+    const isExpired = remaining <= 0;
 
     document.getElementById('pp-rework-title').textContent = t.title;
-    document.getElementById('pp-rework-copy').textContent = remaining > 0 ? t.copy : t.expired;
+    document.getElementById('pp-rework-copy').textContent = isExpired ? t.expired : t.copy;
     document.getElementById('pp-rework-countdown-label').textContent = t.countdownLabel;
-    document.getElementById('pp-rework-countdown').textContent = remaining > 0
+    document.getElementById('pp-rework-countdown').textContent = !isExpired
         ? formatCountdownTime(remaining)
         : '00:00:00';
+
+    if (isExpired) schedulePpReworkWarningHide(banner);
+}
+
+function schedulePpReworkWarningHide(banner) {
+    if (ppReworkCountdownTimer) {
+        clearInterval(ppReworkCountdownTimer);
+        ppReworkCountdownTimer = null;
+    }
+
+    if (ppReworkHideTimer) return;
+    ppReworkHideTimer = setTimeout(() => {
+        banner.classList.add('is-closing');
+        setTimeout(() => {
+            banner.hidden = true;
+            banner.classList.remove('is-closing');
+        }, 420);
+    }, PP_REWORK_EXPIRED_HIDE_DELAY_MS);
 }
 
 function formatCountdownTime(ms) {
@@ -1176,6 +1209,7 @@ function showCompareRoom() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
     document.getElementById('landing').style.display = 'flex';
+    movePpReworkWarning('landing');
     setChromeMode('compare');
     setActiveRoomLink('compare');
     currentRoomRoute = { name: 'compare', param: '' };
@@ -1196,6 +1230,7 @@ function showResultsRoom() {
     document.getElementById('landing').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
     document.getElementById('results').style.display = 'block';
+    movePpReworkWarning('results');
     setChromeMode('results');
     setActiveRoomLink('');
     currentRoomRoute = { name: 'results', param: '' };
@@ -1219,6 +1254,7 @@ function showFutureRoom(route) {
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'block';
+    movePpReworkWarning('room');
     setChromeMode('room');
     setActiveRoomLink(route.name);
     currentRoomRoute = route;

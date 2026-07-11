@@ -64,18 +64,6 @@
         <div class="auth-widget" id="auth-widget" aria-live="polite"></div>
     </div>
 
-    <div class="pp-rework-warning" id="pp-rework-warning" role="status" aria-live="polite" hidden>
-        <div class="pp-rework-warning__mark">!</div>
-        <div class="pp-rework-warning__body">
-            <div class="pp-rework-warning__title" id="pp-rework-title"></div>
-            <div class="pp-rework-warning__copy" id="pp-rework-copy"></div>
-        </div>
-        <div class="pp-rework-warning__timer">
-            <span id="pp-rework-countdown">--:--:--</span>
-            <small id="pp-rework-countdown-label"></small>
-        </div>
-    </div>
-
     <!-- Fondo animado -->
     <canvas id="bg-canvas"></canvas>
 
@@ -145,6 +133,8 @@
             </a>
         </nav>
 
+        <div class="pp-rework-slot pp-rework-slot--landing" id="pp-rework-slot-landing"></div>
+
     </section>
 
     <!-- ══ RESULTADOS ══ -->
@@ -153,6 +143,8 @@
             <div class="results-logo">osu!</div>
             <button class="btn-back" id="btn-back" onclick="goBack()">← Volver</button>
         </div>
+
+        <div class="pp-rework-slot pp-rework-slot--results" id="pp-rework-slot-results"></div>
 
         <div class="mode-display" id="mode-display"></div>
 
@@ -191,6 +183,7 @@
             <div class="room-logo">osu!</div>
             <button class="btn-back room-back" id="room-back" onclick="roomBack()">← Volver</button>
         </div>
+        <div class="pp-rework-slot pp-rework-slot--room" id="pp-rework-slot-room"></div>
         <div class="room-panel">
             <h1 class="room-title" id="room-title">—</h1>
             <p class="room-copy" id="room-copy">—</p>
@@ -206,6 +199,18 @@
         <span class="footer-separator" aria-hidden="true">/</span>
         <a class="footer-legal-link" id="footer-privacy-link" href="/privacy">Privacy</a>
     </footer>
+
+    <div class="pp-rework-warning" id="pp-rework-warning" role="status" aria-live="polite" hidden>
+        <div class="pp-rework-warning__mark">!</div>
+        <div class="pp-rework-warning__body">
+            <div class="pp-rework-warning__title" id="pp-rework-title"></div>
+            <div class="pp-rework-warning__copy" id="pp-rework-copy"></div>
+        </div>
+        <div class="pp-rework-warning__timer">
+            <span id="pp-rework-countdown">--:--:--</span>
+            <small id="pp-rework-countdown-label"></small>
+        </div>
+    </div>
 
     <!-- ══ FOCUS MODE MODAL ══ -->
     <div id="focus-overlay" class="focus-overlay" onclick="closeFocus(event)">

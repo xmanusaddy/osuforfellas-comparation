@@ -175,11 +175,10 @@ body::after {
     }
 
 .pp-rework-warning {
-    position: fixed;
-    left: 50%;
-    bottom: 1.2rem;
-    z-index: 120;
+    position: relative;
+    z-index: 12;
     width: min(980px, calc(100vw - 2rem));
+    margin: 0 auto;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
@@ -191,7 +190,6 @@ body::after {
         linear-gradient(90deg, rgba(255,215,0,0.13), rgba(255,102,170,0.08) 46%, rgba(0,255,255,0.08)),
         rgba(10,10,18,0.94);
     box-shadow: 0 0 24px rgba(255,215,0,0.14), 0 0 38px rgba(255,102,170,0.12);
-    transform: translateX(-50%);
     backdrop-filter: blur(14px);
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
     animation: pp-rework-enter 0.42s ease-out both;
@@ -200,6 +198,36 @@ body::after {
     .pp-rework-warning[hidden] {
         display: none;
     }
+
+    .pp-rework-warning.is-closing {
+        pointer-events: none;
+        animation: pp-rework-exit 0.38s ease-in both;
+    }
+
+.pp-rework-slot {
+    position: relative;
+    z-index: 12;
+    width: 100%;
+}
+
+    .pp-rework-slot:empty {
+        display: none;
+    }
+
+.pp-rework-slot--landing {
+    width: min(980px, calc(100vw - 2rem));
+    margin: 1.15rem auto 0;
+}
+
+.pp-rework-slot--results {
+    max-width: 1200px;
+    margin: 0 auto 1.15rem;
+}
+
+.pp-rework-slot--room {
+    max-width: 1200px;
+    margin: 0 auto 1.15rem;
+}
 
 .pp-rework-warning__mark {
     width: 2rem;
@@ -264,17 +292,27 @@ body::after {
 @keyframes pp-rework-enter {
     from {
         opacity: 0;
-        transform: translate(-50%, 18px);
+        transform: translateY(18px);
     }
     to {
         opacity: 1;
-        transform: translate(-50%, 0);
+        transform: translateY(0);
+    }
+}
+
+@keyframes pp-rework-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-12px);
     }
 }
 
 @media (max-width: 720px) {
     .pp-rework-warning {
-        bottom: 0.75rem;
         width: calc(100vw - 1rem);
         grid-template-columns: auto minmax(0, 1fr);
         gap: 0.75rem;
@@ -304,6 +342,10 @@ body::after {
     align-items: center;
     justify-content: center;
     padding: 2rem;
+}
+
+body:has(.pp-rework-warning:not([hidden])) #landing {
+    padding-top: 2rem;
 }
 
 .logo-wrap {
