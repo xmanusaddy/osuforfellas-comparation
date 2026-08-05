@@ -18,10 +18,7 @@ const THEMES = [
     },
     {
         id: 'crimson',
-        label: 'Crimson Night',
-        locked: true,
-        lockedLabel: 'Crimson Night 🔒',
-        lockedMessage: 'Crimson Night is not available yet. It will open closer to Halloween.'
+        label: 'Crimson Night'
     }
 ];
 

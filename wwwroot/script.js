@@ -31,9 +31,6 @@ const DUEL_TOP_PLAYS_LIMIT = 5;
 const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
 const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
-const PP_REWORK_WARNING_ENABLED = true;
-const PP_REWORK_ESTIMATED_END = '2026-07-15T12:00:00-04:00';
-const PP_REWORK_EXPIRED_HIDE_DELAY_MS = 15000;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
 const recentPlaysCache = new Map();
@@ -92,12 +89,6 @@ const LANGS = {
         createdBy: 'creado por',
         terms: 'términos',
         privacy: 'privacidad',
-        ppRework: {
-            title: 'Recalculo de PP en progreso',
-            copy: 'osu! está reprocesando scores, PP total y reindexing. Los Top Plays, rankings y PP pueden verse fuera de orden hasta que termine.',
-            countdownLabel: 'fin estimado del rework',
-            expired: 'Esperando que osu! termine el recalculo.'
-        },
         rooms: {
             compare: 'Comparar',
             friends: 'Amigos',
@@ -372,12 +363,6 @@ const LANGS = {
         createdBy: 'created by',
         terms: 'terms',
         privacy: 'privacy',
-        ppRework: {
-            title: 'PP recalculation in progress',
-            copy: 'osu! is reprocessing scores, total PP, and reindexing. Top Plays, ranks, and PP may look out of order until it finishes.',
-            countdownLabel: 'estimated rework finish',
-            expired: 'Waiting for osu! to finish recalculating.'
-        },
         rooms: {
             compare: 'Compare',
             friends: 'Friends',
@@ -652,12 +637,6 @@ const LANGS = {
         createdBy: 'erstellt von',
         terms: 'nutzungsbedingungen',
         privacy: 'datenschutz',
-        ppRework: {
-            title: 'PP-Neuberechnung läuft',
-            copy: 'osu! verarbeitet Scores, Gesamt-PP und Reindexing neu. Top Plays, Ränge und PP können bis zum Ende falsch sortiert wirken.',
-            countdownLabel: 'geschätztes Rework-Ende',
-            expired: 'Warten, bis osu! die Neuberechnung beendet.'
-        },
         rooms: {
             compare: 'Vergleichen',
             friends: 'Freunde',
@@ -931,7 +910,6 @@ function applyLang() {
     document.getElementById('footer-terms-link').href = `/terms#${currentLang}`;
     document.getElementById('footer-privacy-link').textContent = t.privacy;
     document.getElementById('footer-privacy-link').href = `/privacy#${currentLang}`;
-    updatePpReworkWarning();
     document.getElementById('room-nav-compare').textContent = t.rooms.compare;
     document.getElementById('room-nav-friends').textContent = t.rooms.friends;
     document.getElementById('room-nav-history').textContent = t.rooms.history;
@@ -963,77 +941,6 @@ function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('lang', lang);
     applyLang();
-}
-
-let ppReworkCountdownTimer = null;
-let ppReworkHideTimer = null;
-
-function initPpReworkWarning() {
-    const banner = document.getElementById('pp-rework-warning');
-    if (!banner || IS_SHARE_MODE || !PP_REWORK_WARNING_ENABLED) return;
-
-    movePpReworkWarning('landing');
-    banner.hidden = false;
-    banner.classList.remove('is-closing');
-    updatePpReworkWarning();
-
-    if (ppReworkCountdownTimer) clearInterval(ppReworkCountdownTimer);
-    ppReworkCountdownTimer = setInterval(updatePpReworkWarning, 1000);
-}
-
-function movePpReworkWarning(target = 'landing') {
-    const banner = document.getElementById('pp-rework-warning');
-    if (!banner || IS_SHARE_MODE) return;
-
-    const slot = document.getElementById(`pp-rework-slot-${target}`);
-    if (slot && banner.parentElement !== slot) {
-        slot.appendChild(banner);
-    }
-}
-
-function updatePpReworkWarning() {
-    const banner = document.getElementById('pp-rework-warning');
-    if (!banner || banner.hidden) return;
-
-    const t = LANGS[currentLang].ppRework;
-    const end = new Date(PP_REWORK_ESTIMATED_END).getTime();
-    const remaining = end - Date.now();
-    const isExpired = remaining <= 0;
-
-    document.getElementById('pp-rework-title').textContent = t.title;
-    document.getElementById('pp-rework-copy').textContent = isExpired ? t.expired : t.copy;
-    document.getElementById('pp-rework-countdown-label').textContent = t.countdownLabel;
-    document.getElementById('pp-rework-countdown').textContent = !isExpired
-        ? formatCountdownTime(remaining)
-        : '00:00:00';
-
-    if (isExpired) schedulePpReworkWarningHide(banner);
-}
-
-function schedulePpReworkWarningHide(banner) {
-    if (ppReworkCountdownTimer) {
-        clearInterval(ppReworkCountdownTimer);
-        ppReworkCountdownTimer = null;
-    }
-
-    if (ppReworkHideTimer) return;
-    ppReworkHideTimer = setTimeout(() => {
-        banner.classList.add('is-closing');
-        setTimeout(() => {
-            banner.hidden = true;
-            banner.classList.remove('is-closing');
-        }, 420);
-    }, PP_REWORK_EXPIRED_HIDE_DELAY_MS);
-}
-
-function formatCountdownTime(ms) {
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const clock = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
-    return days > 0 ? `${days}d ${clock}` : clock;
 }
 
 function parseRoomRoute() {
@@ -1209,7 +1116,6 @@ function showCompareRoom() {
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
     document.getElementById('landing').style.display = 'flex';
-    movePpReworkWarning('landing');
     setChromeMode('compare');
     setActiveRoomLink('compare');
     currentRoomRoute = { name: 'compare', param: '' };
@@ -1230,7 +1136,6 @@ function showResultsRoom() {
     document.getElementById('landing').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
     document.getElementById('results').style.display = 'block';
-    movePpReworkWarning('results');
     setChromeMode('results');
     setActiveRoomLink('');
     currentRoomRoute = { name: 'results', param: '' };
@@ -1254,7 +1159,6 @@ function showFutureRoom(route) {
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'block';
-    movePpReworkWarning('room');
     setChromeMode('room');
     setActiveRoomLink(route.name);
     currentRoomRoute = route;
@@ -6385,7 +6289,6 @@ window.addEventListener('scroll', () => {
 // Init
 setupPlayerStyleTooltips();
 applyLang();
-initPpReworkWarning();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {
     initSharedCompareMode();
