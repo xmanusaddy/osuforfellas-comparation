@@ -1144,8 +1144,8 @@ function renderSettingsAccountCard() {
     const username = loggedInUser.username || 'osu!';
     const isCreator = isCreatorUsername(username);
     const avatar = safeHttpUrl(loggedInUser.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
-    const title = getPlayerTitle(loggedInUser);
     const pp = Math.round(loggedInUser.statistics?.pp || 0);
+    const title = isCreator ? 'PAGE CREATOR' : getUserTitle(pp);
 
     card.innerHTML = `
         <div class="settings-account-main">
