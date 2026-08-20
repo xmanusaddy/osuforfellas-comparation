@@ -1,6 +1,8 @@
 (() => {
     const params = new URLSearchParams(window.location.search);
     const isShareMode = params.has('share');
+    const isPublicRuntime = document.documentElement.classList.contains('public-runtime');
+    const soundsDisabled = isShareMode || isPublicRuntime;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     const MUTED_KEY = 'osu_ui_sounds_muted';
     const VOLUME_KEY = 'osu_ui_sounds_volume';
@@ -33,7 +35,7 @@
     if (!Number.isFinite(volume)) volume = DEFAULT_VOLUME;
     volume = Math.min(1, Math.max(0, volume));
 
-    const manifestReady = isShareMode
+    const manifestReady = soundsDisabled
         ? Promise.resolve(manifest)
         : fetch('/sounds/ui/manifest.json', { cache: 'no-cache' })
             .then(response => response.ok ? response.json() : manifest)
@@ -50,7 +52,7 @@
             .catch(() => manifest);
 
     function ensureContext() {
-        if (isShareMode || !AudioContextClass) return null;
+        if (soundsDisabled || !AudioContextClass) return null;
         if (!context) {
             context = new AudioContextClass();
             masterGain = context.createGain();
@@ -187,7 +189,7 @@
     }
 
     function play(type = 'click') {
-        if (isShareMode || muted || !VALID_TYPES.has(type)) return false;
+        if (soundsDisabled || muted || !VALID_TYPES.has(type)) return false;
         const audio = ensureContext();
         if (!audio) return false;
         preloadCustomSounds();
@@ -259,7 +261,10 @@
         if (element.matches('.compare-duel-toggle')) {
             return element.classList.contains('active') ? 'back' : 'duel';
         }
-        if (element.matches('.focus-close, .compare-duel-close, .btn-back, .room-back, .top-plays-profile-link')) {
+        if (element.matches('.settings-toggle') && element.getAttribute('aria-expanded') === 'true') {
+            return 'back';
+        }
+        if (element.matches('.focus-close, .settings-close, .compare-duel-close, .btn-back, .room-back, .top-plays-profile-link')) {
             return 'back';
         }
         return 'click';
@@ -267,7 +272,7 @@
 
     const interactiveSelector = 'button, a[href], select, [role="button"], .player-card';
     document.addEventListener('click', event => {
-        if (isShareMode) return;
+        if (soundsDisabled) return;
         const element = event.target.closest?.(interactiveSelector);
         if (!element || element.matches(':disabled') || element.getAttribute('aria-disabled') === 'true') return;
 
@@ -281,7 +286,7 @@
     }, true);
 
     document.addEventListener('keydown', event => {
-        if (isShareMode || !['Enter', ' '].includes(event.key)) return;
+        if (soundsDisabled || !['Enter', ' '].includes(event.key)) return;
         const element = event.target.closest?.('[role="button"]:not(button):not(a)');
         if (!element) return;
         const type = classifyInteraction(element);

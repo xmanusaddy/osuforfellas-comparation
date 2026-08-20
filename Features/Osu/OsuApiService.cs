@@ -3,6 +3,7 @@ using System.Text.Json;
 
 public sealed class OsuApiService
 {
+    private const int BestScoresMaxLimit = 50;
     private const int RecentPageSize = 20;
     private const int RecentMaxPages = 50;
 
@@ -44,7 +45,7 @@ public sealed class OsuApiService
 
     public async Task<(bool Success, int StatusCode, string Content)> GetBestScoresJsonAsync(string mode, string username, int limit)
     {
-        var safeLimit = Math.Clamp(limit, 1, 20);
+        var safeLimit = Math.Clamp(limit, 1, BestScoresMaxLimit);
         var token = await GetTokenAsync();
         var user = await ResolveUserIdAsync(token, mode, username);
         if (!user.Success)

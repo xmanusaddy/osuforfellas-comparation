@@ -38,6 +38,10 @@
     </div>
 
     <div class="top-right-controls" id="top-right-controls">
+        <button class="settings-toggle" id="settings-toggle" type="button" onclick="toggleSettingsPanel()" aria-expanded="false" aria-controls="settings-panel">
+            <span aria-hidden="true">⚙</span>
+        </button>
+
         <div class="sound-controls" id="sound-controls">
             <button class="sound-toggle" id="sound-toggle" type="button" data-ui-sound-toggle aria-pressed="false">
                 <span class="sound-toggle-icon" aria-hidden="true">🔊</span>
@@ -264,9 +268,70 @@
             <div class="share-capture-error" id="share-capture-error" style="display:none;"></div>
             <div class="share-capture-actions">
                 <button class="share-capture-generate" id="share-capture-generate" type="button" onclick="generateShareCapturePreview()"></button>
-                <button class="share-capture-download" id="share-capture-download" type="button" onclick="downloadShareCapture()" disabled></button>
+            <button class="share-capture-download" id="share-capture-download" type="button" onclick="downloadShareCapture()" disabled></button>
             </div>
         </div>
+    </div>
+
+    <!-- ══ SETTINGS PANEL ══ -->
+    <div id="settings-overlay" class="settings-overlay" onclick="closeSettingsPanel(event)" aria-hidden="true">
+        <aside class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="settings-panel-head">
+                <div>
+                    <div class="settings-kicker" id="settings-kicker"></div>
+                    <h2 id="settings-title"></h2>
+                </div>
+                <button class="settings-close" type="button" onclick="closeSettingsPanelBtn(false)">✕</button>
+            </div>
+
+            <p class="settings-copy" id="settings-copy"></p>
+
+            <section class="settings-section">
+                <div class="settings-section-title" id="settings-language-title"></div>
+                <div class="settings-language-grid">
+                    <button class="settings-lang-btn" type="button" onclick="changeLang('es')" data-lang="es">
+                        <span class="settings-lang-flag">🇲🇽</span>
+                        <span>Español</span>
+                    </button>
+                    <button class="settings-lang-btn" type="button" onclick="changeLang('en')" data-lang="en">
+                        <span class="settings-lang-flag">🇺🇸</span>
+                        <span>English</span>
+                    </button>
+                    <button class="settings-lang-btn" type="button" onclick="changeLang('de')" data-lang="de">
+                        <span class="settings-lang-flag">🇩🇪</span>
+                        <span>Deutsch</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <label class="settings-section-title" id="settings-theme-title" for="settings-theme-select"></label>
+                <select class="theme-select settings-theme-select" id="settings-theme-select" data-theme-select="true"></select>
+            </section>
+
+            <section class="settings-section settings-sound-row">
+                <div class="settings-section-title" id="settings-sound-title"></div>
+                <div class="sound-controls settings-sound-controls">
+                    <button class="sound-toggle" id="settings-sound-toggle" type="button" data-ui-sound-toggle aria-pressed="false">
+                        <span class="sound-toggle-icon" aria-hidden="true">🔊</span>
+                    </button>
+                    <input
+                        class="sound-volume"
+                        id="settings-sound-volume"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value="0.28"
+                        data-ui-sound-volume>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <div class="settings-section-title" id="settings-account-title"></div>
+                <div class="settings-account-card" id="settings-account-card"></div>
+            </section>
+        </aside>
     </div>
 
     <!-- ══ SNIPE FOCUS MODAL ══ -->

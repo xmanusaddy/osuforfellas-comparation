@@ -2,11 +2,24 @@
 
 A simple but clean way to compare osu! player stats, built for me and my friends because yeah... we always gotta know who's better.
 
-Now it also has a Discord bot, custom rooms, a 1v1 duel mode, map score boards, snipes, animations, sounds, and enough neon to make a ranked argument look official xd
+Now it also has a Discord bot, custom rooms, a 1v1 duel mode, map score boards, snipes, a snipe radar, screenshots, animations, themes, sounds in testing, and enough neon to make a ranked argument look official xd
 
 ---
 
 ## Changelog
+
+### v2.0 - Snipe Radar, Top 50 and Settings Panel
+- Added an in-app **Snipe Radar** that checks your own Top Plays while you are inside the app and warns you when somebody passed one of your plays
+- Added a small radar inbox/hub so detected snipes do not vanish into the void after one toast
+- Increased expanded Top Plays from **10 to 50 plays**, because checking only 10 was starting to feel a little too polite
+- Improved score/replay download behavior so replay buttons download the actual `.osr` file when osu! allows it
+- Replay filenames now use the player and beatmap name, instead of being called just `replay` like they had no personality
+- Added a **Settings panel** for language, theme, sound and osu! account controls in one place
+- Moved the public UI toward a cleaner top bar: settings + session up top, config inside the panel
+- Unlocked **Crimson Night** as a real selectable theme and removed the temporary PP rework warning now that the rework is over
+- Kept the sound system provisional: it works locally, but the public deploy stays quiet while the exact sound vibe is still being tuned
+
+Small note: the radar is intentionally app-session based for now. It detects snipes while you are using the app, not as a 24/7 background service yet. That monster can wake up later.
 
 ### v1.9 - Map Scores, Snipes and theme transitions
 - Added a **Map Scores room**: search a beatmap by ID or link and view its score board
@@ -107,11 +120,12 @@ It shows:
 - Map Scores by beatmap ID or link
 - Friend/global score boards when osu! lets us see them
 - Detected snipes between visible map scores
+- Snipe Radar alerts while you are inside the app
 - Max combo, total hits and replays watched when available
 - Stable/Lazer score indicator
 - Small "did you choke that?" indicators, because pain should be documented
 
-All in a cyberpunk UI with some personality, plus an experimental Heaven theme for when the page wants to look less like a basement and more like a dream.
+All in a cyberpunk UI with some personality, plus Heaven for when the page wants to look less like a basement and Crimson Night for when it absolutely does not.
 
 ---
 
@@ -170,22 +184,24 @@ The goal is not to be another generic osu! bot. The cool part is making comparis
 - Style tags per player
 - Focus Mode for detailed player view
 - Expanded Player Profile room
-- Expanded Top Plays room with 10 plays
+- Expanded Top Plays room with 50 plays
 - Recent Plays room
 - Map Scores room
 - Snipe detection and Snipe Focus view
+- Snipe Radar for your own Top Plays while the app is open
 - Choke Detector Lite
-- Replay download links when osu! exposes replay availability
+- Real replay downloads when osu! exposes replay availability
 - osu!lazer / osu!stable indicator for scores
 - osu! OAuth login and logout
 - Logged-in user mini-card
 - Friends list with search, favorites and quick comparison selection
 - Comparison history and favorite comparisons
+- Settings panel for language, theme, sound and account controls
 - Multi-language: ES / EN / DE
-- Theme selector: Cyberpunk and Heaven
+- Theme selector: Cyberpunk, Heaven and Crimson Night
 - Cinematic theme switching transition
 - GSAP animations for major views
-- UI sound system with mute and volume controls
+- UI sound system with mute and volume controls locally, still being tuned before going loud in public
 - Legal Terms and Privacy pages for Discord verification
 - Discord bot with profile, visual compare and visual room images
 - Auto-refresh for comparisons and score rooms
@@ -195,10 +211,12 @@ The goal is not to be another generic osu! bot. The cool part is making comparis
 ## Future ideas
 
 - Keep polishing Duel Mode so it feels more premium and less "first boss fight prototype"
+- Keep improving Snipe Radar until it feels like a proper rivalry dashboard
 - Better animation language across the whole app
 - Better sound set and maybe different sound profiles later
 - Polish and optimize Heaven Theme
-- Crimson Night / Horror Rhythm seasonal theme for Halloween
+- Extra Crimson Night / Horror Rhythm polish for Halloween
+- A real background notification system later, if we decide the app should watch snipes even when nobody has the page open
 - More Discord commands and layouts
 - Better public share links
 - Maybe richer historical/player analysis if osu! API gives us enough good data

@@ -25,16 +25,22 @@ const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
 const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
 const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
-const DEFAULT_TOP_PLAYS_LIMIT = 10;
-const MAX_TOP_PLAYS_LIMIT = 20;
+const DEFAULT_TOP_PLAYS_LIMIT = 50;
+const MAX_TOP_PLAYS_LIMIT = 50;
 const DUEL_TOP_PLAYS_LIMIT = 5;
 const DISCORD_TOP_PLAYS_PAGE_SIZE = 4;
 const DISCORD_RECENT_PAGE_SIZE = 4;
 const ROOM_SCORES_REFRESH_INTERVAL_MS = 90000;
+const SNIPE_RADAR_TOP_SCAN_INTERVAL_MS = 10 * 60 * 1000;
+const SNIPE_RADAR_TOP_SCAN_DELAY_MS = 1150;
+const SNIPE_RADAR_MAX_EVENTS = 40;
 const playerProfileCache = new Map();
 const topPlaysCache = new Map();
 const recentPlaysCache = new Map();
 const beatmapScoresCache = new Map();
+const snipeRadarSnapshots = new Map();
+const snipeRadarNotified = new Set();
+const snipeRadarEvents = [];
 let currentBeatmapSnipes = [];
 let currentScoresBeatmap = null;
 let scoreLeaderboardType = ['friend', 'global'].includes(localStorage.getItem('osu_score_leaderboard_type'))
@@ -89,6 +95,21 @@ const LANGS = {
         createdBy: 'creado por',
         terms: 'términos',
         privacy: 'privacidad',
+        settings: {
+            open: 'Abrir configuración',
+            close: 'Cerrar configuración',
+            kicker: 'Sistema',
+            title: 'Configuración',
+            copy: 'Ajusta idioma, tema, sonido y sesión desde un solo panel.',
+            language: 'Idioma',
+            theme: 'Tema visual',
+            sound: 'Sonido',
+            account: 'Cuenta osu!',
+            signedOut: 'No has iniciado sesión.',
+            signedIn: 'Conectado como',
+            login: 'Iniciar sesión con osu!',
+            logout: 'Cerrar sesión'
+        },
         rooms: {
             compare: 'Comparar',
             friends: 'Amigos',
@@ -182,7 +203,21 @@ const LANGS = {
             scoresDifficulty: 'Dificultad',
             scoresLength: 'Duración',
             scoresBpm: 'BPM',
-            scoresMaxCombo: 'Max combo'
+            scoresMaxCombo: 'Max combo',
+            snipeRadarTitle: 'Snipe detectado',
+            snipeRadarYouGotSniped: '{winner} te superó',
+            snipeRadarYouSniped: 'Superaste a {target}',
+            snipeRadarGeneric: '{winner} superó a {target}',
+            snipeRadarCopy: '{map} · #{winnerPosition} contra #{targetPosition}',
+            snipeRadarOpen: 'Ver detalle',
+            snipeRadarInbox: 'Radar de snipes',
+            snipeRadarEmpty: 'Sin snipes detectados en esta sesión.',
+            snipeRadarScanning: 'Escaneando tus Top 50...',
+            snipeRadarScanReady: 'Radar vigilando tus Top 50 mientras estás dentro.',
+            snipeRadarScanDone: 'Escaneo terminado',
+            snipeRadarScanButton: 'Escanear ahora',
+            snipeRadarScanProgress: '{current}/{total} mapas',
+            snipeRadarTopScanFound: '{count} snipes nuevos en tus Top 50'
         },
         loginOsu: 'Iniciar sesión con osu!',
         logout: 'Cerrar sesión',
@@ -363,6 +398,21 @@ const LANGS = {
         createdBy: 'created by',
         terms: 'terms',
         privacy: 'privacy',
+        settings: {
+            open: 'Open settings',
+            close: 'Close settings',
+            kicker: 'System',
+            title: 'Settings',
+            copy: 'Adjust language, theme, sound, and session from one panel.',
+            language: 'Language',
+            theme: 'Visual theme',
+            sound: 'Sound',
+            account: 'osu! account',
+            signedOut: 'You are not signed in.',
+            signedIn: 'Connected as',
+            login: 'Sign in with osu!',
+            logout: 'Log out'
+        },
         rooms: {
             compare: 'Compare',
             friends: 'Friends',
@@ -456,7 +506,21 @@ const LANGS = {
             scoresDifficulty: 'Difficulty',
             scoresLength: 'Length',
             scoresBpm: 'BPM',
-            scoresMaxCombo: 'Max combo'
+            scoresMaxCombo: 'Max combo',
+            snipeRadarTitle: 'Snipe detected',
+            snipeRadarYouGotSniped: '{winner} sniped you',
+            snipeRadarYouSniped: 'You sniped {target}',
+            snipeRadarGeneric: '{winner} sniped {target}',
+            snipeRadarCopy: '{map} · #{winnerPosition} vs #{targetPosition}',
+            snipeRadarOpen: 'View detail',
+            snipeRadarInbox: 'Snipe radar',
+            snipeRadarEmpty: 'No snipes detected in this session.',
+            snipeRadarScanning: 'Scanning your Top 50...',
+            snipeRadarScanReady: 'Radar watching your Top 50 while you are here.',
+            snipeRadarScanDone: 'Scan complete',
+            snipeRadarScanButton: 'Scan now',
+            snipeRadarScanProgress: '{current}/{total} maps',
+            snipeRadarTopScanFound: '{count} new snipes in your Top 50'
         },
         loginOsu: 'Sign in with osu!',
         logout: 'Log out',
@@ -637,6 +701,21 @@ const LANGS = {
         createdBy: 'erstellt von',
         terms: 'nutzungsbedingungen',
         privacy: 'datenschutz',
+        settings: {
+            open: 'Einstellungen oeffnen',
+            close: 'Einstellungen schliessen',
+            kicker: 'System',
+            title: 'Einstellungen',
+            copy: 'Passe Sprache, Theme, Sound und Sitzung in einem Panel an.',
+            language: 'Sprache',
+            theme: 'Visuelles Theme',
+            sound: 'Sound',
+            account: 'osu!-Konto',
+            signedOut: 'Du bist nicht angemeldet.',
+            signedIn: 'Verbunden als',
+            login: 'Mit osu! anmelden',
+            logout: 'Abmelden'
+        },
         rooms: {
             compare: 'Vergleichen',
             friends: 'Freunde',
@@ -730,7 +809,21 @@ const LANGS = {
             scoresDifficulty: 'Schwierigkeit',
             scoresLength: 'Laenge',
             scoresBpm: 'BPM',
-            scoresMaxCombo: 'Max combo'
+            scoresMaxCombo: 'Max combo',
+            snipeRadarTitle: 'Snipe erkannt',
+            snipeRadarYouGotSniped: '{winner} hat dich ueberholt',
+            snipeRadarYouSniped: 'Du hast {target} ueberholt',
+            snipeRadarGeneric: '{winner} hat {target} ueberholt',
+            snipeRadarCopy: '{map} · #{winnerPosition} gegen #{targetPosition}',
+            snipeRadarOpen: 'Detail ansehen',
+            snipeRadarInbox: 'Snipe-Radar',
+            snipeRadarEmpty: 'Keine Snipes in dieser Sitzung erkannt.',
+            snipeRadarScanning: 'Scanne deine Top 50...',
+            snipeRadarScanReady: 'Radar ueberwacht deine Top 50, solange du hier bist.',
+            snipeRadarScanDone: 'Scan abgeschlossen',
+            snipeRadarScanButton: 'Jetzt scannen',
+            snipeRadarScanProgress: '{current}/{total} Maps',
+            snipeRadarTopScanFound: '{count} neue Snipes in deinen Top 50'
         },
         loginOsu: 'Mit osu! anmelden',
         logout: 'Abmelden',
@@ -905,6 +998,7 @@ function applyLang() {
     document.getElementById('theme-label').textContent = t.theme;
     document.getElementById('theme-select').setAttribute('aria-label', t.theme);
     window.UISounds?.setLabels({ enable: t.soundOn, disable: t.soundOff, volume: t.soundVolume });
+    syncSettingsPanelUi();
     document.getElementById('footer-created-by').textContent = t.createdBy;
     document.getElementById('footer-terms-link').textContent = t.terms;
     document.getElementById('footer-terms-link').href = `/terms#${currentLang}`;
@@ -914,6 +1008,7 @@ function applyLang() {
     document.getElementById('room-nav-friends').textContent = t.rooms.friends;
     document.getElementById('room-nav-history').textContent = t.rooms.history;
     document.getElementById('room-nav-scores').textContent = t.rooms.scores;
+    updateSnipeRadarHub();
     updateRoomBackLabel();
     syncComparisonCleanViewButton();
     syncShareCaptureUi();
@@ -924,10 +1019,11 @@ function applyLang() {
     document.querySelector('.refresh-info').innerHTML =
         `${t.updated}: <span id="last-update">—</span>`;
 
-    document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.lang-btn[data-lang='${currentLang}']`)?.classList.add('active');
+    document.querySelectorAll('.lang-btn, .settings-lang-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll(`.lang-btn[data-lang='${currentLang}'], .settings-lang-btn[data-lang='${currentLang}']`).forEach(btn => btn.classList.add('active'));
 
     renderAuthWidget();
+    renderSettingsAccountCard();
     renderFriendsPanel();
     renderComparisonHistoryPanel();
     renderRoomView(currentRoomRoute);
@@ -941,6 +1037,127 @@ function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('lang', lang);
     applyLang();
+}
+
+function initSettingsPanel() {
+    const select = document.getElementById('settings-theme-select');
+    if (select && typeof renderThemeOptions === 'function') {
+        const activeTheme = document.documentElement.dataset.theme || localStorage.getItem('theme') || 'cyberpunk';
+        select.innerHTML = renderThemeOptions(activeTheme);
+        select.dataset.themeSelect = 'true';
+        select.addEventListener('change', () => switchTheme(select.value));
+        if (typeof syncThemeControls === 'function') {
+            syncThemeControls(activeTheme);
+        }
+    }
+}
+
+function syncSettingsPanelUi() {
+    const t = LANGS[currentLang];
+    const settings = t.settings;
+    const toggle = document.getElementById('settings-toggle');
+    const close = document.querySelector('.settings-close');
+    const themeSelect = document.getElementById('settings-theme-select');
+    const setSettingText = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    if (toggle) {
+        toggle.setAttribute('aria-label', settings.open);
+        toggle.setAttribute('title', settings.open);
+    }
+    if (close) {
+        close.setAttribute('aria-label', settings.close);
+        close.setAttribute('title', settings.close);
+    }
+
+    setSettingText('settings-kicker', settings.kicker);
+    setSettingText('settings-title', settings.title);
+    setSettingText('settings-copy', settings.copy);
+    setSettingText('settings-language-title', settings.language);
+    setSettingText('settings-theme-title', settings.theme);
+    setSettingText('settings-sound-title', settings.sound);
+    setSettingText('settings-account-title', settings.account);
+
+    if (themeSelect) {
+        themeSelect.setAttribute('aria-label', settings.theme);
+    }
+
+    renderSettingsAccountCard();
+}
+
+function toggleSettingsPanel() {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay?.classList.contains('active')) {
+        closeSettingsPanelBtn(false);
+    } else {
+        openSettingsPanel();
+    }
+}
+
+function openSettingsPanel() {
+    const overlay = document.getElementById('settings-overlay');
+    const toggle = document.getElementById('settings-toggle');
+    if (!overlay) return;
+
+    syncSettingsPanelUi();
+    overlay.classList.add('active');
+    overlay.setAttribute('aria-hidden', 'false');
+    toggle?.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('settings-open');
+    renderSettingsAccountCard();
+}
+
+function closeSettingsPanelBtn(playSound = true) {
+    const overlay = document.getElementById('settings-overlay');
+    const toggle = document.getElementById('settings-toggle');
+    if (!overlay?.classList.contains('active')) return;
+
+    overlay.classList.remove('active');
+    overlay.setAttribute('aria-hidden', 'true');
+    toggle?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('settings-open');
+    if (playSound) window.UISounds?.play('back');
+}
+
+function closeSettingsPanel(event) {
+    if (event.target === document.getElementById('settings-overlay')) {
+        closeSettingsPanelBtn();
+    }
+}
+
+function renderSettingsAccountCard() {
+    const card = document.getElementById('settings-account-card');
+    if (!card) return;
+
+    const t = LANGS[currentLang];
+    const settings = t.settings;
+    if (!loggedInUser) {
+        card.innerHTML = `
+            <div class="settings-account-empty">${escapeHtml(settings.signedOut)}</div>
+            <a class="room-action-link settings-account-action" href="/auth/osu/login">${escapeHtml(settings.login)}</a>
+        `;
+        return;
+    }
+
+    const username = loggedInUser.username || 'osu!';
+    const isCreator = isCreatorUsername(username);
+    const avatar = safeHttpUrl(loggedInUser.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
+    const title = getPlayerTitle(loggedInUser);
+    const pp = Math.round(loggedInUser.statistics?.pp || 0);
+
+    card.innerHTML = `
+        <div class="settings-account-main">
+            <img class="settings-account-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(username)}">
+            <div class="settings-account-copy">
+                <span>${escapeHtml(settings.signedIn)}</span>
+                <strong class="${isCreator ? 'creator-name' : ''}">${escapeHtml(username)}</strong>
+                <em class="${isCreator ? 'creator-title' : ''}">${escapeHtml(title)} · ${fmtNum(pp)}pp</em>
+            </div>
+        </div>
+        <button class="room-action-link settings-account-action" type="button" onclick="logoutOsu()">${escapeHtml(settings.logout)}</button>
+    `;
 }
 
 function parseRoomRoute() {
@@ -1003,11 +1220,15 @@ function clearRoomScoresRefreshTimer() {
 
 function startRoomScoresRefreshTimer(route) {
     clearRoomScoresRefreshTimer();
-    if (!route?.param || !['top-plays', 'recent'].includes(route.name)) return;
+    if (!route?.param || !['top-plays', 'recent', 'scores'].includes(route.name)) return;
 
     roomScoresRefreshTimer = setInterval(() => {
         const activeRoute = currentRoomRoute;
-        if (!activeRoute?.param || activeRoute.name !== route.name || normalizeUsername(activeRoute.param) !== normalizeUsername(route.param)) {
+        const sameRoute = route.name === 'scores'
+            ? extractBeatmapId(activeRoute?.param || '') === extractBeatmapId(route.param || '')
+            : normalizeUsername(activeRoute?.param || '') === normalizeUsername(route.param || '');
+
+        if (!activeRoute?.param || activeRoute.name !== route.name || !sameRoute) {
             clearRoomScoresRefreshTimer();
             return;
         }
@@ -1017,11 +1238,17 @@ function startRoomScoresRefreshTimer(route) {
 }
 
 function refreshScoreRoom(name = currentRoomRoute?.name, username = currentRoomRoute?.param) {
-    if (!username || !['top-plays', 'recent'].includes(name)) return;
+    if (!username || !['top-plays', 'recent', 'scores'].includes(name)) return;
 
     if (name === 'top-plays') {
         topPlaysCache.clear();
         renderTopPlaysRoom({ name, param: username });
+        return;
+    }
+
+    if (name === 'scores') {
+        beatmapScoresCache.clear();
+        renderScoresRoom({ name, param: username });
         return;
     }
 
@@ -1105,6 +1332,7 @@ function playRoomResponseSound(roomName, type = 'success') {
 
 function showCompareRoom() {
     clearRoomScoresRefreshTimer();
+    stopSnipeRadarTopScan();
     if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
@@ -1112,6 +1340,7 @@ function showCompareRoom() {
     closeCompareDuelMode(false);
     closeFocusBtn();
     closeShareCaptureBtn(false);
+    closeSettingsPanelBtn(false);
     setComparisonCleanView(false);
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'none';
@@ -1127,6 +1356,8 @@ function showCompareRoom() {
 
 function showResultsRoom() {
     clearRoomScoresRefreshTimer();
+    stopSnipeRadarTopScan();
+    closeSettingsPanelBtn(false);
     if (!currentPlayers.length) {
         history.replaceState(null, '', buildRoomHash('compare'));
         showCompareRoom();
@@ -1149,6 +1380,7 @@ function showResultsRoom() {
 
 function showFutureRoom(route) {
     clearRoomScoresRefreshTimer();
+    if (route.name !== 'top-plays') stopSnipeRadarTopScan();
     if (refreshTimer) {
         clearInterval(refreshTimer);
         refreshTimer = null;
@@ -1156,6 +1388,7 @@ function showFutureRoom(route) {
     closeCompareDuelMode(false);
     closeFocusBtn();
     closeSnipeFocusBtn(false);
+    closeSettingsPanelBtn(false);
     document.getElementById('landing').style.display = 'none';
     document.getElementById('results').style.display = 'none';
     document.getElementById('room-view').style.display = 'block';
@@ -1484,12 +1717,44 @@ function renderTopPlaysContent(user, scores, mode, limit) {
                 </div>
             </div>
 
+            ${renderTopPlaysRadarPanel(user, allScores, mode)}
+
             ${safeScores.length
                 ? `<div class="top-plays-list">${safeScores.map((score, index) => renderTopPlayListItem(score, index + paging.offset)).join('')}</div>`
                 : `<div class="top-plays-state">${escapeHtml(t.noTopPlay)}</div>`}
         </div>
     `;
+    scheduleTopPlaysSnipeRadar(user, allScores, mode);
     animateRoomContentOnce('top-plays');
+}
+
+function renderTopPlaysRadarPanel(user, scores, mode) {
+    if (!canScanTopPlaysForUser(user) || IS_SHARE_MODE) return '';
+
+    const rooms = LANGS[currentLang].rooms;
+    const key = getTopPlaysRadarKey(user, mode);
+    const status = snipeRadarTopScanStatus?.key === key ? snipeRadarTopScanStatus : null;
+    const total = Math.min(MAX_TOP_PLAYS_LIMIT, Array.isArray(scores) ? scores.length : 0);
+    const statusText = status?.running
+        ? rooms.snipeRadarScanProgress
+            .replace('{current}', fmtNum(status.current || 0))
+            .replace('{total}', fmtNum(status.total || total))
+        : (status?.found != null
+            ? rooms.snipeRadarTopScanFound.replace('{count}', fmtNum(status.found))
+            : rooms.snipeRadarScanReady);
+
+    return `
+        <section class="top-plays-radar">
+            <div>
+                <span>${escapeHtml(rooms.snipeRadarInbox)}</span>
+                <strong>${escapeHtml(status?.running ? rooms.snipeRadarScanning : statusText)}</strong>
+                <em>${escapeHtml(status?.running ? statusText : (status?.found != null ? rooms.snipeRadarScanDone : rooms.snipeRadarScanReady))}</em>
+            </div>
+            <button class="room-action-link top-plays-radar-button" type="button" onclick="scanTopPlaySnipesNow()">
+                ${escapeHtml(rooms.snipeRadarScanButton)}
+            </button>
+        </section>
+    `;
 }
 
 function getTopPlaysSharePaging(scores, limit) {
@@ -1758,6 +2023,7 @@ function renderScoresContent(beatmap, payload, mode, options = {}) {
     const userScore = normalizeBeatmapUserScore(payload?.userScore ?? payload?.user_score);
     const shouldShowUserScore = userScore?.score && !scores.some(score => isSameScore(score, userScore.score));
     const snipes = getBeatmapSnipes(scores);
+    const newSnipes = getNewSnipeRadarEvents(beatmap, mode, getScoresLeaderboardType(), snipes);
     const scopeLabel = getScoresLeaderboardType() === 'friend' ? rooms.scoresFriendScores : rooms.scoresGlobalScores;
     currentBeatmapSnipes = snipes;
     currentScoresBeatmap = beatmap || null;
@@ -1807,6 +2073,16 @@ function renderScoresContent(beatmap, payload, mode, options = {}) {
     });
 
     animateRoomContentOnce('scores');
+    if (newSnipes.length) {
+        newSnipes.forEach((snipe, index) => {
+            const snipeIndex = snipes.findIndex(item => getSnipeSignature(item) === getSnipeSignature(snipe));
+            registerSnipeRadarEvent(snipe, beatmap, {
+                source: 'scores',
+                currentIndex: Math.max(0, snipeIndex),
+                showToast: index === 0
+            });
+        });
+    }
 }
 
 function renderBeatmapHero(beatmap, mode) {
@@ -2315,6 +2591,474 @@ function getBeatmapSnipes(scores) {
     return snipes;
 }
 
+function getSnipeRadarKey(beatmap, mode, scope) {
+    const beatmapId = String(beatmap?.id || extractBeatmapId(currentRoomRoute?.param || '') || '');
+    return `${mode || getActiveMode()}:${scope || getScoresLeaderboardType()}:${beatmapId}`;
+}
+
+function getSnipeSignature(snipe) {
+    const winnerScoreId = snipe?.winnerScore?.id || snipe?.winnerScore?.best_id || getScoreTotalValue(snipe?.winnerScore);
+    const targetScoreId = snipe?.targetScore?.id || snipe?.targetScore?.best_id || getScoreTotalValue(snipe?.targetScore);
+    const winnerId = snipe?.winnerScore?.user?.id || snipe?.winnerScore?.user_id || snipe?.winnerName || '';
+    const targetId = snipe?.targetScore?.user?.id || snipe?.targetScore?.user_id || snipe?.targetName || '';
+    return [
+        winnerId,
+        targetId,
+        winnerScoreId,
+        targetScoreId,
+        snipe?.winnerPosition || '',
+        snipe?.targetPosition || ''
+    ].map(value => String(value)).join(':');
+}
+
+function getNewSnipeRadarEvents(beatmap, mode, scope, snipes) {
+    if (IS_SHARE_MODE || currentRoomRoute?.name !== 'scores') return [];
+
+    const key = getSnipeRadarKey(beatmap, mode, scope);
+    const signatures = new Set((Array.isArray(snipes) ? snipes : []).map(getSnipeSignature));
+    const previous = snipeRadarSnapshots.get(key);
+    snipeRadarSnapshots.set(key, signatures);
+
+    if (!previous) return [];
+
+    return (Array.isArray(snipes) ? snipes : []).filter(snipe => {
+        const signature = getSnipeSignature(snipe);
+        const notificationKey = `${key}:${signature}`;
+        if (previous.has(signature) || snipeRadarNotified.has(notificationKey)) return false;
+        snipeRadarNotified.add(notificationKey);
+        return true;
+    });
+}
+
+function registerSnipeRadarEvent(snipe, beatmap, options = {}) {
+    if (!snipe || IS_SHARE_MODE) return null;
+
+    const eventKey = getSnipeEventKey(snipe, beatmap);
+    const existing = snipeRadarEvents.find(event => event.key === eventKey);
+    if (existing) return existing;
+
+    const event = {
+        id: `radar-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        key: eventKey,
+        source: options.source || 'scores',
+        currentIndex: Number(options.currentIndex) || 0,
+        snipe,
+        beatmap: beatmap || buildBeatmapFromScore(snipe.winnerScore) || buildBeatmapFromScore(snipe.targetScore),
+        createdAt: new Date().toISOString(),
+        unread: true
+    };
+
+    snipeRadarEvents.unshift(event);
+    if (snipeRadarEvents.length > SNIPE_RADAR_MAX_EVENTS) {
+        snipeRadarEvents.splice(SNIPE_RADAR_MAX_EVENTS);
+    }
+
+    updateSnipeRadarHub();
+    if (options.showToast !== false) showSnipeRadarToast(event);
+    return event;
+}
+
+function getSnipeEventKey(snipe, beatmap) {
+    const beatmapId = beatmap?.id || snipe?.winnerScore?.beatmap?.id || snipe?.targetScore?.beatmap?.id || '';
+    return `${beatmapId}:${getSnipeSignature(snipe)}`;
+}
+
+function showSnipeRadarToast(event) {
+    if (!event?.snipe || IS_SHARE_MODE) return;
+
+    const rooms = LANGS[currentLang].rooms;
+    const toast = getSnipeRadarToastElement();
+    const { snipe, beatmap } = event;
+    const title = getSnipeRadarTitle(snipe);
+    const mapTitle = beatmap?.beatmapset?.title || beatmap?.title || 'osu!';
+    const copy = rooms.snipeRadarCopy
+        .replace('{map}', mapTitle)
+        .replace('{winnerPosition}', fmtNum(snipe.winnerPosition))
+        .replace('{targetPosition}', fmtNum(snipe.targetPosition));
+
+    toast.innerHTML = `
+        <button class="snipe-radar-toast__button" type="button" onclick="openSnipeRadarFocus('${escapeJsArg(event.id)}')">
+            <span class="snipe-radar-toast__pulse"></span>
+            <span class="snipe-radar-toast__copy">
+                <span>${escapeHtml(rooms.snipeRadarTitle)}</span>
+                <strong>${escapeHtml(title)}</strong>
+                <em>${escapeHtml(copy)}</em>
+            </span>
+            <span class="snipe-radar-toast__action">${escapeHtml(rooms.snipeRadarOpen)}</span>
+        </button>
+    `;
+    toast.hidden = false;
+    toast.classList.remove('is-leaving');
+    requestAnimationFrame(() => toast.classList.add('active'));
+    window.UISounds?.play('success');
+
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => hideSnipeRadarToast(), 7200);
+}
+
+function updateSnipeRadarHub() {
+    if (IS_SHARE_MODE) return;
+
+    const hub = getSnipeRadarHubElement();
+    const rooms = LANGS[currentLang].rooms;
+    const unread = snipeRadarEvents.filter(event => event.unread).length;
+    const isOpen = hub.classList.contains('active');
+
+    if (!snipeRadarEvents.length) {
+        hub.hidden = true;
+        hub.classList.remove('active', 'has-unread');
+        hub.innerHTML = '';
+        return;
+    }
+
+    hub.hidden = false;
+
+    hub.innerHTML = `
+        <button class="snipe-radar-hub__button" type="button" onclick="toggleSnipeRadarHub()" aria-label="${escapeHtml(rooms.snipeRadarInbox)}">
+            <span>◇</span>
+            ${unread ? `<strong>${fmtNum(unread)}</strong>` : ''}
+        </button>
+        <section class="snipe-radar-hub__panel" ${isOpen ? '' : 'hidden'}>
+            <div class="snipe-radar-hub__head">
+                <span>${escapeHtml(rooms.snipeRadarInbox)}</span>
+                <strong>${fmtNum(snipeRadarEvents.length)}</strong>
+            </div>
+            ${snipeRadarEvents.length
+                ? `<div class="snipe-radar-hub__list">${snipeRadarEvents.map(renderSnipeRadarHubItem).join('')}</div>`
+                : `<div class="snipe-radar-hub__empty">${escapeHtml(rooms.snipeRadarEmpty)}</div>`}
+        </section>
+    `;
+
+    hub.classList.toggle('has-unread', unread > 0);
+}
+
+function renderSnipeRadarHubItem(event) {
+    const rooms = LANGS[currentLang].rooms;
+    const snipe = event.snipe;
+    const title = getSnipeRadarTitle(snipe);
+    const mapTitle = event.beatmap?.beatmapset?.title || event.beatmap?.title || 'osu!';
+    const copy = rooms.snipeRadarCopy
+        .replace('{map}', mapTitle)
+        .replace('{winnerPosition}', fmtNum(snipe.winnerPosition))
+        .replace('{targetPosition}', fmtNum(snipe.targetPosition));
+
+    return `
+        <button class="snipe-radar-hub__item${event.unread ? ' is-unread' : ''}" type="button" onclick="openSnipeRadarFocus('${escapeJsArg(event.id)}')">
+            <span>${escapeHtml(rooms.snipeRadarTitle)}</span>
+            <strong>${escapeHtml(title)}</strong>
+            <em>${escapeHtml(copy)}</em>
+        </button>
+    `;
+}
+
+function toggleSnipeRadarHub(forceOpen = null) {
+    const hub = getSnipeRadarHubElement();
+    const shouldOpen = forceOpen == null ? !hub.classList.contains('active') : Boolean(forceOpen);
+    hub.classList.toggle('active', shouldOpen);
+    if (shouldOpen) {
+        snipeRadarEvents.forEach(event => { event.unread = false; });
+    }
+    updateSnipeRadarHub();
+}
+
+function openSnipeRadarFocus(eventId) {
+    const event = snipeRadarEvents.find(item => item.id === eventId);
+    const overlay = document.getElementById('snipe-focus-overlay');
+    const content = document.getElementById('snipe-focus-content');
+    if (!event?.snipe || !overlay || !content) return;
+
+    event.unread = false;
+    updateSnipeRadarHub();
+    content.innerHTML = renderSnipeFocusContent(event.snipe, event.beatmap);
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    window.UISounds?.play('click');
+}
+
+function hideSnipeRadarToast() {
+    const toast = document.getElementById('snipe-radar-toast');
+    if (!toast || toast.hidden) return;
+
+    toast.classList.add('is-leaving');
+    toast.classList.remove('active');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
+        toast.hidden = true;
+        toast.classList.remove('is-leaving');
+    }, 260);
+}
+
+function getSnipeRadarToastElement() {
+    let toast = document.getElementById('snipe-radar-toast');
+    if (toast) return toast;
+
+    toast = document.createElement('div');
+    toast.id = 'snipe-radar-toast';
+    toast.className = 'snipe-radar-toast';
+    toast.hidden = true;
+    document.body.appendChild(toast);
+    return toast;
+}
+
+function getSnipeRadarHubElement() {
+    let hub = document.getElementById('snipe-radar-hub');
+    if (hub) return hub;
+
+    hub = document.createElement('div');
+    hub.id = 'snipe-radar-hub';
+    hub.className = 'snipe-radar-hub';
+    document.body.appendChild(hub);
+    return hub;
+}
+
+function getSnipeRadarTitle(snipe) {
+    const rooms = LANGS[currentLang].rooms;
+    const loggedUsername = normalizeUsername(loggedInUser?.username || '');
+    const winnerName = snipe?.winnerName || '';
+    const targetName = snipe?.targetName || '';
+    const winnerNormalized = normalizeUsername(winnerName);
+    const targetNormalized = normalizeUsername(targetName);
+
+    if (loggedUsername && targetNormalized === loggedUsername) {
+        return rooms.snipeRadarYouGotSniped.replace('{winner}', winnerName);
+    }
+
+    if (loggedUsername && winnerNormalized === loggedUsername) {
+        return rooms.snipeRadarYouSniped.replace('{target}', targetName);
+    }
+
+    return rooms.snipeRadarGeneric
+        .replace('{winner}', winnerName)
+        .replace('{target}', targetName);
+}
+
+function canScanTopPlaysForUser(user) {
+    if (!loggedInUser || !user) return false;
+    const loggedId = loggedInUser.id != null ? String(loggedInUser.id) : '';
+    const userId = user.id != null ? String(user.id) : '';
+    if (loggedId && userId && loggedId === userId) return true;
+    return normalizeUsername(loggedInUser.username || '') === normalizeUsername(user.username || '');
+}
+
+function getTopPlaysRadarKey(user, mode) {
+    return `${mode || getActiveMode()}:${user?.id || normalizeUsername(user?.username || '')}`;
+}
+
+function scheduleTopPlaysSnipeRadar(user, scores, mode) {
+    clearSnipeRadarTopScanTimer();
+    if (!canScanTopPlaysForUser(user) || IS_SHARE_MODE || currentRoomRoute?.name !== 'top-plays') {
+        snipeRadarTopScanContext = null;
+        return;
+    }
+
+    snipeRadarTopScanContext = {
+        key: getTopPlaysRadarKey(user, mode),
+        user,
+        scores: Array.isArray(scores) ? scores.slice(0, MAX_TOP_PLAYS_LIMIT) : [],
+        mode
+    };
+
+    if (!snipeRadarTopScanStatus || snipeRadarTopScanStatus.key !== snipeRadarTopScanContext.key) {
+        setTimeout(() => scanTopPlaySnipes(snipeRadarTopScanContext, { auto: true }), 550);
+    }
+
+    snipeRadarTopScanTimer = setInterval(() => {
+        scanTopPlaySnipes(snipeRadarTopScanContext, { auto: true });
+    }, SNIPE_RADAR_TOP_SCAN_INTERVAL_MS);
+}
+
+function clearSnipeRadarTopScanTimer() {
+    if (snipeRadarTopScanTimer) {
+        clearInterval(snipeRadarTopScanTimer);
+        snipeRadarTopScanTimer = null;
+    }
+}
+
+function stopSnipeRadarTopScan() {
+    clearSnipeRadarTopScanTimer();
+    snipeRadarTopScanToken += 1;
+    snipeRadarTopScanRunning = false;
+    snipeRadarTopScanContext = null;
+}
+
+function scanTopPlaySnipesNow() {
+    if (!snipeRadarTopScanContext) return;
+    scanTopPlaySnipes(snipeRadarTopScanContext, { auto: false });
+}
+
+async function scanTopPlaySnipes(context, options = {}) {
+    if (!context || snipeRadarTopScanRunning || !canScanTopPlaysForUser(context.user)) return;
+    if (currentRoomRoute?.name !== 'top-plays' || normalizeUsername(currentRoomRoute.param || '') !== normalizeUsername(context.user?.username || '')) return;
+
+    const scanToken = ++snipeRadarTopScanToken;
+    const scores = (Array.isArray(context.scores) ? context.scores : [])
+        .filter(score => score?.beatmap?.id)
+        .slice(0, MAX_TOP_PLAYS_LIMIT);
+
+    snipeRadarTopScanRunning = true;
+    snipeRadarTopScanStatus = {
+        key: context.key,
+        running: true,
+        current: 0,
+        total: scores.length,
+        found: 0,
+        auto: Boolean(options.auto)
+    };
+    updateTopPlaysRadarPanelStatus();
+
+    for (let index = 0; index < scores.length; index++) {
+        if (scanToken !== snipeRadarTopScanToken
+            || currentRoomRoute?.name !== 'top-plays'
+            || normalizeUsername(currentRoomRoute.param || '') !== normalizeUsername(context.user?.username || '')) {
+            break;
+        }
+
+        const ownScore = hydrateScoreUser(scores[index], context.user);
+        try {
+            const payload = await fetchBeatmapScores(ownScore.beatmap.id, context.mode, 'friend', { force: true });
+            const friendScores = Array.isArray(payload?.scores) ? payload.scores : [];
+            const beatmap = buildBeatmapFromScore(ownScore);
+            const snipes = getTopPlaySnipesAgainstScore(ownScore, friendScores, beatmap);
+
+            snipes.forEach((snipe, eventIndex) => {
+                const previousEventCount = snipeRadarEvents.length;
+                const event = registerSnipeRadarEvent(snipe, beatmap, {
+                    source: 'top-plays',
+                    showToast: snipeRadarTopScanStatus.found === 0 && eventIndex === 0
+                });
+                if (event && snipeRadarEvents.length > previousEventCount) snipeRadarTopScanStatus.found += 1;
+            });
+        } catch {
+            // A single map failing should not kill the whole radar pass.
+        }
+
+        snipeRadarTopScanStatus.current = index + 1;
+        updateTopPlaysRadarPanelStatus();
+
+        if (index < scores.length - 1) {
+            await wait(SNIPE_RADAR_TOP_SCAN_DELAY_MS);
+        }
+    }
+
+    if (scanToken === snipeRadarTopScanToken) {
+        snipeRadarTopScanStatus.running = false;
+        snipeRadarTopScanStatus.finishedAt = new Date().toISOString();
+    }
+    snipeRadarTopScanRunning = false;
+    updateTopPlaysRadarPanelStatus();
+}
+
+function updateTopPlaysRadarPanelStatus() {
+    const panel = document.querySelector('.top-plays-radar');
+    if (!panel || !snipeRadarTopScanStatus) return;
+
+    const rooms = LANGS[currentLang].rooms;
+    const strong = panel.querySelector('strong');
+    const em = panel.querySelector('em');
+    if (!strong) return;
+
+    if (snipeRadarTopScanStatus.running) {
+        strong.textContent = rooms.snipeRadarScanning;
+        const progress = rooms.snipeRadarScanProgress
+            .replace('{current}', fmtNum(snipeRadarTopScanStatus.current || 0))
+            .replace('{total}', fmtNum(snipeRadarTopScanStatus.total || 0));
+        if (em) em.textContent = progress;
+        return;
+    }
+
+    strong.textContent = rooms.snipeRadarTopScanFound.replace('{count}', fmtNum(snipeRadarTopScanStatus.found || 0));
+    if (em) em.textContent = rooms.snipeRadarScanDone;
+}
+
+function getTopPlaySnipesAgainstScore(targetScore, friendScores, beatmap) {
+    const targetTotal = getScoreTotalValue(targetScore);
+    const targetDate = new Date(getScoreDate(targetScore)).getTime();
+    if (!targetTotal || !Number.isFinite(targetDate)) return [];
+
+    const combined = [...(Array.isArray(friendScores) ? friendScores : [])];
+    if (!combined.some(score => isSameScore(score, targetScore))) combined.push(targetScore);
+    combined.sort((a, b) => getScoreTotalValue(b) - getScoreTotalValue(a));
+
+    const targetPosition = combined.findIndex(score => isSameScore(score, targetScore)) + 1;
+    return combined
+        .map((score, index) => ({ score, position: index + 1 }))
+        .filter(entry => {
+            if (isSameScore(entry.score, targetScore) || isLoggedInUserScore(entry.score)) return false;
+            const scoreDate = new Date(getScoreDate(entry.score)).getTime();
+            return getScoreTotalValue(entry.score) > targetTotal
+                && Number.isFinite(scoreDate)
+                && scoreDate > targetDate;
+        })
+        .map(entry => buildSnipeFromScores(entry.score, targetScore, entry.position, targetPosition || entry.position + 1, beatmap));
+}
+
+function buildSnipeFromScores(winnerScore, targetScore, winnerPosition, targetPosition, beatmap = null) {
+    const winnerTotal = getScoreTotalValue(winnerScore);
+    const targetTotal = getScoreTotalValue(targetScore);
+    const winnerAcc = typeof winnerScore?.accuracy === 'number' ? winnerScore.accuracy * 100 : null;
+    const targetAcc = typeof targetScore?.accuracy === 'number' ? targetScore.accuracy * 100 : null;
+    const winnerPp = typeof winnerScore?.pp === 'number' ? winnerScore.pp : null;
+    const targetPp = typeof targetScore?.pp === 'number' ? targetScore.pp : null;
+
+    return {
+        winnerName: winnerScore?.user?.username || `#${winnerScore?.user_id || winnerPosition}`,
+        targetName: targetScore?.user?.username || loggedInUser?.username || `#${targetScore?.user_id || targetPosition}`,
+        winnerScore: attachBeatmapToScore(winnerScore, beatmap),
+        targetScore: attachBeatmapToScore(targetScore, beatmap),
+        winnerPosition,
+        targetPosition,
+        date: getScoreDate(winnerScore),
+        scoreGap: Math.max(0, winnerTotal - targetTotal),
+        ppGap: winnerPp != null && targetPp != null ? Math.max(0, winnerPp - targetPp) : null,
+        accGap: winnerAcc != null && targetAcc != null ? winnerAcc - targetAcc : null
+    };
+}
+
+function hydrateScoreUser(score, user) {
+    if (!score || score.user) return score;
+    return {
+        ...score,
+        user_id: score.user_id || user?.id,
+        user: {
+            id: user?.id,
+            username: user?.username || loggedInUser?.username,
+            avatar_url: user?.avatar_url || loggedInUser?.avatar_url,
+            country_code: user?.country_code || user?.country?.code || loggedInUser?.country_code || loggedInUser?.country?.code
+        }
+    };
+}
+
+function isLoggedInUserScore(score) {
+    if (!loggedInUser || !score) return false;
+    const loggedId = loggedInUser.id != null ? String(loggedInUser.id) : '';
+    const scoreUserId = score.user?.id != null ? String(score.user.id) : (score.user_id != null ? String(score.user_id) : '');
+    if (loggedId && scoreUserId && loggedId === scoreUserId) return true;
+    return normalizeUsername(score.user?.username || '') === normalizeUsername(loggedInUser.username || '');
+}
+
+function buildBeatmapFromScore(score) {
+    if (!score) return null;
+    const beatmap = score.beatmap || {};
+    return {
+        ...beatmap,
+        id: beatmap.id || score.beatmap_id,
+        beatmapset: score.beatmapset || beatmap.beatmapset || {}
+    };
+}
+
+function attachBeatmapToScore(score, beatmap) {
+    if (!score || !beatmap) return score;
+    return {
+        ...score,
+        beatmap: score.beatmap || beatmap,
+        beatmapset: score.beatmapset || beatmap.beatmapset
+    };
+}
+
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function getScoreTotalValue(score) {
     return Number(score?.total_score ?? score?.score ?? score?.legacy_total_score ?? 0) || 0;
 }
@@ -2716,6 +3460,11 @@ let compareDuelAnimationTimer = null;
 let focusCleanupTimer = null;
 let refreshTimer = null;
 let roomScoresRefreshTimer = null;
+let snipeRadarTopScanTimer = null;
+let snipeRadarTopScanToken = 0;
+let snipeRadarTopScanRunning = false;
+let snipeRadarTopScanStatus = null;
+let snipeRadarTopScanContext = null;
 // Cache de top plays para el Focus Mode: { 'username': scoreData | null }
 let topPlayCache = {};
 let loggedInUser = null;
@@ -2906,13 +3655,13 @@ async function fetchBeatmap(beatmapId, mode) {
     return beatmap;
 }
 
-async function fetchBeatmapScores(beatmapId, mode, type = 'friend') {
+async function fetchBeatmapScores(beatmapId, mode, type = 'friend', options = {}) {
     const id = extractBeatmapId(beatmapId);
     const scope = type === 'global' ? 'global' : 'friend';
     if (!id) throw new Error(LANGS[currentLang].rooms.scoresLeaderboardError);
 
     const cacheKey = `scores:${mode}:${id}:${scope}`;
-    if (beatmapScoresCache.has(cacheKey)) return beatmapScoresCache.get(cacheKey);
+    if (!options.force && beatmapScoresCache.has(cacheKey)) return beatmapScoresCache.get(cacheKey);
 
     const res = await fetch(`/api/osu/${encodeURIComponent(mode)}/beatmaps/${encodeURIComponent(id)}/scores?type=${encodeURIComponent(scope)}`, {
         cache: 'no-store'
@@ -3264,6 +4013,7 @@ async function refreshAuthSession() {
     }
 
     renderAuthWidget();
+    renderSettingsAccountCard();
     loadComparisonHistoryForCurrentUser();
     if (loggedInUser) {
         migrateLegacyFavoriteFriendIds();
@@ -3322,6 +4072,7 @@ async function logoutOsu() {
         favoriteFriendIds.clear();
         resetFriends();
         renderAuthWidget();
+        renderSettingsAccountCard();
         renderFriendsPanel();
         renderRoomView(currentRoomRoute);
     }
@@ -5821,6 +6572,12 @@ function closeFocus(e) {
 // ESC para cerrar
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+        const settingsOverlay = document.getElementById('settings-overlay');
+        if (settingsOverlay?.classList.contains('active')) {
+            closeSettingsPanelBtn();
+            return;
+        }
+
         const snipeOverlay = document.getElementById('snipe-focus-overlay');
         if (snipeOverlay?.classList.contains('active')) {
             closeSnipeFocusBtn();
@@ -6288,6 +7045,7 @@ window.addEventListener('scroll', () => {
 
 // Init
 setupPlayerStyleTooltips();
+initSettingsPanel();
 applyLang();
 window.addEventListener('hashchange', handleRouteChange);
 if (IS_SHARE_COMPARE_MODE) {

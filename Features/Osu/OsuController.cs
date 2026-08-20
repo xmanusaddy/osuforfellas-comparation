@@ -37,7 +37,7 @@ public class OsuController : ControllerBase
         return Content(result.Content, "application/json");
     }
 
-    // GET /api/osu/{mode}/{username}/best?limit=10
+    // GET /api/osu/{mode}/{username}/best?limit=50
     // Returns best performance scores for the user, including beatmap and beatmapset
     [HttpGet("{mode}/{username}/best")]
     public async Task<IActionResult> GetBestPlay(string mode, string username, [FromQuery] int limit = 1)
