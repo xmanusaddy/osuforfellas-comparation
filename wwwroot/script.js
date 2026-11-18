@@ -25,6 +25,7 @@ const FRIEND_FAVORITES_STORAGE_KEY = 'osu_friend_favorites';
 const RECENT_COMPARISONS_STORAGE_KEY = 'osu_recent_comparisons';
 const FAVORITE_COMPARISONS_STORAGE_KEY = 'osu_favorite_comparisons';
 const COMPARISON_HISTORY_LIMIT = 20;
+const INSANITY_OSU_USER_ID = 21404591;
 const DEFAULT_TOP_PLAYS_LIMIT = 50;
 const MAX_TOP_PLAYS_LIMIT = 50;
 const DUEL_TOP_PLAYS_LIMIT = 5;
@@ -3904,6 +3905,11 @@ function isCreatorUsername(username) {
     return String(username ?? '').trim().toLowerCase() === 'manu is washed';
 }
 
+function isInsanityUser(user) {
+    const userId = Number(user?.id);
+    return Number.isInteger(userId) && userId === INSANITY_OSU_USER_ID;
+}
+
 function normalizeUsername(username) {
     return String(username ?? '').trim().toLowerCase();
 }
@@ -6210,6 +6216,7 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle, styleTags = []) {
     const delay = idx * 0.15;
     const username = user.username || 'osu!';
     const isCreator = isCreatorUsername(username);
+    const hasInsanityEffect = isInsanityUser(user);
     const avatarUrl = safeHttpUrl(user.avatar_url) || 'https://osu.ppy.sh/images/layout/avatar-guest.png';
     const title = getUserTitle(pp);
     const activity = getActivityLabel(user.last_visit);
@@ -6231,7 +6238,7 @@ function renderCard(user, rank, maxPP, idx, topPlay, isSingle, styleTags = []) {
         </div>
         <div class="card-identity">
             ${renderCountryFlag(user.country_code)}
-            <div class="player-name${isCreator ? ' creator-name' : ''}">${escapeHtml(username)}</div>
+            <div class="player-name${isCreator ? ' creator-name' : ''}"><span${hasInsanityEffect ? ' class="insanity-username"' : ''}>${escapeHtml(username)}</span></div>
             <div class="player-title${isCreator ? ' creator-title' : ''}">${escapeHtml(isCreator ? 'PAGE CREATOR' : title)}</div>
             ${activity ? `<div class="activity-indicator${activity.active ? ' activity-now' : ''}">${escapeHtml(activity.text)}</div>` : ''}
         </div>
@@ -6312,6 +6319,7 @@ function openFocusWithData(user, topPlay) {
     const t = LANGS[currentLang];
     const username = user.username || 'osu!';
     const isCreator = isCreatorUsername(username);
+    const hasInsanityEffect = isInsanityUser(user);
     const pp = Math.round(user.statistics?.pp || 0);
 
     // Avatar
@@ -6326,7 +6334,10 @@ function openFocusWithData(user, topPlay) {
     document.getElementById('focus-flag').textContent = getCountryFlag(user.country_code);
 
     const nameEl = document.getElementById('focus-name');
-    nameEl.textContent = username;
+    const nameText = document.createElement('span');
+    nameText.textContent = username;
+    if (hasInsanityEffect) nameText.classList.add('insanity-username');
+    nameEl.replaceChildren(nameText);
     nameEl.className = 'focus-player-name' + (isCreator ? ' creator-name' : '');
 
     const titleEl = document.getElementById('focus-title');

@@ -3083,6 +3083,27 @@ button.room-action-link {
     text-shadow: 0 0 10px rgba(180,0,0,0.8), 0 0 25px rgba(150,0,0,0.5), 0 0 50px rgba(120,0,0,0.3);
 }
 
+.insanity-username {
+    display: inline-block;
+    transform-origin: center;
+    animation: insanity-username-jitter 0.15s steps(1) infinite;
+}
+
+@keyframes insanity-username-jitter {
+    0% { transform: translate(0, 0); }
+    20% { transform: translate(-3px, 2px) rotate(-2deg); }
+    40% { transform: translate(4px, -2px) rotate(2deg); }
+    60% { transform: translate(-2px, -3px) rotate(-1deg); }
+    80% { transform: translate(3px, 2px) rotate(1deg); }
+    100% { transform: translate(0, 0); }
+}
+
+body.share-mode .insanity-username,
+body.share-web-capture .insanity-username {
+    animation: none;
+    transform: none;
+}
+
 .creator-title {
     color: #00BFFF !important;
     font-size: 0.75rem !important;
@@ -12843,6 +12864,11 @@ body.share-room-mode.share-room-recent .top-play-metrics div {
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .insanity-username {
+        animation: none;
+        transform: none;
+    }
+
     .compare-duel,
     .compare-duel-shell,
     .compare-duel-toggle,
